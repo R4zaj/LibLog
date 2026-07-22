@@ -1,0 +1,281 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Program {
+  id         Int      @id @default(autoincrement())
+  code       String   @unique @db.VarChar(20)
+  name       String   @unique @db.VarChar(100)
+  created_at DateTime @default(now()) @db.Timestamptz
+  users      User[]
+  @@map("programs")
+}
+
+model Genre {
+  id         Int      @id @default(autoincrement())
+  name       String   @unique @db.VarChar(100)
+  color      String   @default("#6B21A8") @db.VarChar(7)
+  created_at DateTime @default(now()) @db.Timestamptz
+  books      Book[]
+  @@map("genres")
+}
+
+model Author {
+  id         Int      @id @default(autoincrement())
+  name       String   @unique @db.VarChar(150)
+  created_at DateTime @default(now()) @db.Timestamptz
+  books      Book[]
+  @@map("authors")
+}
+
+model User {
+  id              Int               @id @default(autoincrement())
+  student_id      String            @unique @db.VarChar(30)
+  card_no         String            @unique @db.VarChar(30)
+  first_name      String            @db.VarChar(50)
+  middle_initial  String?           @db.Char(1)
+  last_name       String            @db.VarChar(50)
+  email           String            @unique @db.VarChar(100)
+  password_hash   String?           @db.VarChar(255)
+  role            UserRole          @default(STUDENT)
+  status          UserStatus        @default(ACTIVE)
+  program_id      Int?
+  program         Program?          @relation(fields: [program_id], references: [id])
+  year_level      String?           @db.VarChar(20)
+  qr_code         String?           @unique
+  penalty_balance Decimal           @default(0.00) @db.Decimal(10, 2)
+  created_at      DateTime          @default(now()) @db.Timestamptz
+  updated_at      DateTime          @default(now()) @db.Timestamptz
+  attendance_logs AttendanceLog[]
+  borrow_records  BorrowRecord[]
+  processed_borrows BorrowRecord[]  @relation("ProcessedBy")
+  penalties       Penalty[]
+  collected_penalties Penalty[]     @relation("CollectedBy")
+  notifications   Notification[]
+  triggered_notifications Notification[] @relation("TriggeredBy")
+  announcements   Announcement[]
+  report_snapshots ReportSnapshot[]
+  @@map("users")
+}
+
+model Book {
+  id               Int            @id @default(autoincrement())
+  isbn             String         @unique @db.VarChar(20)
+  title            String         @db.VarChar(255)
+  author_id        Int?
+  author           Author?        @relation(fields: [author_id], references: [id])
+  publisher        String?        @db.VarChar(100)
+  year_published   Int?           @db.SmallInt
+  edition          String?        @db.VarChar(50)
+  genre_id         Int?
+  genre            Genre?         @relation(fields: [genre_id], references: [id])
+  lccn             String?        @db.VarChar(50)
+  shelf_number     String?        @db.VarChar(20)
+  total_copies     Int            @default(1)
+  available_copies Int            @default(1)
+  condition        BookCondition  @default(GOOD)
+  source_of_fund   FundSource?
+  date_received    DateTime?      @db.Date
+  pages            Int?
+  description      String?
+  qr_code          String?        @unique
+  created_at       DateTime       @default(now()) @db.Timestamptz
+  updated_at       DateTime       @default(now()) @db.Timestamptz
+  borrow_records   BorrowRecord[]
+  @@map("books")
+}
+
+model LibrarySettings {
+  id                       Int      @id @default(autoincrement())
+  library_capacity         Int      @default(40)
+  max_books_per_user       Int      @default(2)
+  borrow_duration_students Int      @default(3)
+  borrow_duration_faculty  Int      @default(120)
+  penalty_fee_per_day      Decimal  @default(5.00) @db.Decimal(6, 2)
+  suspension_threshold     Decimal  @default(100.00) @db.Decimal(10, 2)
+  damage_fee               Decimal  @default(5.00) @db.Decimal(6, 2)
+  lost_book_fee            Decimal  @default(5.00) @db.Decimal(6, 2)
+  library_open_time        DateTime @default(dbgenerated("'07:00'::time")) @db.Time
+  library_close_time       DateTime @default(dbgenerated("'21:00'::time")) @db.Time
+  semester_end_date        DateTime? @db.Date
+  book_collection_target   Int      @default(5000)
+  updated_at               DateTime @default(now()) @db.Timestamptz
+  @@map("library_settings")
+}
+
+model AttendanceLog {
+  id               Int              @id @default(autoincrement())
+  user_id          Int
+  user             User             @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  action           AttendanceAction
+  scanned_qr       String?
+  logged_at        DateTime         @default(now()) @db.Timestamptz
+  duration_minutes Int?
+  @@map("attendance_logs")
+}
+
+model BorrowRecord {
+  id           Int           @id @default(autoincrement())
+  book_id      Int
+  book         Book          @relation(fields: [book_id], references: [id], onDelete: Restrict)
+  user_id      Int
+  user         User          @relation(fields: [user_id], references: [id], onDelete: Restrict)
+  copies       Int           @default(1)
+  borrow_date  DateTime      @default(dbgenerated("CURRENT_DATE")) @db.Date
+  due_date     DateTime      @db.Date
+  return_date  DateTime?     @db.Date
+  status       BorrowStatus  @default(BORROWED)
+  processed_by Int?
+  processor    User?         @relation("ProcessedBy", fields: [processed_by], references: [id])
+  notes        String?
+  created_at   DateTime      @default(now()) @db.Timestamptz
+  updated_at   DateTime      @default(now()) @db.Timestamptz
+  penalties    Penalty[]
+  @@map("borrow_records")
+}
+
+model Penalty {
+  id           Int           @id @default(autoincrement())
+  borrow_id    Int
+  borrow       BorrowRecord  @relation(fields: [borrow_id], references: [id], onDelete: Cascade)
+  user_id      Int
+  user         User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  type         PenaltyType   @default(OVERDUE)
+  amount       Decimal       @default(0.00) @db.Decimal(10, 2)
+  status       PenaltyStatus @default(UNPAID)
+  days_overdue Int?          @default(0)
+  paid_at      DateTime?     @db.Timestamptz
+  collected_by Int?
+  collector    User?         @relation("CollectedBy", fields: [collected_by], references: [id])
+  notes        String?
+  created_at   DateTime      @default(now()) @db.Timestamptz
+  updated_at   DateTime      @default(now()) @db.Timestamptz
+  @@map("penalties")
+}
+
+model Notification {
+  id             Int                  @id @default(autoincrement())
+  category       NotificationCategory
+  title          String               @db.VarChar(150)
+  message        String
+  is_read        Boolean              @default(false)
+  target_user_id Int?
+  target_user    User?                @relation(fields: [target_user_id], references: [id], onDelete: Cascade)
+  triggered_by   Int?
+  trigger_user   User?                @relation("TriggeredBy", fields: [triggered_by], references: [id])
+  ref_table      String?              @db.VarChar(50)
+  ref_id         Int?
+  created_at     DateTime             @default(now()) @db.Timestamptz
+  @@map("notifications")
+}
+
+model Announcement {
+  id         Int                  @id @default(autoincrement())
+  title      String               @db.VarChar(200)
+  body       String
+  priority   AnnouncementPriority @default(NORMAL)
+  is_active  Boolean              @default(true)
+  created_by Int?
+  creator    User?                @relation(fields: [created_by], references: [id])
+  created_at DateTime             @default(now()) @db.Timestamptz
+  updated_at DateTime             @default(now()) @db.Timestamptz
+  @@map("announcements")
+}
+
+model ReportSnapshot {
+  id           Int          @id @default(autoincrement())
+  period       ReportPeriod
+  start_date   DateTime     @db.Date
+  end_date     DateTime     @db.Date
+  generated_by Int?
+  generator    User?        @relation(fields: [generated_by], references: [id])
+  payload      Json?
+  generated_at DateTime     @default(now()) @db.Timestamptz
+  @@map("report_snapshots")
+}
+
+enum UserRole {
+  STUDENT
+  FACULTY
+  ADMIN
+  @@map("user_role")
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  @@map("user_status")
+}
+
+enum BookCondition {
+  EXCELLENT
+  GOOD
+  FAIR
+  POOR
+  @@map("book_condition")
+}
+
+enum FundSource {
+  General_Fund @map("General Fund")
+  Donation
+  Grant
+  Other
+  @@map("fund_source")
+}
+
+enum BorrowStatus {
+  BORROWED
+  RETURNED
+  OVERDUE
+  LOST
+  @@map("borrow_status")
+}
+
+enum PenaltyStatus {
+  UNPAID
+  PAID
+  @@map("penalty_status")
+}
+
+enum PenaltyType {
+  OVERDUE
+  DAMAGE
+  LOST
+  @@map("penalty_type")
+}
+
+enum AttendanceAction {
+  CHECK_IN
+  CHECK_OUT
+  @@map("attendance_action")
+}
+
+enum NotificationCategory {
+  ATTENDANCE
+  BORROWING
+  PENALTIES
+  SYSTEM
+  @@map("notification_category")
+}
+
+enum AnnouncementPriority {
+  URGENT
+  HIGH
+  NORMAL
+  LOW
+  @@map("announcement_priority")
+}
+
+enum ReportPeriod {
+  DAILY
+  MONTHLY
+  YEARLY
+  @@map("report_period")
+}

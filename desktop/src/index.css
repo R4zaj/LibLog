@@ -1,0 +1,50 @@
+@import "tailwindcss";
+@variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-primary-50: #faf5ff;
+  --color-primary-100: #f3e8ff;
+  --color-primary-200: #e9d5ff;
+  --color-primary-300: #d8b4fe;
+  --color-primary-400: #c084fc;
+  --color-primary-500: #a855f7;
+  --color-primary-600: #9333ea;
+  --color-primary-700: #7e22ce;
+  --color-primary-800: #6b21a8;
+  --color-primary-900: #581c87;
+
+  --color-sidebar-bg: #faf7fc;
+  --color-sidebar-text: #6b7280;
+  --color-sidebar-active: #f1ebf9;
+
+  /* Custom Dark Mode Colors */
+  --color-dark-bg: #0b0514;
+  --color-dark-sidebar: #0f081c;
+  --color-dark-card: #160d27;
+  --color-dark-border: #2a1744;
+  --color-dark-hover: #251441;
+}
+
+@layer base {
+  body {
+    background-color: #f8fafc;
+    color: #111827;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+  
+  .dark body {
+    background-color: var(--color-dark-bg);
+    color: #f8fafc;
+  }
+}
+
+@layer utilities {
+  .animate-fade-in {
+    animation: fadeIn 0.4s ease-out;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}

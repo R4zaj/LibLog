@@ -1,0 +1,238 @@
+# LibLog — Library Logbook Management System
+
+> A full-stack Library and Logbook Management System with QR-based check-in, book borrowing, real-time occupancy tracking, and analytics — built for college libraries in the Philippines.
+
+---
+
+## Overview
+
+LibLog is a dual-platform system designed to modernize library operations. It combines a **desktop app** for the librarian's station and a **mobile app** for students and faculty — both connected to a shared cloud backend.
+
+The desktop app handles everything on the library floor: scanning student QR codes for attendance, processing book borrows and returns via webcam, and monitoring how many students are currently inside. The mobile app gives students access to the book catalog, their personal QR code, and library occupancy status from anywhere — even outside campus.
+
+---
+
+## System Pages
+
+| Page | Description |
+|---|---|
+| **Dashboard** | Overview of all library operations — occupancy, borrows, overdue books, top visitors, recent activity, and charts |
+| **Literatures** | Full book catalog with author and genre sub-views, book QR management, and add/edit modals |
+| **Borrowing** | QR-based borrow and return flow, active records table, overdue tracking, and penalty management |
+| **Attendance** | Student check-in/check-out via QR scan, weekly heatmap, occupancy panel, and today's full log |
+| **Reports** | Configurable analytics by period — book metrics, user metrics, administrative tracking, and trend charts |
+| **Settings** | User management, library rules configuration, and announcements |
+| **Notifications** | Real-time event feed categorized by Attendance, Borrowing, Penalties, and System |
+
+---
+
+## Tech Stack
+
+### Desktop App (Librarian Station)
+
+| Layer | Technology |
+|---|---|
+| Shell | Electron |
+| UI Framework | React |
+| Styling | Tailwind CSS |
+| QR Scanning | html5-qrcode (webcam-based) |
+| QR Generation | qrcode (npm) |
+| HTTP Client | Axios |
+
+The desktop app runs on the library PC. It uses the webcam for QR scanning during attendance check-in/check-out and book borrow/return. It communicates with the cloud API for all data operations.
+
+### Mobile App (Students and Faculty)
+
+| Layer | Technology |
+|---|---|
+| Framework | React Native + Expo |
+| Navigation | Expo Router |
+| HTTP Client | Axios |
+| QR Display | react-native-qrcode-svg |
+| State Management | Zustand |
+
+Students install the mobile app to search books, view their personal QR code for library entry, and check library occupancy before visiting. Faculty can check their borrowed books and due dates.
+
+### Backend API
+
+| Layer | Technology |
+|---|---|
+| Runtime | Node.js |
+| Framework | Express.js |
+| ORM | Prisma |
+| Authentication | JWT (JSON Web Tokens) |
+| Hosting | Railway |
+
+The Express API serves both the desktop and mobile apps. Admin-only routes (scan, borrow, user management) are protected by JWT. The public catalog route requires no authentication.
+
+### Database
+
+| Layer | Technology |
+|---|---|
+| Engine | PostgreSQL 16 |
+| Hosting | Supabase (free tier) |
+| Schema Management | Raw SQL + Prisma migrations |
+
+---
+
+## Database Overview
+
+The database is designed around five core domains: **users**, **books**, **attendance**, **borrowing**, and **system configuration**. All tables are in PostgreSQL with proper foreign key constraints, indexes, and triggers.
+
+### Tables
+
+| Table | Purpose |
+|---|---|
+| `users` | All system users — students, faculty, and admins. Stores student ID, card number, QR code, program, role, status, and penalty balance |
+| `programs` | Academic programs like BS Midwifery and BS Public Administration |
+| `authors` | Author records linked to books, used by the Author Catalog view |
+| `genres` | Book genre categories with color codes for the UI |
+| `books` | Full book catalog — ISBN, title, author, LCCN/call number, shelf number, copy counts, condition, source of fund, and auto-generated QR |
+| `library_settings` | Single-row configuration table storing capacity, borrow durations, penalty rates, suspension threshold, library hours, and collection target |
+| `attendance_logs` | Every check-in and check-out event with timestamp and computed visit duration |
+| `borrow_records` | Every book borrow transaction — borrow date, due date, return date, and status |
+| `penalties` | Per-borrow penalty records for overdue, damage, and lost book cases |
+| `notifications` | In-app notification events categorized by type with read/unread tracking |
+| `announcements` | Library announcements with priority levels and active/inactive toggle |
+| `report_snapshots` | Cached generated report metadata stored as JSONB for fast reload |
+
+### Views
+
+| View | Purpose |
+|---|---|
+| `v_currently_inside` | Live list of students currently checked into the library (unmatched check-ins) |
+| `v_active_borrows` | All active borrow records with overdue flag and days overdue computed |
+| `v_dashboard_stats` | Aggregated stats for the dashboard — total books, borrowed, overdue, inside, available slots, and unpaid penalties |
+
+### Key Triggers
+
+| Trigger | Behavior |
+|---|---|
+| `trg_book_qr` | Auto-generates `BK-{isbn}` QR string on book insert |
+| `trg_user_qr` | Auto-generates `USR-{student_id}` QR string on user insert |
+| `trg_borrow_decrement` | Decrements `available_copies` on the book when a borrow record is created |
+| `trg_return_restore` | Restores `available_copies` when a borrow record is marked as RETURNED |
+| `trg_*_updated_at` | Keeps `updated_at` accurate on every row update across all major tables |
+
+### Scheduled Function
+
+`fn_mark_overdue_and_penalize()` is a PostgreSQL function meant to run daily via a cron job (or Supabase's pg_cron). It scans all active borrows past their due date, marks them OVERDUE, computes the penalty based on the configured daily rate, updates the user's penalty balance, and automatically suspends users whose unpaid balance exceeds the suspension threshold.
+
+### QR Code Format
+
+| Entity | Format | Example |
+|---|---|---|
+| Student / Faculty | `USR-{student_id}` | `USR-2024-MW-0001` |
+| Book | `BK-{isbn}` | `BK-978-0-323-40115-4` |
+
+### Penalty Rules (Configurable)
+
+| Rule | Default |
+|---|---|
+| Penalty per day (overdue) | ₱5.00 |
+| Borrow duration — Students | 3 days |
+| Borrow duration — Faculty | 120 days |
+| Max books per user | 2 |
+| Suspension threshold | ₱100.00 |
+| Damage fee | ₱5.00 |
+| Lost book fee | ₱5.00 |
+
+All of these values are stored in `library_settings` and editable from the Settings > Library Rules page without touching the database directly.
+
+---
+
+## QR Flow
+
+```
+Student Registration
+└── System generates USR-{student_id} QR
+    └── Stored in users.qr_code
+        └── Student sees it in mobile app
+
+Library Entry (Attendance)
+└── Student opens mobile app → shows QR
+    └── Librarian desktop webcam scans it
+        └── 1st scan → CHECK_IN → attendance_logs row created
+        └── 2nd scan → CHECK_OUT → duration computed, row updated
+
+Book Borrowing
+└── Librarian scans Book QR (BK-isbn) → identifies book
+    └── Librarian selects student → creates borrow_records row
+        └── available_copies decremented by trigger
+
+Book Return
+└── Librarian scans Book QR or Student QR
+    └── System finds active borrow_record
+        └── Status set to RETURNED → copies restored by trigger
+            └── Penalty computed if return is late
+```
+
+---
+
+## Project Structure (Planned)
+
+```
+liblog/
+├── desktop/                  # Electron + React (librarian station)
+│   ├── src/
+│   │   ├── main/             # Electron main process + Express API bridge
+│   │   └── renderer/         # React UI (pages, components)
+│   └── package.json
+│
+├── mobile/                   # React Native + Expo (student app)
+│   ├── app/                  # Expo Router screens
+│   ├── components/
+│   └── package.json
+│
+├── server/                   # Node.js + Express API
+│   ├── routes/               # API route handlers
+│   ├── middleware/            # JWT auth, error handling
+│   ├── prisma/               # Schema and migrations
+│   └── package.json
+│
+├── System UI/                # UI design references and screenshots
+│
+└── README.md
+```
+
+---
+
+## API Route Map
+
+| Method | Route | Access | Description |
+|---|---|---|---|
+| GET | `/api/books` | Public | Search book catalog |
+| GET | `/api/books/:id` | Public | Single book detail |
+| POST | `/api/books` | Admin | Add new book |
+| PUT | `/api/books/:id` | Admin | Edit book |
+| DELETE | `/api/books/:id` | Admin | Delete book |
+| GET | `/api/users` | Admin | List all users |
+| POST | `/api/users` | Admin | Register user |
+| GET | `/api/attendance/scan` | Admin | Process QR scan (check-in/out) |
+| GET | `/api/attendance/today` | Admin | Today's attendance log |
+| GET | `/api/occupancy` | Public | Current students inside + available slots |
+| POST | `/api/borrow` | Admin | Create borrow record |
+| POST | `/api/borrow/return` | Admin | Process book return |
+| GET | `/api/borrow/records` | Admin | All borrow records |
+| GET | `/api/penalties` | Admin | All penalties |
+| POST | `/api/penalties/:id/pay` | Admin | Mark penalty as paid |
+| GET | `/api/reports` | Admin | Generate report snapshot |
+| GET | `/api/notifications` | Admin | Fetch notifications |
+| GET | `/api/settings` | Admin | Get library settings |
+| PUT | `/api/settings` | Admin | Update library settings |
+| GET | `/api/announcements` | Public | Active announcements |
+| POST | `/api/announcements` | Admin | Create announcement |
+
+---
+
+## Developer Notes
+
+- The `library_settings` table is always a single row. Use `UPDATE` not `INSERT` when changing config values from the Settings page.
+- `available_copies` on the `books` table is managed entirely by database triggers. Never update it directly from application code.
+- The attendance toggle logic (first scan = check-in, second scan = check-out) is handled server-side by checking the last `action` value in `attendance_logs` for that user on the current day.
+- Notifications are created server-side after each major event (borrow, return, check-in, check-out, penalty). The frontend polls or subscribes via WebSocket.
+- `report_snapshots.payload` stores the full aggregated JSON of a generated report so the Reports page can reload the last report instantly without re-querying.
+
+---
+
+*LibLog v2.0.0 — Library Logbook Management System © 2026*

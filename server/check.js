@@ -1,0 +1,1 @@
+require('dotenv').config(); const { PrismaClient } = require('@prisma/client'); const prisma = new PrismaClient(); async function main() { const user = await prisma.user.findUnique({where: {email: 'librarian@liblog.com'}}); console.log(user.role); } main().finally(() => prisma.\$disconnect());

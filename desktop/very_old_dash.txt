@@ -1,0 +1,74 @@
+Created At: 2026-06-05T15:07:03Z
+Completed At: 2026-06-05T15:07:03Z
+File Path: `file:///c:/LibLog/desktop/src/pages/Dashboard.jsx`
+Total Lines: 281
+Total Bytes: 16889
+Showing lines 1 to 281
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: import { 
+2:   Search, Sun, Bell, LayoutDashboard, Calendar, Clock, BookUp, UserCheck, PlusSquare, 
+3:   BarChart3, Users, BookOpen, AlertCircle, Bookmark, Armchair, ArrowRightLeft
+4: } from 'lucide-react';
+5: import { useNavigate } from 'react-router-dom';
+6: 
+7: export default function Dashboard() {
+8:   const navigate = useNavigate();
+9: 
+10:   return (
+11:     <div className="flex flex-col h-full animate-fade-in">
+12:       {/* Top Header */}
+13:       <header className="h-16 flex items-center justify-between px-8 bg-white border-b border-gray-200 shrink-0">
+14:         <div className="flex items-center gap-3">
+15:           <div className="p-1.5 border border-gray-200 rounded text-gray-500">
+16:             <LayoutDashboard size={18} />
+17:           </div>
+18:           <div className="flex flex-col">
+19:             <div className="flex items-center gap-2">
+20:               <h1 className="text-base font-bold text-gray-900 leading-none">Dashboard</h1>
+21:               <span className="text-xs text-gray-400 font-medium">05:03:37 PM</span>
+22:             </div>
+23:             <span className="text-xs text-gray-500">Overview of library operations and statistics</span>
+24:           </div>
+25:         </div>
+26:         <div className="flex items-center gap-4">
+27:           <div className="relative">
+28:             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+29:             <input 
+30:               type="text" 
+31:               placeholder="Search books, students..." 
+32:               className="pl-9 pr-12 py-1.5 bg-gray-50 border b
+<truncated 14605 bytes>
+ext-gray-500 font-medium mb-1">Students Inside</span>
+250:             <span className="text-2xl font-bold text-gray-800 mb-2">0</span>
+251:             <div className="flex items-center gap-1 text-[10px] text-gray-500">
+252:               <span className="text-green-500 font-bold">↗ 2.1%</span> vs last week
+253:             </div>
+254:             <span className="text-[10px] text-gray-400 mt-1">0% capacity used</span>
+255:             <UserCheck className="absolute right-[-10px] bottom-[-10px] text-gray-50 opacity-50" size={80} />
+256:           </div>
+257: 
+258:           <div className="bg-white rounded-xl shadow-sm border border-gray-100 border-l-4 border-l-red-400 p-5 flex flex-col relative overflow-hidden">
+259:             <span className="text-xs text-gray-500 font-medium mb-1">Available Slots</span>
+260:             <span className="text-2xl font-bold text-gray-800 mb-2">40</span>
+261:             <div className="flex items-center gap-1 text-[10px] text-gray-500">
+262:               <span className="text-green-500 font-bold">↗ 3.8%</span> vs last week
+263:             </div>
+264:             <span className="text-[10px] text-gray-400 mt-1">of 40 total seats</span>
+265:             <Armchair className="absolute right-[-10px] bottom-[-10px] text-gray-50 opacity-50" size={80} />
+266:           </div>
+267: 
+268:           <div className="bg-white rounded-xl shadow-sm border border-gray-100 border-l-4 border-l-red-600 p-5 flex flex-col relative overflow-hidden">
+269:             <span className="text-xs text-gray-500 font-medium mb-1">Overdue Books</span>
+270:             <span className="text-2xl font-bold text-red-600 mb-2">2</span>
+271:             <div className="flex items-center gap-1 text-[10px] text-red-500 font-medium mt-auto">
+272:               <AlertCircle size={12} /> Needs attention
+273:             </div>
+274:           </div>
+275:         </div>
+276: 
+277:       </div>
+278:     </div>
+279:   );
+280: }
+281: 
+The above content shows the entire, complete file contents of the requested file.
