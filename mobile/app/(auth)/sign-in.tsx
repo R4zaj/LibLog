@@ -29,7 +29,7 @@ export default function SignIn() {
     <View style={styles.container}>
       <LinearGradient
         colors={['#f3f4f6', '#e5e7eb']}
-        style={StyleSheet.absoluteFillObject}
+        style={StyleSheet.absoluteFill}
       />
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
