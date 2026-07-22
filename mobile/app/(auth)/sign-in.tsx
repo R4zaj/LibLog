@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Image } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api';
@@ -25,12 +26,18 @@ export default function SignIn() {
   };
 
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
+    <View style={styles.container}>
+      <LinearGradient
+        colors={['#f3f4f6', '#e5e7eb']}
+        style={StyleSheet.absoluteFillObject}
+      />
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1, zIndex: 1 }}
+      >
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.headerContainer}>
+          <Image source={require('../../assets/images/CCC_icon.jpg')} style={{ width: 80, height: 80, borderRadius: 20, marginBottom: 16 }} />
           <Text style={styles.title}>Welcome Back!</Text>
           <Text style={styles.subtitle}>Sign in to your account</Text>
         </View>
@@ -38,10 +45,9 @@ export default function SignIn() {
         <View style={styles.formContainer}>
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-          <Text style={styles.label}>Library ID</Text>
+          <Text style={styles.label}>Email or Library ID</Text>
           <TextInput
             style={styles.input}
-            placeholder="e.g. CCC-2024-0001"
             value={studentId}
             onChangeText={setStudentId}
             autoCapitalize="none"
@@ -50,18 +56,10 @@ export default function SignIn() {
           <Text style={styles.label}>Password</Text>
           <TextInput
             style={styles.input}
-            placeholder="••••••••"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
           />
-
-          <TouchableOpacity 
-            style={[styles.button, { backgroundColor: '#f3e8ff', marginBottom: 12 }]} 
-            onPress={() => { setStudentId('CCC-2024-0001'); setPassword('password123'); }}
-          >
-            <Text style={[styles.buttonText, { color: '#6C48C5' }]}>Fill Demo Credentials</Text>
-          </TouchableOpacity>
 
           <TouchableOpacity style={styles.button} onPress={handleLogin}>
             <Text style={styles.buttonText}>Sign In</Text>
@@ -72,14 +70,15 @@ export default function SignIn() {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#f3f4f6',
   },
   scrollContainer: {
     flexGrow: 1,
@@ -88,6 +87,7 @@ const styles = StyleSheet.create({
   },
   headerContainer: {
     marginBottom: 40,
+    alignItems: 'center',
   },
   title: {
     fontSize: 32,

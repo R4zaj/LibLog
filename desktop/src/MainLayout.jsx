@@ -134,8 +134,8 @@ export default function MainLayout() {
       <aside className="w-64 bg-sidebar-bg dark:bg-dark-sidebar border-r border-gray-200 dark:border-dark-border flex flex-col shadow-sm z-10 shrink-0">
         {/* Logo Area */}
         <div className="h-16 flex items-center px-6 border-b border-gray-200 dark:border-dark-border gap-3">
-          <div className="bg-primary-800 text-white p-1.5 rounded-md">
-            <BookCopy size={20} />
+          <div className="rounded-md shadow-sm overflow-hidden flex items-center justify-center w-8 h-8">
+            <img src="/CCC_icon.jpg" alt="Logo" className="w-full h-full object-cover" />
           </div>
           <div className="flex flex-col">
             <span className="font-bold text-lg text-primary-900 dark:text-primary-300 leading-tight">LibLog</span>

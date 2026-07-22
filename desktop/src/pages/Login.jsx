@@ -38,8 +38,8 @@ export default function Login() {
       
       {/* Branding */}
       <div className="flex flex-col items-center mb-8">
-        <div className="w-14 h-14 bg-[#4B226E] rounded-2xl flex items-center justify-center shadow-sm mb-3">
-          <BookOpen className="text-white" size={24} strokeWidth={2} />
+        <div className="w-16 h-16 flex items-center justify-center shadow-sm mb-3 rounded-2xl overflow-hidden">
+          <img src="/CCC_icon.jpg" alt="Logo" className="w-full h-full object-cover" />
         </div>
         <h1 className="text-2xl font-bold text-[#1A1A1A] mb-1">LibLog</h1>
         <p className="text-xs text-[#666666] font-medium tracking-wide">Library Logbook Management System</p>

@@ -65538,8 +65538,8 @@
       "shouldAddPrefersColorThemes": true,
       "allowedStyleValues": "somewhat-strict-web",
       "addThemeClassName": "html",
-      "onlyAllowShorthands": true,
-      "styleCompat": "legacy",
+      "onlyAllowShorthands": false,
+      "styleCompat": "react-native",
       "defaultPosition": "relative"
     },
     "defaultProps": {},
