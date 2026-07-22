@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Book, Clock, RotateCcw } from 'lucide-react-native';
+import { YStack, XStack, Text, ScrollView, View } from 'tamagui';
 import { useAuth } from '../../context/AuthContext';
 import { useFocusEffect } from 'expo-router';
 import api from '../../api';
@@ -31,122 +32,216 @@ export default function Borrowed() {
     }
   };
 
-  const activeBorrows = borrows.filter(b => b.status === 'BORROWED' || b.status === 'OVERDUE');
-  const historyBorrows = borrows.filter(b => b.status === 'RETURNED');
+  const activeBorrows = borrows.filter((b) => b.status === 'BORROWED' || b.status === 'OVERDUE');
+  const historyBorrows = borrows.filter((b) => b.status === 'RETURNED');
+
+  const currentList = activeTab === 'active' ? activeBorrows : historyBorrows;
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Borrowing</Text>
-      </View>
+    <YStack flex={1} backgroundColor="#f4f1fa">
+      {/* Header */}
+      <YStack paddingTop={52} paddingHorizontal="$5" paddingBottom="$4" backgroundColor="white">
+        <Text fontSize={24} fontWeight="800" color="#1e1e2e" marginBottom="$3">
+          Borrowing
+        </Text>
 
-      <View style={styles.tabsContainer}>
-        <TouchableOpacity 
-          style={[styles.tab, activeTab === 'active' && styles.activeTab]}
-          onPress={() => setActiveTab('active')}
-        >
-          <Text style={[styles.tabText, activeTab === 'active' && styles.activeTabText]}>Active ({activeBorrows.length})</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.tab, activeTab === 'history' && styles.activeTab]}
-          onPress={() => setActiveTab('history')}
-        >
-          <Text style={[styles.tabText, activeTab === 'history' && styles.activeTabText]}>History ({historyBorrows.length})</Text>
-        </TouchableOpacity>
-      </View>
+        {/* Tab Switcher */}
+        <XStack gap="$2">
+          <TouchableOpacity
+            onPress={() => setActiveTab('active')}
+            style={{
+              flex: 1,
+              paddingVertical: 11,
+              alignItems: 'center',
+              borderRadius: 12,
+              backgroundColor: activeTab === 'active' ? '#6C48C5' : '#faf9fe',
+              borderWidth: 1,
+              borderColor: activeTab === 'active' ? '#6C48C5' : '#ede9f6',
+            }}
+          >
+            <Text
+              color={activeTab === 'active' ? 'white' : '#6C48C5'}
+              fontWeight="700"
+              fontSize={14}
+            >
+              Active ({activeBorrows.length})
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setActiveTab('history')}
+            style={{
+              flex: 1,
+              paddingVertical: 11,
+              alignItems: 'center',
+              borderRadius: 12,
+              backgroundColor: activeTab === 'history' ? '#6C48C5' : '#faf9fe',
+              borderWidth: 1,
+              borderColor: activeTab === 'history' ? '#6C48C5' : '#ede9f6',
+            }}
+          >
+            <Text
+              color={activeTab === 'history' ? 'white' : '#6C48C5'}
+              fontWeight="700"
+              fontSize={14}
+            >
+              History ({historyBorrows.length})
+            </Text>
+          </TouchableOpacity>
+        </XStack>
+      </YStack>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.summaryRow}>
-          <View style={styles.summaryItem}>
-            <View style={[styles.dot, { backgroundColor: '#6C48C5' }]} />
-            <Text style={styles.summaryText}>{activeBorrows.length} Active</Text>
-          </View>
-          <View style={styles.summaryItem}>
-            <View style={[styles.dot, { backgroundColor: '#22c55e' }]} />
-            <Text style={styles.summaryText}>{historyBorrows.length} Returned</Text>
-          </View>
-        </View>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <YStack paddingHorizontal="$5" paddingTop="$4" paddingBottom="$8">
+          {/* Summary */}
+          <XStack marginBottom="$4" gap="$4">
+            <XStack alignItems="center">
+              <View width={8} height={8} borderRadius={4} backgroundColor="#6C48C5" marginRight="$2" />
+              <Text color="#7c7c8a" fontSize={13} fontWeight="600">
+                {activeBorrows.length} Active
+              </Text>
+            </XStack>
+            <XStack alignItems="center">
+              <View width={8} height={8} borderRadius={4} backgroundColor="#22c55e" marginRight="$2" />
+              <Text color="#7c7c8a" fontSize={13} fontWeight="600">
+                {historyBorrows.length} Returned
+              </Text>
+            </XStack>
+          </XStack>
 
-        {isLoading ? (
-          <ActivityIndicator size="large" color="#6C48C5" style={{ marginTop: 40 }} />
-        ) : (
-          (activeTab === 'active' ? activeBorrows : historyBorrows).map((record: any, index: number) => {
-            const isOverdue = record.status === 'OVERDUE';
-            const isReturned = record.status === 'RETURNED';
-            const dueDateStr = new Date(record.due_date).toLocaleDateString();
-            const borrowDateStr = new Date(record.borrow_date).toLocaleDateString();
-            const daysLeft = Math.ceil((new Date(record.due_date).getTime() - new Date().getTime()) / (1000 * 3600 * 24));
+          {isLoading ? (
+            <ActivityIndicator size="large" color="#6C48C5" style={{ marginTop: 40 }} />
+          ) : currentList.length === 0 ? (
+            <YStack
+              backgroundColor="white"
+              borderRadius={16}
+              padding="$6"
+              alignItems="center"
+              justifyContent="center"
+              borderWidth={1}
+              borderColor="#f0eef5"
+              marginTop="$4"
+            >
+              <Text fontSize={36} marginBottom="$3">📚</Text>
+              <Text color="#9ca3af" fontSize={15} fontWeight="600">
+                {activeTab === 'active' ? 'No active borrows' : 'No return history'}
+              </Text>
+              <Text color="#c4c4cc" fontSize={12} marginTop="$1">
+                {activeTab === 'active'
+                  ? 'Borrow a book from the library to get started'
+                  : 'Your returned books will appear here'}
+              </Text>
+            </YStack>
+          ) : (
+            currentList.map((record: any, index: number) => {
+              const isOverdue = record.status === 'OVERDUE';
+              const isReturned = record.status === 'RETURNED';
+              const dueDateStr = new Date(record.due_date).toLocaleDateString();
+              const borrowDateStr = new Date(record.borrow_date).toLocaleDateString();
+              const daysLeft = Math.ceil(
+                (new Date(record.due_date).getTime() - new Date().getTime()) / (1000 * 3600 * 24)
+              );
 
-            return (
-              <View key={index} style={styles.card}>
-                <View style={styles.cardHeader}>
-                  <View style={styles.bookCover}><Book color="#fff" size={24} opacity={0.5} /></View>
-                  <View style={styles.bookInfo}>
-                    <Text style={styles.bookTitle}>{record.book?.title}</Text>
-                    <Text style={styles.bookAuthor}>{record.book?.author?.name || 'Unknown Author'}</Text>
-                    <Text style={styles.dates}>Borrowed: {borrowDateStr}   Due: {dueDateStr}</Text>
-                  </View>
-                </View>
-                <View style={styles.cardFooter}>
-                  {isReturned ? (
-                    <View style={styles.daysLeftBadge}>
-                      <Clock color="#166534" size={12} style={{ marginRight: 4 }} />
-                      <Text style={styles.daysLeftText}>Returned</Text>
-                    </View>
-                  ) : (
-                    <View style={[styles.daysLeftBadge, isOverdue ? {backgroundColor: '#fee2e2'} : {}]}>
-                      <Clock color={isOverdue ? "#991b1b" : "#166534"} size={12} style={{ marginRight: 4 }} />
-                      <Text style={[styles.daysLeftText, isOverdue ? {color: '#991b1b'} : {}]}>
-                        {isOverdue ? `${Math.abs(daysLeft)} days overdue` : `${daysLeft} days left`}
+              return (
+                <YStack
+                  key={index}
+                  backgroundColor="white"
+                  borderRadius={20}
+                  padding="$4"
+                  marginBottom="$3"
+                  borderWidth={1}
+                  borderColor="#f0eef5"
+                  borderLeftWidth={4}
+                  borderLeftColor={isOverdue ? '#ef4444' : isReturned ? '#22c55e' : '#6C48C5'}
+                >
+                  {/* Book Info */}
+                  <XStack marginBottom="$3">
+                    <YStack
+                      width={52}
+                      height={68}
+                      backgroundColor="#1e3a8a"
+                      borderRadius={10}
+                      justifyContent="center"
+                      alignItems="center"
+                      marginRight="$3"
+                    >
+                      <Book color="#fff" size={22} opacity={0.5} />
+                    </YStack>
+                    <YStack flex={1}>
+                      <Text fontSize={15} fontWeight="700" color="#1e1e2e" marginBottom={3}>
+                        {record.book?.title}
                       </Text>
-                    </View>
-                  )}
-                  {!isReturned && (
-                    <TouchableOpacity style={styles.actionButton}>
-                      <RotateCcw color="#6C48C5" size={16} style={{ marginRight: 6 }} />
-                      <Text style={styles.actionButtonText}>Return</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </View>
-            );
-          })
-        )}
-        
-        {!isLoading && (activeTab === 'active' ? activeBorrows : historyBorrows).length === 0 && (
-          <View style={{ alignItems: 'center', marginTop: 40 }}>
-            <Text style={{ color: '#9ca3af', fontSize: 16 }}>No records found.</Text>
-          </View>
-        )}
+                      <Text fontSize={13} color="#7c7c8a" marginBottom="$2">
+                        {record.book?.author?.name || 'Unknown Author'}
+                      </Text>
+                      <Text fontSize={11} color="#b4b4be">
+                        Borrowed: {borrowDateStr}  ·  Due: {dueDateStr}
+                      </Text>
+                    </YStack>
+                  </XStack>
+
+                  {/* Footer */}
+                  <XStack
+                    justifyContent="space-between"
+                    alignItems="center"
+                    paddingTop="$3"
+                    borderTopWidth={1}
+                    borderTopColor="#f0eef5"
+                  >
+                    {isReturned ? (
+                      <XStack
+                        alignItems="center"
+                        backgroundColor="#ecfdf5"
+                        paddingHorizontal="$3"
+                        paddingVertical="$1.5"
+                        borderRadius={10}
+                      >
+                        <Clock color="#059669" size={12} style={{ marginRight: 5 }} />
+                        <Text color="#059669" fontWeight="700" fontSize={12}>
+                          Returned
+                        </Text>
+                      </XStack>
+                    ) : (
+                      <XStack
+                        alignItems="center"
+                        backgroundColor={isOverdue ? '#fef2f2' : '#ecfdf5'}
+                        paddingHorizontal="$3"
+                        paddingVertical="$1.5"
+                        borderRadius={10}
+                      >
+                        <Clock
+                          color={isOverdue ? '#dc2626' : '#059669'}
+                          size={12}
+                          style={{ marginRight: 5 }}
+                        />
+                        <Text
+                          color={isOverdue ? '#dc2626' : '#059669'}
+                          fontWeight="700"
+                          fontSize={12}
+                        >
+                          {isOverdue
+                            ? `${Math.abs(daysLeft)} days overdue`
+                            : `${daysLeft} days left`}
+                        </Text>
+                      </XStack>
+                    )}
+
+                    {!isReturned && (
+                      <TouchableOpacity
+                        style={{ flexDirection: 'row', alignItems: 'center', padding: 8 }}
+                      >
+                        <RotateCcw color="#6C48C5" size={14} style={{ marginRight: 5 }} />
+                        <Text color="#6C48C5" fontWeight="700" fontSize={13}>
+                          Return
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </XStack>
+                </YStack>
+              );
+            })
+          )}
+        </YStack>
       </ScrollView>
-    </View>
+    </YStack>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
-  header: { paddingTop: 60, paddingHorizontal: 20, paddingBottom: 16, backgroundColor: '#fff' },
-  headerTitle: { fontSize: 28, fontWeight: 'bold', color: '#1f2937' },
-  tabsContainer: { flexDirection: 'row', backgroundColor: '#fff', paddingHorizontal: 20, paddingBottom: 16 },
-  tab: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 8, backgroundColor: '#f3f4f6', marginHorizontal: 4 },
-  activeTab: { backgroundColor: '#f3e8ff' },
-  tabText: { color: '#6b7280', fontWeight: 'bold' },
-  activeTabText: { color: '#6C48C5' },
-  scrollContent: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 40 },
-  summaryRow: { flexDirection: 'row', marginBottom: 20 },
-  summaryItem: { flexDirection: 'row', alignItems: 'center', marginRight: 16 },
-  dot: { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
-  summaryText: { color: '#6b7280', fontSize: 14, fontWeight: '600' },
-  card: { backgroundColor: '#fff', borderRadius: 16, padding: 16, marginBottom: 16, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, elevation: 2, borderLeftWidth: 4, borderLeftColor: '#c084fc' },
-  cardHeader: { flexDirection: 'row', marginBottom: 16 },
-  bookCover: { width: 60, height: 80, backgroundColor: '#1e3a8a', borderRadius: 8, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
-  bookInfo: { flex: 1 },
-  bookTitle: { fontSize: 16, fontWeight: 'bold', color: '#1f2937', marginBottom: 4 },
-  bookAuthor: { fontSize: 14, color: '#6b7280', marginBottom: 8 },
-  dates: { fontSize: 12, color: '#9ca3af' },
-  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 16, borderTopWidth: 1, borderTopColor: '#f3f4f6' },
-  daysLeftBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#dcfce7', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
-  daysLeftText: { color: '#166534', fontWeight: 'bold', fontSize: 12 },
-  actionButton: { flexDirection: 'row', alignItems: 'center', padding: 8 },
-  actionButtonText: { color: '#6C48C5', fontWeight: 'bold', fontSize: 14 },
-});

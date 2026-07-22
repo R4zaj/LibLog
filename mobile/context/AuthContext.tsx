@@ -13,6 +13,8 @@ interface User {
   role: string;
   department: string;
   qr_code?: string;
+  program?: { name: string; code?: string };
+  year_level?: string;
 }
 
 interface AuthContextType {
