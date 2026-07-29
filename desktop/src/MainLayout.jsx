@@ -12,7 +12,8 @@ import {
   LogOut,
   ChevronDown
 } from 'lucide-react';
-
+import { AttendanceScannerProvider } from './context/AttendanceScannerContext';
+import { BorrowingProvider } from './context/BorrowingContext';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 
@@ -129,7 +130,9 @@ export default function MainLayout() {
   ];
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-dark-bg font-sans text-gray-900 dark:text-slate-200">
+    <AttendanceScannerProvider>
+    <BorrowingProvider>
+      <div className="flex h-screen bg-gray-50 dark:bg-dark-bg font-sans text-gray-900 dark:text-slate-200">
       {/* Light Sidebar */}
       <aside className="w-64 bg-sidebar-bg dark:bg-dark-sidebar border-r border-gray-200 dark:border-dark-border flex flex-col shadow-sm z-10 shrink-0">
         {/* Logo Area */}
@@ -204,5 +207,7 @@ export default function MainLayout() {
         <Outlet />
       </main>
     </div>
+    </BorrowingProvider>
+    </AttendanceScannerProvider>
   );
 }

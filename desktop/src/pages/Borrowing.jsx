@@ -1,25 +1,27 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { 
   ArrowRightLeft, Search, Sun, Moon, Bell, Printer, Maximize, Camera, DollarSign, BookUp
 } from 'lucide-react';
 import ScannerSim from '../components/ScannerSim';
 import { useTheme } from '../components/ThemeContext';
+import { BorrowingContext } from '../context/BorrowingContext';
 
 export default function Borrowing() {
   const { isDarkMode, toggleDarkMode } = useTheme();
-  const [activeTab, setActiveTab] = useState('Borrow');
   
-  // Borrowing Flow State
-  const [step, setStep] = useState(1);
-  const [scannedBook, setScannedBook] = useState(null);
-  const [scannedUser, setScannedUser] = useState(null);
-  const [error, setError] = useState(null);
-
-  // Return Flow State
-  const [returnStep, setReturnStep] = useState(1);
-  const [returnBookIdentifier, setReturnBookIdentifier] = useState(null);
-  const [returnRecord, setReturnRecord] = useState(null);
-  const [returnScannedUser, setReturnScannedUser] = useState(null);
+  const {
+    activeTab, 
+    setActiveTab,
+    step, 
+    setStep,
+    scannedBook, 
+    setScannedBook,
+    scannedUser, 
+    setScannedUser,
+    error, 
+    setError,
+    handleScan
+  } = useContext(BorrowingContext);
   
   // Penalties State
   const [penalties, setPenalties] = useState([]);
@@ -54,38 +56,6 @@ export default function Borrowing() {
     }
   };
 
-  const handleBookScan = async (identifier) => {
-    setError(null);
-    try {
-      const res = await fetch(`http://localhost:5000/api/borrowing/validate-book/${identifier}`);
-      const data = await res.json();
-      if (res.ok) {
-        setScannedBook(data);
-        setStep(2);
-      } else {
-        setError(data.error || 'Book validation failed');
-      }
-    } catch (e) {
-      setError('Server error during validation');
-    }
-  };
-
-  const handleUserScan = async (identifier) => {
-    setError(null);
-    try {
-      const res = await fetch(`http://localhost:5000/api/borrowing/validate-user/${identifier}`);
-      const data = await res.json();
-      if (res.ok) {
-        setScannedUser(data);
-        setStep(3);
-      } else {
-        setError(data.error || 'User validation failed');
-      }
-    } catch (e) {
-      setError('Server error during validation');
-    }
-  };
-
   const handleCheckout = async () => {
     setError(null);
     try {
@@ -105,41 +75,6 @@ export default function Borrowing() {
       }
     } catch (e) {
       setError('Server error during checkout');
-    }
-  };
-
-  const handleReturnScan = async (identifier) => {
-    setError(null);
-    try {
-      const res = await fetch(`http://localhost:5000/api/borrowing/validate-book/${identifier}?action=return`);
-      const data = await res.json();
-      if (res.ok) {
-        setReturnBookIdentifier(identifier);
-        setReturnStep(2);
-      } else {
-        setError(data.error || 'Could not find book');
-      }
-    } catch (e) {
-      setError('Server error during scan');
-    }
-  };
-
-  const handleReturnUserScan = async (identifier) => {
-    setError(null);
-    if (!returnBookIdentifier) return;
-    
-    try {
-      const res = await fetch(`http://localhost:5000/api/borrowing/user-active-borrow/${returnBookIdentifier}/${identifier}`);
-      const data = await res.json();
-      if (res.ok) {
-        setReturnRecord(data);
-        setReturnScannedUser(data.user);
-        setReturnStep(3);
-      } else {
-        setError(data.error || 'This student does not have an active borrow record for this book.');
-      }
-    } catch (e) {
-      setError('Server error fetching user borrow record');
     }
   };
 
@@ -308,7 +243,8 @@ export default function Borrowing() {
                 subtitle="Scan the QR code on the book or enter it manually"
                 boxTitle="Book QR Scanner"
                 placeholder="Enter book ISBN or ID (e.g., 978-0...)"
-                onSubmit={handleBookScan}
+                onSubmit={handleScan}
+                isGlobalScanner={false}
               />
             )}
 
@@ -318,7 +254,8 @@ export default function Borrowing() {
                 subtitle="Scan the student's ID card or enter their Student Number"
                 boxTitle="Student ID Scanner"
                 placeholder="Enter student ID (e.g., 2021-0001)"
-                onSubmit={handleUserScan}
+                onSubmit={handleScan}
+                isGlobalScanner={false}
               />
             )}
 
@@ -383,7 +320,8 @@ export default function Borrowing() {
                 subtitle="Scan the QR code on the returning book"
                 boxTitle="Book QR Scanner"
                 placeholder="Enter book ISBN or ID..."
-                onSubmit={handleReturnScan}
+                onSubmit={handleScan}
+                isGlobalScanner={false}
               />
             )}
 
@@ -393,7 +331,8 @@ export default function Borrowing() {
                 subtitle="Scan the ID of the student returning the book"
                 boxTitle="Student ID Scanner"
                 placeholder="Enter student ID..."
-                onSubmit={handleReturnUserScan}
+                onSubmit={handleScan}
+                isGlobalScanner={false}
               />
             )}
 

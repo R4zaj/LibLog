@@ -2,13 +2,23 @@ import {
   Search, Sun, Bell, Printer, UserCheck, LogIn, LogOut, Users, Clock, Maximize, CalendarDays, BarChart3, Moon, ArrowRightLeft
 } from 'lucide-react';
 import ScannerSim from '../components/ScannerSim';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useContext } from 'react';
 import NotificationDropdown from '../components/NotificationDropdown';
+import { AttendanceScannerContext } from '../context/AttendanceScannerContext';
 
 export default function Attendance() {
   const [stats, setStats] = useState({ checkIns: 0, checkOuts: 0, insideNow: 0, avgDuration: 0, heatmapCounts: null });
-  const [lastScan, setLastScan] = useState(null); // { user, action, time }
   
+  const { 
+    isScanning: globalIsScanning, 
+    setIsScanning: onStartScanner, 
+    setPortalTarget,
+    lastScan,
+    handleScan: onScanGlobal,
+    selectedDevice: globalSelectedDevice,
+    setSelectedDevice: onSelectGlobalDevice
+  } = useContext(AttendanceScannerContext);
+
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isDarkMode, setIsDarkMode] = useState(false);
 
@@ -22,6 +32,12 @@ export default function Attendance() {
       clearInterval(timer);
     };
   }, []);
+
+  useEffect(() => {
+    if (lastScan) {
+      fetchStats();
+    }
+  }, [lastScan]);
 
   const toggleDarkMode = () => {
     setIsDarkMode(!isDarkMode);
@@ -37,27 +53,7 @@ export default function Attendance() {
     }
   };
 
-  const handleScan = async (identifier) => {
-    try {
-      const res = await fetch('http://localhost:5000/api/attendance/scan', { method: 'POST', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}`,  'Content-Type': 'application/json'  },
-        body: JSON.stringify({ identifier })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setLastScan({
-          user: `${data.user.first_name} ${data.user.last_name}`,
-          action: data.action,
-          time: new Date().toLocaleTimeString(),
-          duration: data.duration
-        });
-        fetchStats(); // Update numbers immediately
-      } else {
-        console.warn('Scan failed:', data.error);
-      }
-    } catch (e) {
-      console.error('Network error connecting to server');
-    }
-  };
+  // handleScan is now managed by AttendanceScannerContext
 
   // Mock data for heatmap
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -156,7 +152,14 @@ export default function Attendance() {
             placeholder="CCC-2024-0001"
             helperText="Format: CCC-{studentId} — 1st scan = in, 2nd = out"
             icon={Maximize}
-            onSubmit={handleScan}
+            onSubmit={onScanGlobal}
+            isGlobalScanner={true}
+            globalIsScanning={globalIsScanning}
+            onStartScanner={() => onStartScanner(true)}
+            onStopScanner={() => onStartScanner(false)}
+            setPortalTarget={setPortalTarget}
+            globalSelectedDevice={globalSelectedDevice}
+            onSelectGlobalDevice={onSelectGlobalDevice}
           />
           
           {lastScan && (

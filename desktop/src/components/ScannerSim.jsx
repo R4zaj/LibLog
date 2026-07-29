@@ -1,60 +1,183 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useContext } from 'react';
 import { Maximize, Camera, Printer, ArrowRightLeft, CameraOff } from 'lucide-react';
-import { useZxing } from 'react-zxing';
+import { AttendanceScannerContext } from '../context/AttendanceScannerContext';
+import { BorrowingContext } from '../context/BorrowingContext';
 
-function ZxingScanner({ onScan, deviceId }) {
+export function ZxingScanner({ onScan, deviceId }) {
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+  const scanTimerRef = useRef(null);
+  const cleanupIdRef = useRef(0);
   const lastScanned = useRef({ text: null, time: 0 });
   const [showCheck, setShowCheck] = useState(false);
+  const onScanRef = useRef(onScan);
+  onScanRef.current = onScan;
+  const activeDeviceRef = useRef(null);
 
-  const constraints = deviceId 
-    ? { video: { deviceId: { exact: deviceId } } }
-    : { video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } };
+  useEffect(() => {
+    let cancelled = false;
+    // Cancel any pending deferred cleanup from a previous unmount (Strict Mode)
+    cleanupIdRef.current++;
+    const myCleanupId = cleanupIdRef.current;
 
-  const { ref } = useZxing({
-    constraints,
-    // Restrict to standard formats to prevent hallucinating background noise as Code39/ITF
-    formats: ['qr_code', 'code_128', 'ean_13', 'ean_8'],
-    onDecodeResult(result) {
-      const text = result.rawValue || result.getText?.() || result.text;
-      
-      // Filter out empty reads
-      if (!text || text.trim().length < 1) {
+    const attachStream = async (stream) => {
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.muted = true;
+        videoRef.current.playsInline = true;
+        try { await videoRef.current.play(); } catch (e) { /* AbortError ok */ }
+      }
+    };
+
+    const startScanLoop = async () => {
+      let BarcodeDetector;
+      try {
+        const module = await import('barcode-detector/ponyfill');
+        BarcodeDetector = module.BarcodeDetector;
+      } catch (e) {
+        console.error('Failed to load BarcodeDetector:', e);
         return;
       }
 
-      // STRICT VALIDATION: Must be a Book ID (BK-...) or a JWT (three base64url segments) or legacy USR-...
-      const isBook = /^BK-[A-Z0-9-]+$/.test(text);
-      const isJwt = /^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+$/.test(text);
-      const isOldUser = /^[A-Z0-9-]+$/.test(text); // For backwards compatibility and generic IDs like CCC-1234
+      const detector = new BarcodeDetector({ formats: ['qr_code', 'code_128', 'ean_13', 'ean_8'] });
 
-      if (!isBook && !isJwt && !isOldUser) {
-        console.warn('Blocked malicious or invalid QR payload:', text);
-        return; 
+      const scanLoop = async () => {
+        if (cancelled) return;
+        const video = videoRef.current;
+        if (!video || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || video.videoWidth === 0) {
+          scanTimerRef.current = setTimeout(scanLoop, 300);
+          return;
+        }
+
+        try {
+          const barcodes = await detector.detect(video);
+          if (cancelled) return;
+          
+          if (barcodes.length > 0) {
+            const text = barcodes[0].rawValue;
+            if (text && text.trim().length > 0) {
+              const isBook = /^BK-[A-Z0-9-]+$/.test(text);
+              const isJwt = /^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+$/.test(text);
+              const isOldUser = /^[A-Z0-9-]+$/.test(text);
+
+              if (isBook || isJwt || isOldUser) {
+                const now = Date.now();
+                if (lastScanned.current.text !== text || (now - lastScanned.current.time) >= 3000) {
+                  lastScanned.current = { text, time: now };
+                  setShowCheck(true);
+                  setTimeout(() => setShowCheck(false), 1200);
+                  onScanRef.current(text);
+                }
+              }
+            }
+          }
+        } catch (e) {
+          // Ignore detection errors
+        }
+
+        if (!cancelled) {
+          scanTimerRef.current = setTimeout(scanLoop, 300);
+        }
+      };
+
+      scanLoop();
+    };
+
+    const startCamera = async () => {
+      // If we already have a live stream for this exact device, just reattach it
+      // This handles React Strict Mode double-invoke without restarting the camera
+      if (streamRef.current && activeDeviceRef.current === deviceId) {
+        const tracks = streamRef.current.getTracks();
+        if (tracks.length > 0 && tracks[0].readyState === 'live') {
+          await attachStream(streamRef.current);
+          startScanLoop();
+          return;
+        }
       }
 
-      const now = Date.now();
-      
-      // Prevent scanning the exact same code multiple times within 3 seconds
-      if (lastScanned.current.text === text && (now - lastScanned.current.time) < 3000) {
+      // Different device or no stream — clean up old one
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(t => t.stop());
+        streamRef.current = null;
+        activeDeviceRef.current = null;
+      }
+      if (scanTimerRef.current) {
+        clearTimeout(scanTimerRef.current);
+        scanTimerRef.current = null;
+      }
+
+      // Progressive constraint relaxation for multi-camera USB bandwidth issues
+      const constraintAttempts = deviceId
+        ? [
+            { audio: false, video: { deviceId: { exact: deviceId }, width: { ideal: 640 }, height: { ideal: 480 } } },
+            { audio: false, video: { deviceId: { exact: deviceId }, width: { ideal: 320 }, height: { ideal: 240 } } },
+            { audio: false, video: { deviceId: { exact: deviceId } } },
+            { audio: false, video: { deviceId: deviceId } },
+          ]
+        : [
+            { audio: false, video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } } },
+            { audio: false, video: { facingMode: 'environment', width: { ideal: 320 }, height: { ideal: 240 } } },
+            { audio: false, video: { facingMode: 'environment' } },
+            { audio: false, video: true },
+          ];
+
+      let stream = null;
+      for (let attempt = 0; attempt < constraintAttempts.length; attempt++) {
+        if (cancelled) return;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia(constraintAttempts[attempt]);
+          break;
+        } catch (err) {
+          console.warn(`Camera attempt ${attempt + 1}/${constraintAttempts.length} failed:`, err.message);
+          if (attempt < constraintAttempts.length - 1) {
+            await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+          }
+        }
+      }
+
+      if (!stream || cancelled) {
+        stream?.getTracks().forEach(t => t.stop());
         return;
       }
-      
-      lastScanned.current = { text, time: now };
-      
-      // Flash the green checkmark
-      setShowCheck(true);
-      setTimeout(() => setShowCheck(false), 1200);
 
-      onScan(text);
-    },
-    onError(error) {
-      // Ignore background decode errors that happen continuously before a code is found
-    }
-  });
+      streamRef.current = stream;
+      activeDeviceRef.current = deviceId;
+      await attachStream(stream);
+      startScanLoop();
+    };
+
+    startCamera();
+
+    return () => {
+      cancelled = true;
+      if (scanTimerRef.current) {
+        clearTimeout(scanTimerRef.current);
+        scanTimerRef.current = null;
+      }
+      // DEFERRED CLEANUP: Don't kill the stream immediately.
+      // React Strict Mode will re-mount within ~50ms. If no re-mount reclaims
+      // the stream, the deferred cleanup will stop it after 500ms.
+      const capturedStream = streamRef.current;
+      const capturedCleanupId = myCleanupId;
+      setTimeout(() => {
+        // Only stop if no new mount has cancelled this cleanup
+        if (cleanupIdRef.current === capturedCleanupId && capturedStream) {
+          capturedStream.getTracks().forEach(t => t.stop());
+          if (streamRef.current === capturedStream) {
+            streamRef.current = null;
+            activeDeviceRef.current = null;
+          }
+          if (videoRef.current) {
+            videoRef.current.srcObject = null;
+          }
+        }
+      }, 500);
+    };
+  }, [deviceId]);
 
   return (
     <div className="relative w-full h-full flex items-center justify-center bg-black overflow-hidden">
-      <video ref={ref} className="w-full h-auto object-cover max-h-96" />
+      <video ref={videoRef} className="w-full h-auto object-cover max-h-96" autoPlay playsInline muted />
       {showCheck && (
         <div className="absolute inset-0 bg-green-500/20 backdrop-blur-sm flex items-center justify-center transition-all z-10">
           <div className="bg-white dark:bg-dark-card rounded-full p-4 shadow-2xl animate-pulse">
@@ -76,35 +199,58 @@ export default function ScannerSim({
   placeholder, 
   helperText, 
   icon: Icon = Maximize,
-  onSubmit 
+  onSubmit,
+  isGlobalScanner = false,
+  globalIsScanning,
+  onStartScanner,
+  onStopScanner,
+  setPortalTarget,
+  globalSelectedDevice,
+  onSelectGlobalDevice
 }) {
   const [inputValue, setInputValue] = useState('');
-  const [isScanning, setIsScanning] = useState(false);
+  const [localIsScanning, setLocalIsScanning] = useState(false);
   const [devices, setDevices] = useState([]);
-  const [selectedDevice, setSelectedDevice] = useState('');
+  const [localSelectedDevice, setLocalSelectedDevice] = useState('');
+
+  const isScanning = isGlobalScanner ? globalIsScanning : localIsScanning;
+  const selectedDevice = isGlobalScanner ? globalSelectedDevice : localSelectedDevice;
+  const setSelectedDevice = isGlobalScanner ? onSelectGlobalDevice : setLocalSelectedDevice;
+
+  const startScanner = isGlobalScanner ? onStartScanner : () => setLocalIsScanning(true);
+  const stopScanner = isGlobalScanner ? onStopScanner : () => setLocalIsScanning(false);
 
   useEffect(() => {
-    if (isScanning && navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
-      navigator.mediaDevices.enumerateDevices()
-        .then(deviceInfos => {
+    const getDevices = async () => {
+      if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+        try {
+          const deviceInfos = await navigator.mediaDevices.enumerateDevices();
           const videoDevices = deviceInfos.filter(device => device.kind === 'videoinput');
+
           setDevices(videoDevices);
+          
           if (videoDevices.length > 0 && !selectedDevice) {
-            const backCamera = videoDevices.find(d => d.label.toLowerCase().includes('back'));
-            setSelectedDevice(backCamera ? backCamera.deviceId : videoDevices[0].deviceId);
+            let defaultDev = videoDevices.find(d => d.label.toLowerCase().includes('back'));
+            
+            // Filter out virtual cameras
+            const validDevices = videoDevices.filter(d => {
+              const isVirtual = d.label.toLowerCase().includes('virtual') || d.label.toLowerCase().includes('iriun') || d.label.toLowerCase().includes('obs');
+              return !isVirtual;
+            });
+            
+            if (validDevices.length > 0) {
+              defaultDev = validDevices.find(d => d.label.toLowerCase().includes('back')) || validDevices[0];
+            }
+            
+            setSelectedDevice(defaultDev ? defaultDev.deviceId : videoDevices[0].deviceId);
           }
-        })
-        .catch(err => console.error("Error enumerating devices:", err));
-    }
-  }, [isScanning, selectedDevice]);
-
-  const startScanner = () => {
-    setIsScanning(true);
-  };
-
-  const stopScanner = () => {
-    setIsScanning(false);
-  };
+        } catch (err) {
+          console.error("Error enumerating devices:", err);
+        }
+      }
+    };
+    getDevices();
+  }, [isScanning, isGlobalScanner, selectedDevice, setSelectedDevice]);
 
   const handleScanSuccess = (decodedText) => {
     // Deliberately NOT calling setIsScanning(false) here
@@ -154,7 +300,11 @@ export default function ScannerSim({
           
           <div className={`w-full overflow-hidden rounded bg-gray-50 dark:bg-transparent border border-gray-200 dark:border-dark-border ${!isScanning ? 'h-64 flex flex-col items-center justify-center text-primary-600 dark:text-primary-400 gap-3' : 'bg-black flex items-center justify-center min-h-[16rem]'}`}>
             {isScanning ? (
-              <ZxingScanner onScan={handleScanSuccess} deviceId={selectedDevice} />
+              isGlobalScanner ? (
+                <div ref={(el) => setPortalTarget && setPortalTarget(el)} className="w-full h-full min-h-[16rem] bg-black overflow-hidden relative"></div>
+              ) : (
+                <ZxingScanner key={selectedDevice || 'default'} onScan={handleScanSuccess} deviceId={selectedDevice} />
+              )
             ) : (
               <>
                 <div className="w-12 h-12 bg-white dark:bg-transparent border border-transparent dark:border-primary-800 rounded-full flex items-center justify-center shadow-sm">
@@ -166,33 +316,32 @@ export default function ScannerSim({
           </div>
         </div>
         
-        <div className="flex gap-2 items-center flex-wrap">
+        <div className="flex gap-2 items-center flex-wrap w-full">
           {!isScanning ? (
             <button onClick={startScanner} className="self-start px-4 py-2 bg-primary-800 text-white text-sm font-medium rounded shadow-sm hover:bg-primary-900 flex items-center gap-2 transition-colors">
               <Camera size={16} /> Start Scanner
             </button>
           ) : (
-            <>
-              <button onClick={stopScanner} className="self-start px-4 py-2 bg-red-600 text-white text-sm font-medium rounded shadow-sm hover:bg-red-700 flex items-center gap-2 transition-colors">
-                <CameraOff size={16} /> Stop Scanner
-              </button>
-              {devices.length > 0 && (
-                <div className="flex items-center gap-2 ml-auto">
-                  <span className="text-xs font-bold text-gray-500 dark:text-slate-400">Camera:</span>
-                  <select 
-                    className="bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border rounded px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 text-gray-700 dark:text-slate-200"
-                    value={selectedDevice}
-                    onChange={(e) => setSelectedDevice(e.target.value)}
-                  >
-                    {devices.map((device, idx) => (
-                      <option key={device.deviceId} value={device.deviceId}>
-                        {device.label || `Camera ${idx + 1}`}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </>
+            <button onClick={stopScanner} className="self-start px-4 py-2 bg-red-600 text-white text-sm font-medium rounded shadow-sm hover:bg-red-700 flex items-center gap-2 transition-colors">
+              <CameraOff size={16} /> Stop Scanner
+            </button>
+          )}
+          
+          {devices.length > 0 && (
+            <div className="flex items-center gap-2 ml-auto">
+              <span className="text-xs font-bold text-gray-500 dark:text-slate-400">Camera:</span>
+              <select 
+                className="bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border rounded px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 text-gray-700 dark:text-slate-200"
+                value={selectedDevice}
+                onChange={(e) => setSelectedDevice(e.target.value)}
+              >
+                {devices.map((device, idx) => (
+                  <option key={device.deviceId} value={device.deviceId}>
+                    {device.label || `Camera ${idx + 1}`}
+                  </option>
+                ))}
+              </select>
+            </div>
           )}
         </div>
 
