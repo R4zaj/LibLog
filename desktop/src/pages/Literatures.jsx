@@ -38,6 +38,7 @@ export default function Literatures() {
   
   // Selection
   const [selectedBooks, setSelectedBooks] = useState([]);
+  const [selectedQRs, setSelectedQRs] = useState([]);
   
   // Filtering and Sorting
   const [sortBy, setSortBy] = useState('Default');
@@ -710,17 +711,36 @@ export default function Literatures() {
           <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 dark:border-dark-border rounded bg-white dark:bg-dark-card text-sm font-medium text-gray-700 hover:bg-gray-50 dark:bg-dark-bg shadow-sm">
             <QrCode size={16} /> Generate QR Codes
           </button>
-          <button onClick={handlePrint} className="flex items-center gap-2 px-4 py-2 bg-primary-800 text-white rounded text-sm font-medium hover:bg-primary-900 shadow-sm">
-            <Printer size={16} /> Print QR Codes
-          </button>
+          <div className={`overflow-hidden transition-all duration-300 transform origin-left ${selectedQRs.length > 0 ? 'max-w-[200px] opacity-100 scale-100' : 'max-w-0 opacity-0 scale-50 -ml-3'}`}>
+            <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2 bg-primary-800 text-white rounded text-sm font-medium hover:bg-primary-900 shadow-sm whitespace-nowrap">
+              <Printer size={16} /> Print QR Codes
+            </button>
+          </div>
         </div>
       </div>
 
+      {selectedQRs.length > 0 && (
+        <div className="flex items-center gap-4 bg-purple-50 dark:bg-purple-900/20 rounded-md px-4 py-2 text-sm font-medium text-purple-800 dark:text-purple-300">
+          <span>{selectedQRs.length} selected</span>
+          <button onClick={() => setSelectedQRs([])} className="text-purple-600 dark:text-purple-400 hover:text-purple-900 dark:hover:text-purple-300">Clear</button>
+          <button onClick={() => setSelectedQRs(books.map(b => b.id))} className="text-purple-600 dark:text-purple-400 hover:text-purple-900 dark:hover:text-purple-300">Select All</button>
+        </div>
+      )}
+
       <div className="grid grid-cols-5 gap-4">
         {books.map((qr) => (
-          <div key={qr.id} onClick={() => handleViewQRCode(qr)} className="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-lg p-4 flex flex-col items-center text-center shadow-sm relative hover:border-primary-300 transition-colors cursor-pointer">
-            <input type="checkbox" className="absolute top-3 left-3 rounded border-gray-300" />
-            <div className="bg-white dark:bg-dark-card p-2 border border-gray-200 dark:border-dark-border mb-4 rounded shadow-sm inline-block">
+          <div key={qr.id} onClick={() => handleViewQRCode(qr)} className={`bg-white dark:bg-dark-card border rounded-lg p-4 flex flex-col items-center text-center shadow-sm relative transition-colors cursor-pointer ${selectedQRs.includes(qr.id) ? 'border-purple-600 ring-1 ring-purple-600' : 'border-gray-200 dark:border-dark-border hover:border-primary-300'}`}>
+            <input 
+              type="checkbox" 
+              checked={selectedQRs.includes(qr.id)}
+              onChange={(e) => {
+                if (e.target.checked) setSelectedQRs([...selectedQRs, qr.id]);
+                else setSelectedQRs(selectedQRs.filter(id => id !== qr.id));
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="absolute top-3 right-3 rounded border-gray-300 text-purple-600 focus:ring-purple-500 cursor-pointer w-4 h-4" 
+            />
+            <div className="bg-white dark:bg-dark-card p-2 border border-gray-200 dark:border-dark-border mb-4 rounded shadow-sm inline-block mt-2">
               {(() => {
                 const QR = QRCode.default || QRCode.QRCode || QRCode;
                 return <QR value={String(qr.qr_code || qr.isbn || qr.id || 'UNKNOWN')} size={80} fgColor="#006644" />;
@@ -747,7 +767,7 @@ export default function Literatures() {
       />
 
       {/* Top Header */}
-      <header className="h-16 flex items-center justify-between px-8 bg-white dark:bg-dark-card border-b border-gray-200 dark:border-dark-border shrink-0">
+      <header className={`h-16 flex items-center justify-between px-8 bg-white dark:bg-dark-card border-b border-gray-200 dark:border-dark-border shrink-0 ${activeTab === 'QR of Literatures' ? 'print:hidden' : ''}`}>
         <div className="flex items-center gap-3">
           <div className="p-1.5 border border-gray-200 dark:border-dark-border rounded text-gray-500 dark:text-slate-400">
             <BookCopy size={18} />
@@ -795,7 +815,7 @@ export default function Literatures() {
       </header>
 
       {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto px-8 py-6 flex flex-col gap-5 relative">
+      <div className={`flex-1 overflow-y-auto px-8 py-6 flex flex-col gap-5 relative ${activeTab === 'QR of Literatures' ? 'print:hidden' : ''}`}>
         {renderTabs()}
         
         {activeTab === 'Literature Catalog' && renderLiteratureCatalog()}
@@ -803,6 +823,28 @@ export default function Literatures() {
         {activeTab === 'Genre Catalog' && renderGenreCatalog()}
         {activeTab === 'QR of Literatures' && renderQRCatalog()}
       </div>
+      
+      {/* Print Only QR Container */}
+      {activeTab === 'QR of Literatures' && (
+        <div className="hidden print:block w-full bg-white text-black p-4">
+          <h1 className="text-xl font-bold mb-4 text-black">LibLog QR Codes</h1>
+          <div className="grid grid-cols-7 gap-3 w-full">
+            {(selectedQRs.length > 0 ? books.filter(b => selectedQRs.includes(b.id)) : books).map(qr => {
+              const QR = QRCode.default || QRCode.QRCode || QRCode;
+              return (
+                <div key={`print-${qr.id}`} className="border border-gray-200 rounded-lg p-2 flex flex-col items-center text-center shadow-sm" style={{ breakInside: 'avoid' }}>
+                  <div className="mb-2">
+                    <QR value={String(qr.qr_code || qr.isbn || qr.id || 'UNKNOWN')} size={90} fgColor="#006644" />
+                  </div>
+                  <h2 className="font-bold text-black text-[9px] mb-0.5 leading-tight line-clamp-2">{qr.title}</h2>
+                  <span className="text-purple-700 font-semibold text-[7px] mb-0.5 uppercase">LCCN: {qr.lccn}</span>
+                  <span className="text-gray-500 font-semibold text-[7px]">{qr.isbn}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Add/Edit Modal */}
       {isModalOpen && (

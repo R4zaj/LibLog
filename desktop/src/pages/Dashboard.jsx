@@ -410,25 +410,41 @@ export default function Dashboard() {
                   </div>
                   
                   {/* Labels */}
-                  {data.popularBooks.map((pb, idx) => {
-                    const labelPos = [
-                      "absolute -top-2 right-0",
-                      "absolute bottom-4 -right-4",
-                      "absolute -bottom-2 left-4",
-                      "absolute top-10 -left-6",
-                      "absolute top-2 left-2"
-                    ];
-                    const colors = ['text-purple-700', 'text-red-500', 'text-orange-500', 'text-cyan-600', 'text-green-500'];
-                    return (
-                      <div key={idx} className={`${labelPos[idx % 5]} text-[10px] font-bold ${colors[idx % 5]}`}>
-                        {pb.title.substring(0, 12)}... {pb.percentage}%
-                      </div>
-                    );
-                  })}
+                  {(() => {
+                    let cumulativePercent = 0;
+                    return data.popularBooks.map((pb, idx) => {
+                      const startPercent = cumulativePercent;
+                      const endPercent = cumulativePercent + pb.percentage;
+                      cumulativePercent += pb.percentage;
+                      
+                      const midPercent = (startPercent + endPercent) / 2;
+                      const angle = (midPercent / 100) * 2 * Math.PI;
+                      
+                      const labelRadius = 52;
+                      const x = 50 + labelRadius * Math.sin(angle);
+                      const y = 50 - labelRadius * Math.cos(angle);
+                      
+                      const colors = ['text-purple-700', 'text-red-500', 'text-orange-500', 'text-cyan-600', 'text-green-500'];
+                      
+                      return (
+                        <div 
+                          key={idx} 
+                          className={`absolute text-[10px] font-bold ${colors[idx % 5]} whitespace-nowrap`}
+                          style={{ 
+                            left: `${x}%`, 
+                            top: `${y}%`,
+                            transform: `translate(${x > 50 ? 5 : -105}%, ${y > 50 ? 5 : -105}%)`
+                          }}
+                        >
+                          {pb.title.length > 12 ? pb.title.substring(0, 12) + '...' : pb.title} {pb.percentage}%
+                        </div>
+                      );
+                    });
+                  })()}
                 </>
               )}
             </div>
-            <button className="text-xs font-bold text-gray-500 dark:text-slate-400 hover:text-primary-700 mt-4 flex items-center gap-1">
+            <button onClick={() => navigate('/literatures')} className="text-xs font-bold text-gray-500 dark:text-slate-400 hover:text-primary-700 mt-4 flex items-center gap-1">
               <BookOpen size={12} /> View All Books →
             </button>
           </div>

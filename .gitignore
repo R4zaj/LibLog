@@ -8,3 +8,5 @@ npm-debug.log
 yarn-error.log
 .tempmediaStorage/
 brain/
+desktop-release/
+desktop/release/

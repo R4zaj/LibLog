@@ -134,7 +134,7 @@ export default function MainLayout() {
     <BorrowingProvider>
       <div className="flex h-screen bg-gray-50 dark:bg-dark-bg font-sans text-gray-900 dark:text-slate-200">
       {/* Light Sidebar */}
-      <aside className="w-64 bg-sidebar-bg dark:bg-dark-sidebar border-r border-gray-200 dark:border-dark-border flex flex-col shadow-sm z-10 shrink-0">
+      <aside className="w-64 bg-sidebar-bg dark:bg-dark-sidebar border-r border-gray-200 dark:border-dark-border flex flex-col shadow-sm z-10 shrink-0 print:hidden">
         {/* Logo Area */}
         <div className="h-16 flex items-center px-6 border-b border-gray-200 dark:border-dark-border gap-3">
           <div className="rounded-md shadow-sm overflow-hidden flex items-center justify-center w-8 h-8">
