@@ -168,4 +168,45 @@ const getOverview = async (req, res) => {
   }
 };
 
-module.exports = { getOverview };
+const getFullLog = async (req, res) => {
+  try {
+    const recentBorrows = await prisma.borrowRecord.findMany({
+      include: { user: true, book: true },
+      orderBy: { created_at: 'desc' },
+      take: 50
+    });
+    const recentAttendance = await prisma.attendanceLog.findMany({
+      include: { user: true },
+      orderBy: { logged_at: 'desc' },
+      take: 50
+    });
+
+    const activities = [];
+    recentBorrows.forEach(b => {
+      activities.push({
+        id: `borrow-${b.id}`,
+        type: 'BORROW',
+        user: `${b.user.first_name} ${b.user.last_name}`,
+        details: `borrowed "${b.book.title}"`,
+        date: b.created_at
+      });
+    });
+    recentAttendance.forEach(a => {
+      activities.push({
+        id: `att-${a.id}`,
+        type: a.action,
+        user: `${a.user.first_name} ${a.user.last_name}`,
+        details: a.action === 'CHECK_IN' ? 'checked into the library' : 'checked out of the library',
+        date: a.logged_at
+      });
+    });
+    activities.sort((a, b) => b.date - a.date);
+    
+    res.json(activities.slice(0, 50));
+  } catch (error) {
+    console.error('Dashboard Full Log Error:', error);
+    res.status(500).json({ error: 'Server error fetching full log' });
+  }
+};
+
+module.exports = { getOverview, getFullLog };

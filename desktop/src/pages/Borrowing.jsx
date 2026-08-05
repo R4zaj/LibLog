@@ -147,17 +147,7 @@ export default function Borrowing() {
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500" size={14} />
-            <input 
-              type="text" 
-              placeholder="Search books, students..." 
-              className="pl-9 pr-12 py-1.5 bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 w-64"
-            />
-            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
-              <span className="px-1.5 py-0.5 bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded text-[10px] text-gray-400 dark:text-slate-500">⌘K</span>
-            </div>
-          </div>
+
           <div className="flex items-center gap-3 border-l border-gray-200 dark:border-dark-border pl-4">
             <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-slate-400 font-medium">
               <div className="w-2 h-2 rounded-full bg-primary-600"></div> Open

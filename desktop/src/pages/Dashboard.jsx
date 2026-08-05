@@ -31,6 +31,27 @@ export default function Dashboard() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const { isDarkMode, toggleDarkMode } = useTheme();
   const [profileOpen, setProfileOpen] = useState(false);
+  
+  // Full Log Modal State
+  const [isLogModalOpen, setIsLogModalOpen] = useState(false);
+  const [fullLog, setFullLog] = useState([]);
+  const [isLoadingLog, setIsLoadingLog] = useState(false);
+
+  const fetchFullLog = async () => {
+    setIsLogModalOpen(true);
+    setIsLoadingLog(true);
+    try {
+      const res = await fetch('http://localhost:5000/api/dashboard/full-log', { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
+      if (res.ok) {
+        const data = await res.json();
+        setFullLog(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch full log', err);
+    } finally {
+      setIsLoadingLog(false);
+    }
+  };
 
   useEffect(() => {
     const fetchData = () => {
@@ -78,17 +99,7 @@ export default function Dashboard() {
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500" size={14} />
-            <input 
-              type="text" 
-              placeholder="Search books, students..." 
-              className="pl-9 pr-12 py-1.5 bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 w-64"
-            />
-            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
-              <span className="px-1.5 py-0.5 bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded text-[10px] text-gray-400 dark:text-slate-500">⌘K</span>
-            </div>
-          </div>
+
           <div className="flex items-center gap-3 border-l border-gray-200 dark:border-dark-border pl-4">
             <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-slate-400 font-medium">
               <div className="w-2 h-2 rounded-full bg-primary-600"></div> Open
@@ -472,7 +483,7 @@ export default function Dashboard() {
                 <h3 className="font-bold text-gray-800 dark:text-slate-300 text-sm mb-1 flex items-center gap-2"><Activity size={16} className="text-purple-600" /> Recent Activity</h3>
                 <span className="text-xs text-gray-400 dark:text-slate-500">Latest library events and transactions</span>
               </div>
-              <button className="text-[10px] font-bold text-purple-700 hover:underline">View Full Log</button>
+              <button onClick={fetchFullLog} className="text-[10px] font-bold text-purple-700 hover:underline">View Full Log</button>
             </div>
             
             <div className="flex-1 overflow-y-auto pr-2 relative">
@@ -531,6 +542,71 @@ export default function Dashboard() {
         </div>
 
       </div>
+
+      {/* Full Log Modal */}
+      {isLogModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-dark-card rounded-xl shadow-xl border border-gray-200 dark:border-dark-border w-full max-w-2xl flex flex-col max-h-[80vh] animate-slide-up">
+            <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-dark-border shrink-0">
+              <h2 className="text-lg font-bold text-gray-800 dark:text-slate-200 flex items-center gap-2">
+                <Activity size={20} className="text-purple-600" /> Full Activity Log
+              </h2>
+              <button 
+                onClick={() => setIsLogModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 dark:text-slate-500 dark:hover:text-slate-300 p-1 rounded hover:bg-gray-100 dark:hover:bg-dark-hover"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6">
+              {isLoadingLog ? (
+                <div className="flex justify-center items-center h-40">
+                  <ArrowRightLeft size={24} className="animate-spin text-purple-600" />
+                </div>
+              ) : fullLog.length === 0 ? (
+                <div className="text-center text-gray-500 dark:text-slate-400 py-10">No activities recorded yet.</div>
+              ) : (
+                <div className="relative">
+                  <div className="absolute left-[15px] top-0 bottom-0 w-px bg-gray-200 dark:bg-dark-border"></div>
+                  <div className="flex flex-col gap-6 relative z-10">
+                    {fullLog.map((act) => (
+                      <div key={act.id} className="flex gap-4">
+                        <div className={`w-8 h-8 rounded-full bg-white dark:bg-dark-card border flex items-center justify-center shrink-0 shadow-sm z-10 ${act.type === 'BORROW' ? 'border-orange-200' : 'border-gray-200 dark:border-dark-border'}`}>
+                          {act.type === 'BORROW' ? <ArrowRightLeft size={14} className="text-orange-500" /> : <Activity size={14} className="text-gray-500 dark:text-slate-400" />}
+                        </div>
+                        <div className="flex flex-col flex-1">
+                          <div className="flex justify-between items-start">
+                            <p className="text-sm font-bold text-gray-800 dark:text-slate-300">
+                              {act.user} 
+                              <span className={`px-1.5 py-0.5 ml-2 text-[10px] rounded uppercase ${act.type === 'BORROW' ? 'bg-orange-50 text-orange-600 border border-orange-100' : 'bg-gray-100 text-gray-500 dark:text-slate-400 border border-gray-200 dark:border-dark-border'}`}>
+                                {act.type.replace('_', ' ')}
+                              </span>
+                            </p>
+                            <span className="text-xs text-gray-400 dark:text-slate-500 flex items-center gap-1">
+                              <Clock size={12} /> {new Date(act.date).toLocaleString()}
+                            </span>
+                          </div>
+                          <span className="text-sm text-gray-500 dark:text-slate-400 mt-1">{act.user} {act.details}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="p-4 border-t border-gray-100 dark:border-dark-border bg-gray-50 dark:bg-dark-bg flex justify-end shrink-0 rounded-b-xl">
+              <button 
+                onClick={() => setIsLogModalOpen(false)}
+                className="px-4 py-2 bg-white dark:bg-dark-card border border-gray-300 dark:border-dark-border rounded text-sm font-medium hover:bg-gray-50 dark:hover:bg-dark-hover"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

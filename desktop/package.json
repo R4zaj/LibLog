@@ -6,8 +6,9 @@
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
+    "dev:electron": "set ELECTRON=true&& vite",
     "build": "vite build",
-    "build:electron": "vite build && electron-builder",
+    "build:electron": "set ELECTRON=true&& vite build && electron-builder",
     "lint": "eslint .",
     "preview": "vite preview"
   },

@@ -29,6 +29,7 @@ export default function Settings() {
   const [saving, setSaving] = useState(false);
   const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
   const [newAnnouncement, setNewAnnouncement] = useState({ title: '', body: '', priority: 'NORMAL', is_active: true });
+  const [announcementToDelete, setAnnouncementToDelete] = useState(null);
   useEffect(() => {
     // Fetch stats
     fetch('http://localhost:5000/api/settings/stats', {
@@ -127,12 +128,17 @@ export default function Settings() {
     }
   };
 
-  const handleDeleteAnnouncement = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this announcement?')) return;
+  const confirmDeleteAnnouncement = (id) => {
+    setAnnouncementToDelete(id);
+  };
+
+  const executeDeleteAnnouncement = async () => {
+    if (!announcementToDelete) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/settings/announcements/${id}`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }, method: 'DELETE'
+      const res = await fetch(`http://localhost:5000/api/settings/announcements/${announcementToDelete}`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }, method: 'DELETE'
       });
       if (res.ok) {
+        setAnnouncementToDelete(null);
         fetchAnnouncements();
         // Update stats
         fetch('http://localhost:5000/api/settings/stats', { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }).then(r => r.json()).then(setStats);
@@ -537,7 +543,7 @@ export default function Settings() {
                       </td>
                       <td className="p-4 text-center">
                         <button 
-                          onClick={() => handleDeleteAnnouncement(a.id)}
+                          onClick={() => confirmDeleteAnnouncement(a.id)}
                           className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 p-1.5 rounded-lg transition-colors"
                           title="Delete Announcement"
                         >
@@ -640,6 +646,39 @@ export default function Settings() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {announcementToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in no-print">
+          <div className="bg-white dark:bg-dark-card rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-slide-up border border-red-100 dark:border-red-900/30">
+            <div className="p-6 flex flex-col items-center text-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-500 flex items-center justify-center">
+                <Trash2 size={24} />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-900 dark:text-slate-100 text-lg mb-1">Delete Announcement?</h3>
+                <p className="text-sm text-gray-500 dark:text-slate-400">
+                  Are you sure you want to delete this announcement? This action cannot be undone.
+                </p>
+              </div>
+            </div>
+            <div className="p-4 bg-gray-50 dark:bg-dark-bg border-t border-gray-100 dark:border-dark-border flex gap-3">
+              <button 
+                onClick={() => setAnnouncementToDelete(null)}
+                className="flex-1 px-4 py-2 rounded-lg text-sm font-bold text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-dark-hover transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={executeDeleteAnnouncement}
+                className="flex-1 px-4 py-2 rounded-lg text-sm font-bold bg-red-600 hover:bg-red-700 text-white transition-colors"
+              >
+                Yes, Delete
+              </button>
+            </div>
           </div>
         </div>
       )}
