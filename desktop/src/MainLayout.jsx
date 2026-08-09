@@ -10,12 +10,16 @@ import {
   BookKey,
   QrCode,
   LogOut,
-  ChevronDown
+  ChevronDown,
+  Wifi,
+  WifiOff,
+  RefreshCw
 } from 'lucide-react';
 import { AttendanceScannerProvider } from './context/AttendanceScannerContext';
 import { BorrowingProvider } from './context/BorrowingContext';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import { useNetwork } from './contexts/NetworkContext';
 
 const NavItem = ({ to, icon: Icon, label, badge, subItems }) => {
   const location = useLocation();
@@ -100,6 +104,7 @@ export default function MainLayout() {
 
   useEffect(() => {
     const fetchStats = async () => {
+      if (!navigator.onLine) return; // Skip background fetch if offline
       try {
         const res = await fetch('http://localhost:5000/api/dashboard/overview', {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
@@ -114,13 +119,15 @@ export default function MainLayout() {
           });
         }
       } catch (err) {
-        console.error('Failed to fetch sidebar stats', err);
+        // Silently ignore network errors to prevent console spam
       }
     };
     fetchStats();
     const interval = setInterval(fetchStats, 5000);
     return () => clearInterval(interval);
   }, []);
+
+  const { isOnline, syncQueue, isSyncing, processSyncQueue } = useNetwork();
 
   const literaturesSubItems = [
     { to: '/literatures?tab=catalog', icon: BookCopy, label: 'Literature Catalog' },
@@ -182,6 +189,42 @@ export default function MainLayout() {
               <div className="w-2 h-2 rounded-full bg-primary-600"></div>
               <span>Open • {stats.capacity - stats.inside}/{stats.capacity} seats</span>
             </div>
+            
+            {/* Network Status */}
+            <div className={`mt-3 p-2 rounded-lg border flex items-center justify-between transition-colors ${
+              isOnline 
+                ? 'bg-green-50 dark:bg-green-900/10 border-green-100 dark:border-green-900/30' 
+                : 'bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-900/30'
+            }`}>
+              <div className="flex items-center gap-2">
+                {isOnline ? (
+                  <Wifi size={14} className="text-green-600 dark:text-green-500" />
+                ) : (
+                  <WifiOff size={14} className="text-orange-600 dark:text-orange-500" />
+                )}
+                <div className="flex flex-col">
+                  <span className={`text-[10px] font-bold ${isOnline ? 'text-green-700' : 'text-orange-700'}`}>
+                    {isOnline ? 'System Online' : 'Offline Mode'}
+                  </span>
+                  {syncQueue.length > 0 && (
+                    <span className="text-[9px] text-gray-500">
+                      {syncQueue.length} pending sync{syncQueue.length > 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
+              </div>
+              {isOnline && syncQueue.length > 0 && (
+                <button 
+                  onClick={processSyncQueue}
+                  disabled={isSyncing}
+                  className={`p-1.5 rounded-full ${isSyncing ? 'animate-spin text-gray-400' : 'text-primary-600 hover:bg-primary-50'} transition-colors`}
+                  title="Sync Now"
+                >
+                  <RefreshCw size={12} />
+                </button>
+              )}
+            </div>
+            
           </div>
           
           {/* Profile */}

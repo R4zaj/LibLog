@@ -209,6 +209,28 @@ const getPrograms = async (req, res) => {
   }
 };
 
+// PUT /api/settings/users/:id/role
+const updateUserRole = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { role } = req.body;
+
+    if (!['STUDENT', 'FACULTY'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid role. Must be STUDENT or FACULTY.' });
+    }
+
+    const user = await prisma.user.update({
+      where: { id: parseInt(id) },
+      data: { role }
+    });
+
+    res.json({ success: true, role: user.role });
+  } catch (error) {
+    console.error('Error updating user role:', error);
+    res.status(500).json({ error: 'Server error updating role' });
+  }
+};
+
 module.exports = {
   getStats,
   getLibraryRules,
@@ -217,5 +239,6 @@ module.exports = {
   getAnnouncements,
   createAnnouncement,
   deleteAnnouncement,
-  getPrograms
+  getPrograms,
+  updateUserRole
 };

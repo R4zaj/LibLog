@@ -65,9 +65,12 @@ export default function SignIn() {
             <Text style={styles.buttonText}>Sign In</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.signUpLink} onPress={() => router.push('/(auth)/sign-up')}>
-            <Text style={styles.signUpText}>Don't have an account? <Text style={styles.signUpTextBold}>Sign Up</Text></Text>
-          </TouchableOpacity>
+          <View style={[styles.signUpLink, { flexDirection: 'row', justifyContent: 'center' }]}>
+            <Text style={styles.signUpText}>Don't have an account? </Text>
+            <TouchableOpacity onPress={() => router.push('/(auth)/sign-up')}>
+              <Text style={[styles.signUpText, styles.signUpTextBold]}>Sign Up</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
       </KeyboardAvoidingView>

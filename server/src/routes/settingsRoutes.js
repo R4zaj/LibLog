@@ -8,7 +8,8 @@ const {
   getAnnouncements,
   createAnnouncement,
   deleteAnnouncement,
-  getPrograms
+  getPrograms,
+  updateUserRole
 } = require('../controllers/settingsController');
 const { verifyToken, isAdmin } = require('../middleware/authMiddleware');
 
@@ -16,6 +17,7 @@ router.get('/stats', verifyToken, isAdmin, getStats);
 router.get('/library-rules', verifyToken, isAdmin, getLibraryRules);
 router.put('/library-rules', verifyToken, isAdmin, updateLibraryRules);
 router.get('/users', verifyToken, isAdmin, getUsers);
+router.put('/users/:id/role', verifyToken, isAdmin, updateUserRole);
 router.get('/announcements', getAnnouncements); // public or all users
 router.post('/announcements', verifyToken, isAdmin, createAnnouncement);
 router.delete('/announcements/:id', verifyToken, isAdmin, deleteAnnouncement);

@@ -2,6 +2,7 @@ import { createContext, useState, useRef, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { Camera, CameraOff, LogIn, LogOut, X } from 'lucide-react';
+import { useOfflineApi } from '../hooks/useOfflineApi';
 
 export const AttendanceScannerContext = createContext();
 
@@ -35,9 +36,11 @@ export function AttendanceScannerProvider({ children }) {
   const cleanupIdRef = useRef(0);
   const handleScanRef = useRef(null);
 
+  const { fetchWithOfflineSupport } = useOfflineApi();
+
   const handleScan = useCallback(async (identifier) => {
     try {
-      const res = await fetch('http://localhost:5000/api/attendance/scan', { 
+      const res = await fetchWithOfflineSupport('http://localhost:5000/api/attendance/scan', { 
         method: 'POST', 
         headers: { 
           'Authorization': `Bearer ${localStorage.getItem('token')}`,  
@@ -47,9 +50,10 @@ export function AttendanceScannerProvider({ children }) {
       });
       const data = await res.json();
       if (res.ok) {
+        // If it was queued offline, data.user won't exist. Mock a generic UI update.
         const scanData = {
-          user: `${data.user.first_name} ${data.user.last_name}`,
-          action: data.action,
+          user: data.offlineQueued ? `User ${identifier}` : `${data.user.first_name} ${data.user.last_name}`,
+          action: data.offlineQueued ? 'CHECK_IN' : data.action, // Default to check-in optimistically if offline
           time: new Date().toLocaleTimeString(),
           duration: data.duration
         };
@@ -66,7 +70,7 @@ export function AttendanceScannerProvider({ children }) {
     } catch (e) {
       console.error('Network error connecting to server');
     }
-  }, []);
+  }, [fetchWithOfflineSupport]);
 
   handleScanRef.current = handleScan;
 

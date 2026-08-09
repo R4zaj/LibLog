@@ -776,7 +776,6 @@ export default function Reports() {
         )}
 
         {/* Administrative Tracking Section */}
-        {selectedModules.admin && (
         <>
         <div className="flex items-center gap-4 mt-2 mb-4">
           <div className="w-1 h-8 rounded-full bg-orange-500"></div>
@@ -789,24 +788,58 @@ export default function Reports() {
           </div>
         </div>
 
+        {/* Current Penalty Summary Cards */}
+        <div className="grid grid-cols-4 gap-4 mb-4">
+          <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-100 dark:border-dark-border p-4 flex flex-col">
+            <span className="text-[10px] uppercase font-bold text-gray-400 dark:text-slate-500 tracking-wider mb-1">Total Penalties</span>
+            <span className="text-xl font-extrabold text-gray-900 dark:text-slate-200">₱{(data.penaltySummary?.totalAmount || 0).toFixed(2)}</span>
+            <span className="text-[10px] text-gray-500 dark:text-slate-400 mt-1">{(data.penaltySummary?.paidCount || 0) + (data.penaltySummary?.unpaidCount || 0)} total records</span>
+          </div>
+          <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-100 dark:border-dark-border p-4 flex flex-col">
+            <span className="text-[10px] uppercase font-bold text-green-500 tracking-wider mb-1">Paid</span>
+            <span className="text-xl font-extrabold text-green-600">₱{(data.penaltySummary?.paidAmount || 0).toFixed(2)}</span>
+            <span className="text-[10px] text-gray-500 dark:text-slate-400 mt-1">{data.penaltySummary?.paidCount || 0} records</span>
+          </div>
+          <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-100 dark:border-dark-border p-4 flex flex-col">
+            <span className="text-[10px] uppercase font-bold text-red-500 tracking-wider mb-1">Unpaid</span>
+            <span className="text-xl font-extrabold text-red-600">₱{(data.penaltySummary?.unpaidAmount || 0).toFixed(2)}</span>
+            <span className="text-[10px] text-gray-500 dark:text-slate-400 mt-1">{data.penaltySummary?.unpaidCount || 0} records</span>
+          </div>
+          <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-100 dark:border-dark-border p-4 flex flex-col">
+            <span className="text-[10px] uppercase font-bold text-orange-500 tracking-wider mb-1">Overdue Books</span>
+            <span className="text-xl font-extrabold text-orange-600">{data.overdueCount || 0}</span>
+            <span className="text-[10px] text-gray-500 dark:text-slate-400 mt-1">currently overdue</span>
+          </div>
+        </div>
+
         <div className="grid grid-cols-3 gap-6 mb-2">
           {/* Students with Penalties */}
           <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-100 dark:border-dark-border p-6 flex flex-col">
-            <div className="flex items-start gap-2 mb-6">
-              <div className="mt-1 text-purple-600"><AlertCircle size={14} /></div>
+            <div className="flex items-start gap-2 mb-4">
+              <div className="mt-1 text-orange-500"><AlertCircle size={14} /></div>
               <div className="flex flex-col">
                 <h3 className="font-bold text-gray-900 dark:text-slate-200 text-sm">Students with Penalties</h3>
-                <span className="text-[10px] font-medium text-gray-400 dark:text-slate-500">Active penalty balances</span>
+                <span className="text-[10px] font-medium text-gray-400 dark:text-slate-500">Active penalty balances (₱5/day after 3 days)</span>
               </div>
             </div>
             {data.penalties.length > 0 ? (
-              <div className="overflow-auto max-h-48">
+              <div className="overflow-auto max-h-52">
                 <table className="w-full text-left">
+                  <thead>
+                    <tr className="border-b border-gray-200 dark:border-dark-border">
+                      <th className="pb-2 text-[11px] font-bold text-gray-800 dark:text-slate-300 w-8">#</th>
+                      <th className="pb-2 text-[11px] font-bold text-gray-800 dark:text-slate-300">Name</th>
+                      <th className="pb-2 text-[11px] font-bold text-gray-800 dark:text-slate-300 text-right">Amount</th>
+                    </tr>
+                  </thead>
                   <tbody>
                     {data.penalties.map((p, i) => (
-                      <tr key={i} className="border-b border-gray-50">
-                        <td className="py-2 text-[11px] font-bold text-gray-800 dark:text-slate-300">{p.name}</td>
-                        <td className="py-2 text-right text-[11px] font-bold text-red-500">₱{p.amount.toFixed(2)}</td>
+                      <tr key={i} className="border-b border-gray-50 last:border-0">
+                        <td className="py-2.5 text-[11px] text-gray-500 dark:text-slate-400">{i + 1}</td>
+                        <td className="py-2.5 text-[11px] font-bold text-gray-800 dark:text-slate-300">{p.name}</td>
+                        <td className="py-2.5 text-right">
+                          <span className="inline-flex items-center justify-center bg-red-50 text-red-600 text-[10px] font-bold px-2 py-0.5 rounded">₱{p.amount.toFixed(2)}</span>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -822,32 +855,37 @@ export default function Reports() {
 
           {/* Teachers with Unreturned Books */}
           <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-100 dark:border-dark-border p-6 flex flex-col">
-            <div className="flex items-start gap-2 mb-6">
+            <div className="flex items-start gap-2 mb-4">
               <div className="mt-1 text-purple-600"><BookOpen size={14} /></div>
               <div className="flex flex-col">
-                <h3 className="font-bold text-gray-900 dark:text-slate-200 text-sm">Unreturned Books</h3>
-                <span className="text-[10px] font-medium text-gray-400 dark:text-slate-500">Users with outstanding borrows</span>
+                <h3 className="font-bold text-gray-900 dark:text-slate-200 text-sm">Teachers with Unreturned Books</h3>
+                <span className="text-[10px] font-medium text-gray-400 dark:text-slate-500">Faculty with outstanding borrows (semester duration)</span>
               </div>
             </div>
-            {data.overdue.length > 0 ? (
-              <div className="overflow-auto max-h-48">
+            {(data.facultyUnreturned || []).length > 0 ? (
+              <div className="overflow-auto max-h-52">
                 <table className="w-full text-left">
                   <thead>
                     <tr className="border-b border-gray-200 dark:border-dark-border">
                       <th className="pb-2 text-[11px] font-bold text-gray-800 dark:text-slate-300 w-8">#</th>
                       <th className="pb-2 text-[11px] font-bold text-gray-800 dark:text-slate-300">Name</th>
                       <th className="pb-2 text-[11px] font-bold text-gray-800 dark:text-slate-300">Program</th>
-                      <th className="pb-2 text-[11px] font-bold text-gray-800 dark:text-slate-300 text-right">Days</th>
+                      <th className="pb-2 text-[11px] font-bold text-gray-800 dark:text-slate-300 text-right">Books</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {data.overdue.map((o, i) => (
-                      <tr key={i} className="border-b border-gray-50">
-                        <td className="py-2 text-[11px] text-gray-500 dark:text-slate-400">{i + 1}</td>
-                        <td className="py-2 text-[11px] font-bold text-gray-800 dark:text-slate-300">{o.name}</td>
-                        <td className="py-2 text-[10px] text-gray-500 dark:text-slate-400">{o.program}</td>
-                        <td className="py-2 text-right">
-                          <span className="inline-flex items-center justify-center bg-yellow-50 text-yellow-600 text-[10px] font-bold px-2 py-0.5 rounded w-6">{o.daysLate}</span>
+                    {data.facultyUnreturned.map((f, i) => (
+                      <tr key={i} className="border-b border-gray-50 last:border-0">
+                        <td className="py-2.5 text-[11px] text-gray-500 dark:text-slate-400">{i + 1}</td>
+                        <td className="py-2.5">
+                          <span className="text-[11px] font-bold text-gray-800 dark:text-slate-300 block">{f.name}</span>
+                          <span className="text-[9px] text-gray-400 dark:text-slate-500">{f.student_id}</span>
+                        </td>
+                        <td className="py-2.5">
+                          <span className="text-[10px] font-medium px-2 py-0.5 bg-purple-50 text-purple-700 rounded border border-purple-100">{f.program}</span>
+                        </td>
+                        <td className="py-2.5 text-right">
+                          <span className="inline-flex items-center justify-center bg-orange-50 text-orange-600 text-[10px] font-bold px-2 py-0.5 rounded w-6">{f.bookCount}</span>
                         </td>
                       </tr>
                     ))}
@@ -857,27 +895,35 @@ export default function Reports() {
             ) : (
               <div className="flex-1 flex flex-col items-center justify-center text-gray-300 gap-2 py-8">
                 <BookOpen size={32} strokeWidth={1} />
-                <span className="text-[10px] font-bold">No unreturned books</span>
+                <span className="text-[10px] font-bold">No unreturned books by faculty</span>
               </div>
             )}
           </div>
 
-          {/* Penalty Breakdown */}
+          {/* Penalty Breakdown Chart */}
           <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-100 dark:border-dark-border p-6 flex flex-col">
-            <div className="flex justify-between items-start mb-6">
+            <div className="flex justify-between items-start mb-4">
               <div className="flex flex-col">
                 <h3 className="font-bold text-gray-900 dark:text-slate-200 text-sm">Penalty Breakdown</h3>
                 <span className="text-[10px] font-medium text-gray-400 dark:text-slate-500">Paid vs unpaid penalty amounts</span>
               </div>
               <div className="flex items-center gap-2 no-print">
                 <div className="flex border border-gray-200 dark:border-dark-border rounded-full overflow-hidden p-0.5 bg-gray-50">
-                  <button className="px-2 py-0.5 text-[9px] font-bold rounded-full transition-colors bg-purple-700 text-white shadow-sm">Pie</button>
+                  {['Bar', 'Line', 'Pie', 'Area'].map(type => (
+                    <button 
+                      key={type}
+                      onClick={() => setChartType(type)}
+                      className={`px-2 py-0.5 text-[9px] font-bold rounded-full transition-colors ${chartType === type ? 'bg-purple-700 text-white shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700'}`}
+                    >
+                      {type}
+                    </button>
+                  ))}
                 </div>
                 <button className="text-purple-600 hover:bg-purple-50 p-1 rounded transition-colors"><Download size={14} /></button>
               </div>
             </div>
             {data.financials.totalPaid > 0 || data.financials.totalUnpaid > 0 ? (
-              <div className="flex-1 w-full min-h-[150px]">
+              <div className="flex-1 w-full min-h-[180px]">
                 <ResponsiveContainer width="100%" height="100%" minHeight={1}>
                   <PieChart>
                     <Pie data={[
@@ -890,6 +936,16 @@ export default function Reports() {
                     <RechartsTooltip contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '12px'}} />
                   </PieChart>
                 </ResponsiveContainer>
+                <div className="flex items-center justify-center gap-6 mt-2">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-green-500"></div>
+                    <span className="text-[10px] font-medium text-gray-600 dark:text-slate-400">Paid ₱{data.financials.totalPaid.toFixed(2)}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-red-500"></div>
+                    <span className="text-[10px] font-medium text-gray-600 dark:text-slate-400">Unpaid ₱{data.financials.totalUnpaid.toFixed(2)}</span>
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="flex-1 flex flex-col items-center justify-center text-gray-300 gap-2 py-8">
@@ -901,7 +957,6 @@ export default function Reports() {
           </div>
         </div>
         </>
-        )}
 
         {/* Trend Analysis Section */}
         {selectedModules.trends && (

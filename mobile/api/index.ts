@@ -5,7 +5,7 @@ import { getItem } from '../utils/Storage';
 import Constants from 'expo-constants';
 
 const debuggerHost = Constants.expoConfig?.hostUri;
-const localIp = debuggerHost?.split(':')[0] || '192.168.1.19';
+const localIp = debuggerHost?.split(':')[0] || '192.168.1.8';
 const host = Platform.OS === 'web' ? 'localhost' : localIp;
 
 const API_URL = `http://${host}:5000/api`;

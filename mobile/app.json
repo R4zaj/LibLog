@@ -24,6 +24,7 @@
       "favicon": "./assets/images/CCC_icon.jpg"
     },
     "plugins": [
+      ["./withGradleVersion.js", "8.13"],
       "expo-router",
       [
         "expo-splash-screen",

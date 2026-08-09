@@ -131,10 +131,59 @@ const getSummary = async (req, res) => {
       const daysLate = Math.floor((new Date() - new Date(o.due_date)) / (1000 * 60 * 60 * 24));
       return {
         name: `${o.user.first_name} ${o.user.last_name}`,
+        student_id: o.user.student_id,
         program: o.user.program?.name || 'N/A',
         daysLate: daysLate > 0 ? daysLate : 0
       };
     });
+
+    // 7b. Faculty / Teachers with Unreturned Books
+    const facultyUnreturnedRaw = await prisma.borrowRecord.findMany({
+      where: { 
+        status: { in: ['BORROWED', 'OVERDUE'] },
+        user: { role: 'FACULTY' }
+      },
+      include: { 
+        user: { include: { program: true } },
+        book: true
+      }
+    });
+    const facultyUnreturned = facultyUnreturnedRaw.map(r => ({
+      name: `${r.user.first_name} ${r.user.last_name}`,
+      student_id: r.user.student_id,
+      program: r.user.program?.name || 'Faculty',
+      bookTitle: r.book?.title || 'Unknown',
+      bookCount: 1
+    }));
+    // Group by user
+    const facultyGrouped = {};
+    facultyUnreturned.forEach(f => {
+      if (!facultyGrouped[f.student_id]) {
+        facultyGrouped[f.student_id] = { ...f, bookCount: 0, books: [] };
+      }
+      facultyGrouped[f.student_id].bookCount++;
+      facultyGrouped[f.student_id].books.push(f.bookTitle);
+    });
+    const facultyUnreturnedGrouped = Object.values(facultyGrouped);
+
+    // 7c. Current Penalty Summary (all time, not date-filtered)
+    const penaltySummaryPaid = await prisma.penalty.aggregate({
+      _sum: { amount: true },
+      _count: true,
+      where: { status: 'PAID' }
+    });
+    const penaltySummaryUnpaid = await prisma.penalty.aggregate({
+      _sum: { amount: true },
+      _count: true,
+      where: { status: 'UNPAID' }
+    });
+    const penaltySummary = {
+      paidCount: penaltySummaryPaid._count || 0,
+      paidAmount: parseFloat(penaltySummaryPaid._sum.amount || 0),
+      unpaidCount: penaltySummaryUnpaid._count || 0,
+      unpaidAmount: parseFloat(penaltySummaryUnpaid._sum.amount || 0),
+      totalAmount: parseFloat(penaltySummaryPaid._sum.amount || 0) + parseFloat(penaltySummaryUnpaid._sum.amount || 0)
+    };
 
     // 8. Borrow Trend (Last 30 Days)
     const thirtyDaysAgo = new Date();
@@ -182,7 +231,9 @@ const getSummary = async (req, res) => {
       totalBorrows: totalBorrowsRaw,
       totalReturned: totalReturnedRaw,
       totalVisits: totalVisitsRaw,
-      overdueCount: overdueRaw.length
+      overdueCount: overdueRaw.length,
+      facultyUnreturned: facultyUnreturnedGrouped,
+      penaltySummary
     });
 
   } catch (error) {

@@ -30,6 +30,8 @@ export default function Settings() {
   const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
   const [newAnnouncement, setNewAnnouncement] = useState({ title: '', body: '', priority: 'NORMAL', is_active: true });
   const [announcementToDelete, setAnnouncementToDelete] = useState(null);
+  const [pendingRoleChanges, setPendingRoleChanges] = useState({});
+  const [savingRoles, setSavingRoles] = useState(false);
   useEffect(() => {
     // Fetch stats
     fetch('http://localhost:5000/api/settings/stats', {
@@ -140,12 +142,45 @@ export default function Settings() {
       if (res.ok) {
         setAnnouncementToDelete(null);
         fetchAnnouncements();
-        // Update stats
         fetch('http://localhost:5000/api/settings/stats', { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }).then(r => r.json()).then(setStats);
       }
     } catch (error) {
       console.error('Error deleting announcement:', error);
     }
+  };
+
+  const handleUpdateRole = (userId, newRole) => {
+    setPendingRoleChanges(prev => {
+      const original = users.find(u => u.id === userId);
+      if (original && original.role === newRole) {
+        const updated = { ...prev };
+        delete updated[userId];
+        return updated;
+      }
+      return { ...prev, [userId]: newRole };
+    });
+  };
+
+  const saveRoleChanges = async () => {
+    setSavingRoles(true);
+    try {
+      const entries = Object.entries(pendingRoleChanges);
+      for (const [userId, role] of entries) {
+        await fetch(`http://localhost:5000/api/settings/users/${userId}/role`, {
+          method: 'PUT',
+          headers: { 
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ role })
+        });
+      }
+      setPendingRoleChanges({});
+      fetchUsers();
+    } catch (error) {
+      console.error('Error saving role changes:', error);
+    }
+    setSavingRoles(false);
   };
 
   return (
@@ -343,13 +378,28 @@ export default function Settings() {
                 </thead>
                 <tbody>
                   {users.map(u => (
-                    <tr key={u.id} className="border-b border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-hover/50 transition-colors">
+                    <tr key={u.id} className={`border-b border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-hover/50 transition-colors ${pendingRoleChanges[u.id] ? 'bg-purple-50/50 dark:bg-purple-900/10' : ''}`}>
                       <td className="p-4 font-mono text-gray-800 dark:text-slate-300">{u.student_id}</td>
                       <td className="p-4 font-mono text-gray-500 dark:text-slate-400">{u.card_no}</td>
                       <td className="p-4 font-medium text-gray-800 dark:text-slate-300">{u.name}</td>
                       <td className="p-4 text-gray-500 dark:text-slate-400">{u.email}</td>
                       <td className="p-4">
-                        <span className="text-[10px] font-bold bg-purple-50 text-purple-700 px-2 py-0.5 rounded border border-purple-100">{u.role}</span>
+                        {u.role === 'ADMIN' ? (
+                          <span className="text-[10px] font-bold bg-red-50 text-red-700 px-2 py-0.5 rounded border border-red-100">{u.role}</span>
+                        ) : (
+                          <select 
+                            value={pendingRoleChanges[u.id] || u.role}
+                            onChange={(e) => handleUpdateRole(u.id, e.target.value)}
+                            className={`text-[10px] font-bold px-2 py-1 rounded border cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary-500 transition-colors ${
+                              pendingRoleChanges[u.id] 
+                                ? 'bg-yellow-50 text-yellow-700 border-yellow-300 ring-1 ring-yellow-200' 
+                                : 'bg-purple-50 text-purple-700 border-purple-100 hover:bg-purple-100'
+                            }`}
+                          >
+                            <option value="STUDENT">STUDENT</option>
+                            <option value="FACULTY">FACULTY</option>
+                          </select>
+                        )}
                       </td>
                       <td className="p-4 text-gray-600 dark:text-slate-300">{u.program}</td>
                       <td className="p-4 text-center">
@@ -363,6 +413,30 @@ export default function Settings() {
                   {users.length === 0 && <tr><td colSpan="8" className="p-8 text-center text-gray-400 dark:text-slate-500">Loading users...</td></tr>}
                 </tbody>
               </table>
+            </div>
+
+            {/* Save Changes Button */}
+            <div className={`overflow-hidden transition-all duration-300 ${Object.keys(pendingRoleChanges).length > 0 ? 'max-h-20 opacity-100' : 'max-h-0 opacity-0'}`}>
+              <div className="p-4 border-t border-gray-100 dark:border-dark-border bg-purple-50/50 dark:bg-purple-900/10 flex items-center justify-between">
+                <span className="text-xs text-purple-700 dark:text-purple-400 font-medium">
+                  {Object.keys(pendingRoleChanges).length} role change{Object.keys(pendingRoleChanges).length !== 1 ? 's' : ''} pending
+                </span>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => setPendingRoleChanges({})}
+                    className="px-3 py-1.5 text-xs font-bold text-gray-600 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-dark-hover rounded-lg transition-colors"
+                  >
+                    Discard
+                  </button>
+                  <button 
+                    onClick={saveRoleChanges}
+                    disabled={savingRoles}
+                    className="flex items-center gap-2 px-4 py-1.5 bg-primary-800 text-white rounded-lg text-xs font-bold hover:bg-primary-900 transition-colors disabled:opacity-50 animate-pop-in"
+                  >
+                    <Save size={14} /> {savingRoles ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}

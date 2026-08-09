@@ -5,6 +5,7 @@ import {
 import ScannerSim from '../components/ScannerSim';
 import { useTheme } from '../components/ThemeContext';
 import { BorrowingContext } from '../context/BorrowingContext';
+import { useOfflineApi } from '../hooks/useOfflineApi';
 
 export default function Borrowing() {
   const { isDarkMode, toggleDarkMode } = useTheme();
@@ -40,6 +41,8 @@ export default function Borrowing() {
   // Stats State
   const [stats, setStats] = useState({ active: 0, overdue: 0, returned: 0 });
 
+  const { fetchWithOfflineSupport } = useOfflineApi();
+
   useEffect(() => {
     fetchStats();
     if (activeTab === '$ Penalties') fetchPenalties();
@@ -48,7 +51,7 @@ export default function Borrowing() {
 
   const fetchRecords = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/borrowing/records', { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
+      const res = await fetchWithOfflineSupport('http://localhost:5000/api/borrowing/records', { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }, 'borrowing_records');
       if (res.ok) setRecords(await res.json());
     } catch (e) {
       console.error('Failed to fetch records');
@@ -57,7 +60,7 @@ export default function Borrowing() {
 
   const fetchStats = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/borrowing/stats', { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
+      const res = await fetchWithOfflineSupport('http://localhost:5000/api/borrowing/stats', { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }, 'borrowing_stats');
       if (res.ok) setStats(await res.json());
     } catch (e) {
       console.error('Failed to fetch stats');
@@ -67,12 +70,16 @@ export default function Borrowing() {
   const handleCheckout = async () => {
     setError(null);
     try {
-      const res = await fetch('http://localhost:5000/api/borrowing/checkout', { method: 'POST', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}`,  'Content-Type': 'application/json'  },
+      const res = await fetchWithOfflineSupport('http://localhost:5000/api/borrowing/checkout', { method: 'POST', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}`,  'Content-Type': 'application/json'  },
         body: JSON.stringify({ bookId: scannedBook.id, userId: scannedUser.id })
       });
       const data = await res.json();
       if (res.ok) {
-        alert('Checkout successful!');
+        if (data.offlineQueued) {
+          alert('Saved offline. Will sync when connection is restored.');
+        } else {
+          alert('Checkout successful!');
+        }
         // Reset flow
         setStep(1);
         setScannedBook(null);
@@ -89,12 +96,16 @@ export default function Borrowing() {
   const handleConfirmReturn = async () => {
     setError(null);
     try {
-      const res = await fetch('http://localhost:5000/api/borrowing/return', { method: 'POST', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}`,  'Content-Type': 'application/json'  },
+      const res = await fetchWithOfflineSupport('http://localhost:5000/api/borrowing/return', { method: 'POST', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}`,  'Content-Type': 'application/json'  },
         body: JSON.stringify({ borrowId: returnRecord.id })
       });
       const data = await res.json();
       if (res.ok) {
-        alert('Book returned successfully!');
+        if (data.offlineQueued) {
+          alert('Return saved offline. Will sync when connection is restored.');
+        } else {
+          alert('Book returned successfully!');
+        }
         setReturnStep(1);
         setReturnRecord(null);
         setReturnBookIdentifier(null);
@@ -110,7 +121,7 @@ export default function Borrowing() {
 
   const fetchPenalties = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/borrowing/penalties', { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
+      const res = await fetchWithOfflineSupport('http://localhost:5000/api/borrowing/penalties', { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }, 'borrowing_penalties');
       if (res.ok) setPenalties(await res.json());
     } catch (e) {
       console.error('Failed to fetch penalties');
@@ -120,7 +131,7 @@ export default function Borrowing() {
   const handlePayPenalty = async (id) => {
     if (!confirm('Mark this penalty as Paid?')) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/borrowing/penalties/${id}/pay`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }, method: 'POST' });
+      const res = await fetchWithOfflineSupport(`http://localhost:5000/api/borrowing/penalties/${id}/pay`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }, method: 'POST' });
       if (res.ok) {
         fetchPenalties();
         fetchStats();
