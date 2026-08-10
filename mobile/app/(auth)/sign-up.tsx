@@ -386,7 +386,7 @@ export default function SignUp() {
               <TextInput
                 style={[styles.input, { textAlign: 'center', fontSize: 24, letterSpacing: 8 }]}
                 value={otp}
-                onChangeText={setOtp}
+                onChangeText={(text) => setOtp(text.replace(/[^0-9]/g, ''))}
                 keyboardType="numeric"
                 maxLength={6}
                 placeholder="------"
