@@ -1,7 +1,9 @@
-import { Tabs } from 'expo-router';
-import React, { useRef } from 'react';
+import { Tabs, usePathname } from 'expo-router';
+import React, { useRef, useEffect, useState } from 'react';
 import { View, Platform, Text, Animated, TouchableWithoutFeedback } from 'react-native';
 import { Home, Search, Scan, BookCopy, User } from 'lucide-react-native';
+import { useAuth } from '../../context/AuthContext';
+import api from '../../api';
 
 interface TabButtonProps {
   children: React.ReactNode;
@@ -46,6 +48,20 @@ const TabButton = (props: TabButtonProps) => {
 };
 
 export default function TabLayout() {
+  const { user } = useAuth();
+  const pathname = usePathname();
+  const [borrowCount, setBorrowCount] = useState(0);
+
+  useEffect(() => {
+    if (user?.id) {
+      api.get(`/borrowing/user/${user.id}`)
+        .then(res => {
+          setBorrowCount(res.data.length || 0);
+        })
+        .catch(err => console.error('Failed to fetch borrow count:', err));
+    }
+  }, [user?.id, pathname]);
+
   return (
     <Tabs
       screenOptions={{
@@ -153,19 +169,21 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => (
             <View>
               <BookCopy color={color} size={24} />
-              <View style={{
-                position: 'absolute',
-                top: -4,
-                right: -6,
-                backgroundColor: '#6C48C5',
-                width: 14,
-                height: 14,
-                borderRadius: 7,
-                justifyContent: 'center',
-                alignItems: 'center',
-              }}>
-                <Text style={{ color: '#fff', fontSize: 8, fontWeight: 'bold' }}>2</Text>
-              </View>
+              {borrowCount > 0 && (
+                <View style={{
+                  position: 'absolute',
+                  top: -4,
+                  right: -6,
+                  backgroundColor: '#ef4444',
+                  width: 14,
+                  height: 14,
+                  borderRadius: 7,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}>
+                  <Text style={{ color: '#fff', fontSize: 8, fontWeight: 'bold' }}>{borrowCount}</Text>
+                </View>
+              )}
             </View>
           ),
         }}
