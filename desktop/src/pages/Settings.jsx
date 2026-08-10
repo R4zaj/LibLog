@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, Sun, Moon, Bell, Settings as SettingsIcon, Save, Users, Clock, DollarSign, Megaphone, AlertTriangle, BookX, Download, Plus, Check, LogOut, User, Trash2 } from 'lucide-react';
+import { Search, Sun, Moon, Bell, Settings as SettingsIcon, Save, Users, Clock, DollarSign, Megaphone, AlertTriangle, BookX, Download, Plus, Check, LogOut, User, Trash2, GraduationCap, Edit } from 'lucide-react';
 import { useTheme } from '../components/ThemeContext';
 import { useNavigate } from 'react-router-dom';
 import NotificationDropdown from '../components/NotificationDropdown';
@@ -13,6 +13,10 @@ export default function Settings() {
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
+  const [courses, setCourses] = useState([]);
+  const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
+  const [newCourse, setNewCourse] = useState({ id: null, code: '', name: '' });
+  const [courseToDelete, setCourseToDelete] = useState(null);
   
   // Library Rules State
   const [rules, setRules] = useState({
@@ -55,6 +59,7 @@ export default function Settings() {
 
     fetchUsers();
     fetchAnnouncements();
+    fetchCourses();
   }, []);
 
   const fetchUsers = () => {
@@ -75,6 +80,17 @@ export default function Settings() {
       .then(r => r.json())
       .then(data => {
         if (!data.error) setAnnouncements(data);
+      })
+      .catch(console.error);
+  };
+
+  const fetchCourses = () => {
+    fetch('http://localhost:5000/api/settings/programs', {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (!data.error) setCourses(data);
       })
       .catch(console.error);
   };
@@ -146,6 +162,49 @@ export default function Settings() {
       }
     } catch (error) {
       console.error('Error deleting announcement:', error);
+    }
+  };
+
+  const handleSaveCourse = async (e) => {
+    e.preventDefault();
+    try {
+      const url = newCourse.id 
+        ? `http://localhost:5000/api/settings/programs/${newCourse.id}` 
+        : 'http://localhost:5000/api/settings/programs';
+      const method = newCourse.id ? 'PUT' : 'POST';
+
+      const res = await fetch(url, { 
+        method, 
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}`,  'Content-Type': 'application/json'  },
+        body: JSON.stringify({ code: newCourse.code, name: newCourse.name })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setIsCourseModalOpen(false);
+        setNewCourse({ id: null, code: '', name: '' });
+        fetchCourses();
+      } else {
+        alert(data.error || 'Failed to save course');
+      }
+    } catch (error) {
+      console.error('Error saving course:', error);
+    }
+  };
+
+  const executeDeleteCourse = async () => {
+    if (!courseToDelete) return;
+    try {
+      const res = await fetch(`http://localhost:5000/api/settings/programs/${courseToDelete}`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }, method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok) {
+        setCourseToDelete(null);
+        fetchCourses();
+      } else {
+        alert(data.error || 'Failed to delete course');
+        setCourseToDelete(null);
+      }
+    } catch (error) {
+      console.error('Error deleting course:', error);
     }
   };
 
@@ -341,6 +400,12 @@ export default function Settings() {
             className={`px-4 py-2.5 text-sm font-bold flex items-center gap-2 rounded-t-lg transition-colors border-b-0 ${activeTab === 'announcements' ? 'bg-primary-800 dark:bg-transparent dark:border dark:border-gray-500 text-white' : 'text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-dark-hover'}`}
           >
             <Megaphone size={16} /> Announcements
+          </button>
+          <button 
+            onClick={() => setActiveTab('courses')}
+            className={`px-4 py-2.5 text-sm font-bold flex items-center gap-2 rounded-t-lg transition-colors border-b-0 ${activeTab === 'courses' ? 'bg-primary-800 dark:bg-transparent dark:border dark:border-gray-500 text-white' : 'text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-dark-hover'}`}
+          >
+            <GraduationCap size={16} /> Manage Courses
           </button>
         </div>
 
@@ -632,6 +697,71 @@ export default function Settings() {
             </div>
           </div>
         )}
+
+        {/* Tab Content: Courses */}
+        {activeTab === 'courses' && (
+          <div className="bg-white dark:bg-transparent border border-gray-200 dark:border-dark-border rounded-xl shadow-sm overflow-hidden flex flex-col">
+            <div className="p-4 border-b border-gray-100 dark:border-dark-border flex justify-between items-center bg-gray-50/50 dark:bg-transparent">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500" size={14} />
+                <input type="text" placeholder="Search courses..." className="pl-9 pr-4 py-1.5 border border-gray-200 dark:border-dark-border rounded-lg text-sm w-64 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:bg-dark-bg dark:text-slate-200" />
+              </div>
+              <button 
+                onClick={() => {
+                  setNewCourse({ id: null, code: '', name: '' });
+                  setIsCourseModalOpen(true);
+                }}
+                className="flex items-center gap-2 px-4 py-1.5 bg-primary-800 text-white rounded-lg text-sm font-medium hover:bg-primary-900"
+              >
+                <Plus size={14} /> Add Course
+              </button>
+            </div>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200 dark:border-dark-border text-xs text-gray-500 dark:text-slate-400 uppercase bg-white dark:bg-transparent">
+                    <th className="p-4 font-semibold w-1/4">Code</th>
+                    <th className="p-4 font-semibold w-1/2">Name</th>
+                    <th className="p-4 font-semibold text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {courses.map(c => (
+                    <tr key={c.id} className="border-b border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-hover/50 transition-colors">
+                      <td className="p-4">
+                        <span className="font-bold text-gray-800 dark:text-slate-300">{c.code}</span>
+                      </td>
+                      <td className="p-4">
+                        <span className="text-gray-600 dark:text-slate-400">{c.name}</span>
+                      </td>
+                      <td className="p-4 text-center flex justify-center gap-2">
+                        <button 
+                          onClick={() => {
+                            setNewCourse({ id: c.id, code: c.code, name: c.name });
+                            setIsCourseModalOpen(true);
+                          }}
+                          className="text-primary-500 hover:text-primary-700 hover:bg-primary-50 dark:hover:bg-primary-900/20 p-1.5 rounded-lg transition-colors"
+                          title="Edit Course"
+                        >
+                          <Edit size={16} />
+                        </button>
+                        <button 
+                          onClick={() => setCourseToDelete(c.id)}
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 p-1.5 rounded-lg transition-colors"
+                          title="Delete Course"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {courses.length === 0 && <tr><td colSpan="3" className="p-8 text-center text-gray-400 dark:text-slate-500">No courses found.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Create Announcement Modal */}
@@ -739,24 +869,117 @@ export default function Settings() {
                 </p>
               </div>
             </div>
-            <div className="p-4 bg-gray-50 dark:bg-dark-bg border-t border-gray-100 dark:border-dark-border flex gap-3">
+            <div className="p-4 bg-gray-50 dark:bg-dark-bg border-t border-gray-100 dark:border-dark-border flex gap-3 justify-center">
               <button 
                 onClick={() => setAnnouncementToDelete(null)}
-                className="flex-1 px-4 py-2 rounded-lg text-sm font-bold text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-dark-hover transition-colors"
+                className="px-4 py-2 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-200 transition-colors"
               >
                 Cancel
               </button>
               <button 
                 onClick={executeDeleteAnnouncement}
-                className="flex-1 px-4 py-2 rounded-lg text-sm font-bold bg-red-600 hover:bg-red-700 text-white transition-colors"
+                className="px-4 py-2 rounded-lg text-sm font-bold bg-red-600 hover:bg-red-700 text-white transition-colors"
               >
-                Yes, Delete
+                Delete Announcement
               </button>
             </div>
           </div>
         </div>
       )}
 
+      {/* Course Modal */}
+      {isCourseModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in no-print">
+          <div className="bg-white dark:bg-dark-card rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-slide-up border border-purple-100 dark:border-purple-900/30">
+            <div className="px-6 py-4 border-b border-gray-100 dark:border-dark-border flex justify-between items-center bg-gradient-to-r from-purple-50 to-white dark:from-purple-900/10 dark:to-dark-card">
+              <h2 className="font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
+                <GraduationCap size={18} className="text-purple-600" />
+                {newCourse.id ? 'Edit Course' : 'Add Course'}
+              </h2>
+              <button onClick={() => setIsCourseModalOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                &times;
+              </button>
+            </div>
+            
+            <form onSubmit={handleSaveCourse} className="flex flex-col">
+              <div className="p-6 flex flex-col gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-bold text-gray-700 dark:text-slate-300">Course Code</label>
+                  <input 
+                    required
+                    type="text" 
+                    value={newCourse.code}
+                    onChange={(e) => setNewCourse({...newCourse, code: e.target.value})}
+                    placeholder="e.g. BSCS"
+                    className="w-full px-3 py-2 border border-gray-200 dark:border-dark-border rounded-lg text-sm bg-gray-50 dark:bg-dark-bg focus:ring-1 focus:ring-primary-500 focus:bg-white dark:focus:bg-dark-card dark:text-slate-200"
+                  />
+                </div>
+                
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-bold text-gray-700 dark:text-slate-300">Course Name</label>
+                  <input 
+                    required
+                    type="text"
+                    value={newCourse.name}
+                    onChange={(e) => setNewCourse({...newCourse, name: e.target.value})}
+                    placeholder="e.g. Bachelor of Science in Computer Science"
+                    className="w-full px-3 py-2 border border-gray-200 dark:border-dark-border rounded-lg text-sm bg-gray-50 dark:bg-dark-bg focus:ring-1 focus:ring-primary-500 focus:bg-white dark:focus:bg-dark-card dark:text-slate-200"
+                  />
+                </div>
+              </div>
+
+              <div className="px-6 py-4 bg-gray-50 dark:bg-dark-bg border-t border-gray-100 dark:border-dark-border flex justify-end gap-3">
+                <button 
+                  type="button"
+                  onClick={() => setIsCourseModalOpen(false)}
+                  className="px-4 py-2 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  className="px-4 py-2 rounded-lg text-sm font-bold bg-primary-800 hover:bg-primary-900 text-white transition-colors"
+                >
+                  Save Course
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Course Confirmation Modal */}
+      {courseToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in no-print">
+          <div className="bg-white dark:bg-dark-card rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-slide-up border border-red-100 dark:border-red-900/30">
+            <div className="p-6 flex flex-col items-center text-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-500 flex items-center justify-center">
+                <Trash2 size={24} />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-900 dark:text-slate-100 text-lg mb-1">Delete Course?</h3>
+                <p className="text-sm text-gray-500 dark:text-slate-400">
+                  Are you sure you want to delete this course? This action cannot be undone if no students are enrolled in it.
+                </p>
+              </div>
+            </div>
+            <div className="p-4 bg-gray-50 dark:bg-dark-bg border-t border-gray-100 dark:border-dark-border flex gap-3 justify-center">
+              <button 
+                onClick={() => setCourseToDelete(null)}
+                className="px-4 py-2 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={executeDeleteCourse}
+                className="px-4 py-2 rounded-lg text-sm font-bold bg-red-600 hover:bg-red-700 text-white transition-colors"
+              >
+                Delete Course
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

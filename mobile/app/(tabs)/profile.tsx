@@ -3,7 +3,7 @@ import { TouchableOpacity, Alert, Modal, TextInput, Switch } from 'react-native'
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import {
-  BookOpen, MapPin, Flame, Edit, Heart, Bell, Shield, HelpCircle, Info, LogOut, ChevronRight, Clock, QrCode, X, Megaphone, GraduationCap
+  BookOpen, MapPin, Flame, Edit, Heart, Bell, Shield, HelpCircle, Info, LogOut, ChevronRight, Clock, QrCode, X, Megaphone,
 } from 'lucide-react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { YStack, XStack, Text, ScrollView, View, Separator } from 'tamagui';
@@ -93,9 +93,6 @@ export default function Profile() {
   };
 
   const [infoModal, setInfoModal] = React.useState({ visible: false, title: '', content: '' });
-  const [manageCoursesVisible, setManageCoursesVisible] = React.useState(false);
-  const [courseForm, setCourseForm] = React.useState({ id: null as null | number, name: '', code: '' });
-  const [courseFormVisible, setCourseFormVisible] = React.useState(false);
 
   const menuItems = [
     { id: 1, title: 'Edit Profile', sub: 'Update your information', icon: Edit, color: '#6C48C5', bg: '#faf5ff', action: () => setEditProfileVisible(true) },
@@ -104,13 +101,7 @@ export default function Profile() {
     { id: 6, title: 'Help & Support', sub: 'FAQs and contact info', icon: HelpCircle, color: '#6C48C5', bg: '#faf5ff', action: () => setInfoModal({ visible: true, title: 'Help & Support', content: 'For assistance, please contact the library administration at admin@university.edu or visit the front desk.' }) },
     { id: 7, title: 'About', sub: 'Version 1.0.0', icon: Info, color: '#6C48C5', bg: '#faf5ff', action: () => setInfoModal({ visible: true, title: 'About', content: 'LibLog Mobile Version 1.0.0\nDeveloped by the CCC Library Team.' }) },
     ...(user?.role === 'ADMIN'
-      ? [
-          { id: 8, title: 'Create Announcement', sub: 'Broadcast to all users', icon: Megaphone, color: '#fff', bg: '#6C48C5', action: () => setCreateAnnouncementVisible(true) },
-          { id: 9, title: 'Manage Courses', sub: 'Add, edit, or delete courses', icon: GraduationCap, color: '#fff', bg: '#10b981', action: () => {
-             api.get('/settings/programs').then(res => setPrograms(res.data)).catch(console.error);
-             setManageCoursesVisible(true);
-          } }
-        ]
+      ? [{ id: 8, title: 'Create Announcement', sub: 'Broadcast to all users', icon: Megaphone, color: '#fff', bg: '#6C48C5', action: () => setCreateAnnouncementVisible(true) }]
       : []),
   ];
 
@@ -502,124 +493,6 @@ export default function Profile() {
             <Text fontSize={15} color="#4b5563" lineHeight={22}>
               {infoModal.content}
             </Text>
-          </YStack>
-        </YStack>
-      </Modal>
-
-      {/* ── Manage Courses Modal ── */}
-      <Modal animationType="fade" transparent visible={manageCoursesVisible} onRequestClose={() => setManageCoursesVisible(false)}>
-        <YStack flex={1} backgroundColor="rgba(0,0,0,0.6)" justifyContent="center" alignItems="center">
-          <YStack width="90%" maxHeight="80%" backgroundColor="white" borderRadius={24} padding="$5">
-            <XStack justifyContent="space-between" alignItems="center" marginBottom="$4">
-              <Text fontSize={20} fontWeight="800" color="#1e1e2e">Manage Courses</Text>
-              <TouchableOpacity onPress={() => setManageCoursesVisible(false)}>
-                <X color="#9ca3af" size={24} />
-              </TouchableOpacity>
-            </XStack>
-            
-            <TouchableOpacity
-              onPress={() => {
-                setCourseForm({ id: null, name: '', code: '' });
-                setCourseFormVisible(true);
-              }}
-              style={{ backgroundColor: '#10b981', paddingVertical: 12, borderRadius: 12, alignItems: 'center', marginBottom: 16 }}
-            >
-              <Text color="white" fontSize={15} fontWeight="700">+ Add New Course</Text>
-            </TouchableOpacity>
-
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {programs.map((prog) => (
-                <XStack key={prog.id} paddingVertical="$3" borderBottomWidth={1} borderBottomColor="#f0eef5" justifyContent="space-between" alignItems="center">
-                  <YStack flex={1} paddingRight="$2">
-                    <Text fontSize={16} color="#1e1e2e" fontWeight="600">{prog.name}</Text>
-                    <Text fontSize={13} color="#9ca3af">{prog.code}</Text>
-                  </YStack>
-                  <XStack gap="$4" alignItems="center">
-                    <TouchableOpacity onPress={() => {
-                      setCourseForm({ id: prog.id, name: prog.name, code: prog.code });
-                      setCourseFormVisible(true);
-                    }}>
-                      <Edit color="#6C48C5" size={20} />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => {
-                      Alert.alert('Delete Course', `Are you sure you want to delete ${prog.code}?`, [
-                        { text: 'Cancel', style: 'cancel' },
-                        { text: 'Delete', style: 'destructive', onPress: async () => {
-                            try {
-                              await api.delete(`/settings/programs/${prog.id}`);
-                              setPrograms(programs.filter(p => p.id !== prog.id));
-                              Alert.alert('Success', 'Course deleted successfully');
-                            } catch(err: any) {
-                              Alert.alert('Error', err.response?.data?.error || 'Failed to delete course');
-                            }
-                        } }
-                      ]);
-                    }}>
-                      <X color="#ef4444" size={24} />
-                    </TouchableOpacity>
-                  </XStack>
-                </XStack>
-              ))}
-            </ScrollView>
-          </YStack>
-        </YStack>
-      </Modal>
-
-      {/* ── Course Form Modal ── */}
-      <Modal animationType="fade" transparent visible={courseFormVisible} onRequestClose={() => setCourseFormVisible(false)}>
-        <YStack flex={1} backgroundColor="rgba(0,0,0,0.6)" justifyContent="center" alignItems="center">
-          <YStack width="85%" backgroundColor="white" borderRadius={24} padding="$5">
-            <XStack justifyContent="space-between" alignItems="center" marginBottom="$4">
-              <Text fontSize={20} fontWeight="800" color="#1e1e2e">{courseForm.id ? 'Edit Course' : 'Add Course'}</Text>
-              <TouchableOpacity onPress={() => setCourseFormVisible(false)}>
-                <X color="#9ca3af" size={24} />
-              </TouchableOpacity>
-            </XStack>
-
-            <Text fontSize={14} fontWeight="700" color="#374151" marginBottom="$1.5">Course Code</Text>
-            <TextInput
-              style={{ backgroundColor: '#faf9fe', borderWidth: 1, borderColor: '#ede9f6', borderRadius: 12, padding: 12, fontSize: 14, marginBottom: 16 }}
-              placeholder="e.g. BSCS"
-              value={courseForm.code}
-              onChangeText={(text) => setCourseForm({ ...courseForm, code: text })}
-            />
-
-            <Text fontSize={14} fontWeight="700" color="#374151" marginBottom="$1.5">Course Name</Text>
-            <TextInput
-              style={{ backgroundColor: '#faf9fe', borderWidth: 1, borderColor: '#ede9f6', borderRadius: 12, padding: 12, fontSize: 14, marginBottom: 16 }}
-              placeholder="e.g. Bachelor of Science in Computer Science"
-              value={courseForm.name}
-              onChangeText={(text) => setCourseForm({ ...courseForm, name: text })}
-            />
-
-            <TouchableOpacity
-              onPress={async () => {
-                if (!courseForm.name || !courseForm.code) {
-                  return Alert.alert('Error', 'Code and Name are required');
-                }
-                try {
-                  if (courseForm.id) {
-                    await api.put(`/settings/programs/${courseForm.id}`, { name: courseForm.name, code: courseForm.code });
-                  } else {
-                    await api.post('/settings/programs', { name: courseForm.name, code: courseForm.code });
-                  }
-                  const res = await api.get('/settings/programs');
-                  setPrograms(res.data);
-                  setCourseFormVisible(false);
-                  Alert.alert('Success', `Course ${courseForm.id ? 'updated' : 'added'} successfully!`);
-                } catch (err: any) {
-                  Alert.alert('Error', err.response?.data?.error || 'Failed to save course');
-                }
-              }}
-              style={{
-                backgroundColor: '#10b981',
-                paddingVertical: 14,
-                borderRadius: 14,
-                alignItems: 'center',
-              }}
-            >
-              <Text color="white" fontSize={16} fontWeight="700">Save Course</Text>
-            </TouchableOpacity>
           </YStack>
         </YStack>
       </Modal>
