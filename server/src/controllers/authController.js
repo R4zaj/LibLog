@@ -1,6 +1,53 @@
 const prisma = require('../db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const nodemailer = require('nodemailer');
+
+const otpStore = new Map(); // Store OTPs in memory: { email: { otp, expiresAt } }
+
+const requestOtp = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+
+    // Check if user already exists
+    const existingUser = await prisma.user.findFirst({ where: { email } });
+    if (existingUser) return res.status(400).json({ error: 'User with this email already exists.' });
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+    otpStore.set(email, { otp, expiresAt });
+
+    // Setup nodemailer
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+      }
+    });
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: 'LibLog - Your Verification Code',
+      text: `Your verification code is: ${otp}\n\nThis code will expire in 10 minutes.`
+    };
+
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+      console.warn('EMAIL_USER or EMAIL_PASS not set in .env. Logging OTP to console instead:', otp);
+      return res.json({ message: 'OTP generated (check console since email is not configured)' });
+    }
+
+    await transporter.sendMail(mailOptions);
+    res.json({ message: 'OTP sent successfully to ' + email });
+  } catch (error) {
+    console.error('OTP request error:', error);
+    res.status(500).json({ error: 'Failed to send OTP email.' });
+  }
+};
 
 const generateToken = (user) => {
   return jwt.sign(
@@ -12,12 +59,27 @@ const generateToken = (user) => {
 
 const register = async (req, res) => {
   try {
-    const { first_name, last_name, email, password, role, year_level, program } = req.body;
+    const { first_name, last_name, email, password, role, year_level, program, otp } = req.body;
 
     // Basic validation
-    if (!first_name || !last_name || !email || !password) {
-      return res.status(400).json({ error: 'All fields are required.' });
+    if (!first_name || !last_name || !email || !password || !otp) {
+      return res.status(400).json({ error: 'All fields and OTP are required.' });
     }
+
+    // Verify OTP
+    const stored = otpStore.get(email);
+    if (!stored) {
+      return res.status(400).json({ error: 'No OTP requested for this email or it has expired.' });
+    }
+    if (stored.otp !== otp) {
+      return res.status(400).json({ error: 'Invalid OTP.' });
+    }
+    if (Date.now() > stored.expiresAt) {
+      otpStore.delete(email);
+      return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
+    }
+
+    otpStore.delete(email); // consume OTP
 
     // Check if user exists
     const existingUser = await prisma.user.findFirst({
@@ -207,4 +269,4 @@ const getQrToken = async (req, res) => {
   }
 };
 
-module.exports = { register, login, getMe, updateProfile, getQrToken };
+module.exports = { register, login, getMe, updateProfile, getQrToken, requestOtp };

@@ -26,6 +26,7 @@ export default function SignUp() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [otp, setOtp] = useState('');
   const [programsList, setProgramsList] = useState([]);
 
   React.useEffect(() => {
@@ -51,7 +52,7 @@ export default function SignUp() {
 
   const years = ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year'];
 
-  const handleNext = () => {
+  const handleNext = async () => {
     setError('');
     if (step === 2 && (!firstName || !lastName)) {
       setError('Please fill in all personal information');
@@ -70,6 +71,17 @@ export default function SignUp() {
         setError('Passwords do not match');
         return;
       }
+
+      setIsLoading(true);
+      try {
+        await api.post('/auth/request-otp', { email });
+        setStep(5);
+      } catch (e: any) {
+        setError(e.response?.data?.error || 'Failed to send OTP.');
+      } finally {
+        setIsLoading(false);
+      }
+      return;
     }
 
     if (step === 2 && role === 'VISITOR') {
@@ -102,7 +114,8 @@ export default function SignUp() {
         password: password,
         role: role,
         program: role === 'STUDENT' ? program : null,
-        year_level: role === 'STUDENT' ? yearLevel : null
+        year_level: role === 'STUDENT' ? yearLevel : null,
+        otp: otp
       });
 
       if (res.data.token) {
@@ -146,7 +159,10 @@ export default function SignUp() {
             {step > 4 ? <Check size={16} color="#fff" /> : <ShieldCheck size={16} color={step === 4 ? "#fff" : "#9ca3af"} />}
           </View>
           <View style={[styles.iconCircle, step >= 5 ? styles.iconActive : styles.iconInactive]}>
-            <BellRing size={16} color={step === 5 ? "#fff" : "#9ca3af"} />
+            {step > 5 ? <Check size={16} color="#fff" /> : <ShieldCheck size={16} color={step === 5 ? "#fff" : "#9ca3af"} />}
+          </View>
+          <View style={[styles.iconCircle, step >= 6 ? styles.iconActive : styles.iconInactive]}>
+            <BellRing size={16} color={step === 6 ? "#fff" : "#9ca3af"} />
           </View>
         </View>
       </View>
@@ -355,8 +371,45 @@ export default function SignUp() {
             </View>
           )}
 
-          {/* STEP 5: ALMOST DONE */}
+          {/* STEP 5: OTP VERIFICATION */}
           {step === 5 && (
+            <View style={styles.stepContent}>
+              <View style={styles.stepHeader}>
+                <View style={styles.largeIconCircle}>
+                  <ShieldCheck size={40} color="#fff" />
+                </View>
+                <Text style={styles.title}>Email Verification</Text>
+                <Text style={styles.subtitle}>Enter the 6-digit code sent to {email}</Text>
+              </View>
+
+              <Text style={styles.label}>Verification Code</Text>
+              <TextInput
+                style={[styles.input, { textAlign: 'center', fontSize: 24, letterSpacing: 8 }]}
+                value={otp}
+                onChangeText={setOtp}
+                keyboardType="numeric"
+                maxLength={6}
+                placeholder="------"
+              />
+
+              <TouchableOpacity 
+                style={{ alignItems: 'center', marginTop: 10 }}
+                onPress={async () => {
+                  try {
+                    await api.post('/auth/request-otp', { email });
+                    Alert.alert("Success", "A new code has been sent!");
+                  } catch (e: any) {
+                    Alert.alert("Error", e.response?.data?.error || "Failed to resend code.");
+                  }
+                }}
+              >
+                <Text style={{ color: '#6C48C5', fontWeight: 'bold' }}>Resend Code</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* STEP 6: ALMOST DONE */}
+          {step === 6 && (
             <View style={styles.stepContent}>
               <View style={styles.stepHeader}>
                 <View style={styles.largeIconCircle}>
@@ -377,16 +430,20 @@ export default function SignUp() {
 
         <View style={styles.footer}>
           {step < 5 ? (
-            <TouchableOpacity style={styles.button} onPress={handleNext}>
-              <Text style={styles.buttonText}>Continue →</Text>
+            <TouchableOpacity style={[styles.button, isLoading && styles.buttonDisabled]} onPress={handleNext} disabled={isLoading}>
+              <Text style={styles.buttonText}>{isLoading ? 'Loading...' : 'Continue →'}</Text>
             </TouchableOpacity>
-          ) : (
+          ) : step === 5 ? (
             <TouchableOpacity
               style={[styles.button, isLoading && styles.buttonDisabled]}
               onPress={handleRegister}
-              disabled={isLoading}
+              disabled={isLoading || otp.length !== 6}
             >
-              <Text style={styles.buttonText}>{isLoading ? 'Creating Account...' : '✨ Get Started'}</Text>
+              <Text style={styles.buttonText}>{isLoading ? 'Verifying...' : 'Verify & Create Account'}</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity style={styles.button}>
+              <Text style={styles.buttonText}>Get Started</Text>
             </TouchableOpacity>
           )}
         </View>
