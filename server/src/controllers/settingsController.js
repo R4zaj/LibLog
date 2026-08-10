@@ -209,6 +209,62 @@ const getPrograms = async (req, res) => {
   }
 };
 
+// POST /api/settings/programs
+const createProgram = async (req, res) => {
+  try {
+    const { code, name } = req.body;
+    if (!code || !name) return res.status(400).json({ error: 'Code and Name are required' });
+
+    const program = await prisma.program.create({
+      data: { code, name }
+    });
+    res.status(201).json(program);
+  } catch (error) {
+    if (error.code === 'P2002') return res.status(400).json({ error: 'Program code or name already exists' });
+    console.error('Error creating program:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+// PUT /api/settings/programs/:id
+const updateProgram = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { code, name } = req.body;
+    if (!code || !name) return res.status(400).json({ error: 'Code and Name are required' });
+
+    const program = await prisma.program.update({
+      where: { id: parseInt(id) },
+      data: { code, name }
+    });
+    res.json(program);
+  } catch (error) {
+    if (error.code === 'P2002') return res.status(400).json({ error: 'Program code or name already exists' });
+    console.error('Error updating program:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+// DELETE /api/settings/programs/:id
+const deleteProgram = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const usersCount = await prisma.user.count({ where: { program_id: parseInt(id) } });
+    if (usersCount > 0) {
+      return res.status(400).json({ error: 'Cannot delete course because there are users enrolled in it.' });
+    }
+
+    await prisma.program.delete({
+      where: { id: parseInt(id) }
+    });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting program:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
 // PUT /api/settings/users/:id/role
 const updateUserRole = async (req, res) => {
   try {
@@ -240,5 +296,8 @@ module.exports = {
   createAnnouncement,
   deleteAnnouncement,
   getPrograms,
+  createProgram,
+  updateProgram,
+  deleteProgram,
   updateUserRole
 };
