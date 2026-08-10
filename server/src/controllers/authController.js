@@ -1,7 +1,6 @@
 const prisma = require('../db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
 
 const otpStore = new Map(); // Store OTPs in memory: { email: { otp, expiresAt } }
 
@@ -20,31 +19,43 @@ const requestOtp = async (req, res) => {
 
     otpStore.set(email, { otp, expiresAt });
 
-    // Setup nodemailer
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-      },
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 10000
-    });
-
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: 'LibLog - Your Verification Code',
-      text: `Your verification code is: ${otp}\n\nThis code will expire in 10 minutes.`
-    };
-
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-      console.warn('EMAIL_USER or EMAIL_PASS not set in .env. Logging OTP to console instead:', otp);
-      return res.json({ message: 'OTP generated (check console since email is not configured)' });
+    // Send Email via HTTP API (Bypasses Render SMTP Block)
+    if (process.env.SENDGRID_API_KEY) {
+      const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.SENDGRID_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          personalizations: [{ to: [{ email: email }] }],
+          from: { email: process.env.SENDER_EMAIL || 'noreply@liblog.com', name: 'LibLog' },
+          subject: 'LibLog - Your Verification Code',
+          content: [{ type: 'text/plain', value: `Your verification code is: ${otp}\n\nThis code will expire in 10 minutes.` }]
+        })
+      });
+      if (!response.ok) throw new Error(`SendGrid API error: ${await response.text()}`);
+    } else if (process.env.BREVO_API_KEY) {
+      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+          'api-key': process.env.BREVO_API_KEY,
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify({
+          sender: { name: 'LibLog', email: process.env.SENDER_EMAIL || 'noreply@liblog.com' },
+          to: [{ email: email }],
+          subject: 'LibLog - Your Verification Code',
+          htmlContent: `<p>Your verification code is: <strong>${otp}</strong></p><p>This code will expire in 10 minutes.</p>`
+        })
+      });
+      if (!response.ok) throw new Error(`Brevo API error: ${await response.text()}`);
+    } else {
+      console.warn('No EMAIL API key set (SENDGRID_API_KEY or BREVO_API_KEY). Logging OTP to console instead:', otp);
+      return res.json({ message: 'OTP generated (check console since email API is not configured)' });
     }
 
-    await transporter.sendMail(mailOptions);
     res.json({ message: 'OTP sent successfully to ' + email });
   } catch (error) {
     console.error('OTP request error:', error);
