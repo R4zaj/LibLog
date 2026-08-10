@@ -92,13 +92,14 @@ export default function Profile() {
     }
   };
 
+  const [infoModal, setInfoModal] = React.useState({ visible: false, title: '', content: '' });
+
   const menuItems = [
     { id: 1, title: 'Edit Profile', sub: 'Update your information', icon: Edit, color: '#6C48C5', bg: '#faf5ff', action: () => setEditProfileVisible(true) },
     { id: 2, title: 'My Favorites', sub: '0 saved books', icon: Heart, color: '#ef4444', bg: '#fef2f2', action: () => router.push('/search') },
-    { id: 4, title: 'Notifications', sub: 'Due dates, reservations', icon: Bell, color: '#6C48C5', bg: '#faf5ff', action: () => Alert.alert('Notifications', 'Preferences coming soon.') },
-    { id: 5, title: 'Privacy Policy', sub: 'How we protect your data', icon: Shield, color: '#6C48C5', bg: '#faf5ff', action: () => Alert.alert('Privacy Policy', 'Privacy policy text goes here.') },
-    { id: 6, title: 'Help & Support', sub: 'FAQs and contact info', icon: HelpCircle, color: '#6C48C5', bg: '#faf5ff', action: () => Alert.alert('Help & Support', 'Contact admin@university.edu for support.') },
-    { id: 7, title: 'About', sub: 'Version 1.0.0', icon: Info, color: '#6C48C5', bg: '#faf5ff', action: () => Alert.alert('About', 'LibLog Version 1.0.0') },
+    { id: 5, title: 'Privacy Policy', sub: 'How we protect your data', icon: Shield, color: '#6C48C5', bg: '#faf5ff', action: () => setInfoModal({ visible: true, title: 'Privacy Policy', content: 'LibLog values your privacy. We collect only the necessary data to manage your library account securely. We do not sell or share your data with third parties.' }) },
+    { id: 6, title: 'Help & Support', sub: 'FAQs and contact info', icon: HelpCircle, color: '#6C48C5', bg: '#faf5ff', action: () => setInfoModal({ visible: true, title: 'Help & Support', content: 'For assistance, please contact the library administration at admin@university.edu or visit the front desk.' }) },
+    { id: 7, title: 'About', sub: 'Version 1.0.0', icon: Info, color: '#6C48C5', bg: '#faf5ff', action: () => setInfoModal({ visible: true, title: 'About', content: 'LibLog Mobile Version 1.0.0\nDeveloped by the CCC Library Team.' }) },
     ...(user?.role === 'ADMIN'
       ? [{ id: 8, title: 'Create Announcement', sub: 'Broadcast to all users', icon: Megaphone, color: '#fff', bg: '#6C48C5', action: () => setCreateAnnouncementVisible(true) }]
       : []),
@@ -298,7 +299,7 @@ export default function Profile() {
                 </XStack>
               </TouchableOpacity>
               {idx < menuItems.length - 1 && (
-                <Separator marginHorizontal="$3" backgroundColor="#f0eef5" />
+                <View marginHorizontal="$3" height={1} backgroundColor="#e5e7eb" />
               )}
             </React.Fragment>
           ))}
@@ -383,7 +384,7 @@ export default function Profile() {
       </Modal>
 
       {/* ── Edit Profile Modal ── */}
-      <Modal animationType="slide" transparent visible={editProfileVisible} onRequestClose={() => setEditProfileVisible(false)}>
+      <Modal animationType="fade" transparent visible={editProfileVisible} onRequestClose={() => setEditProfileVisible(false)}>
         <YStack flex={1} backgroundColor="rgba(0,0,0,0.6)" justifyContent="center" alignItems="center">
           <YStack width="85%" backgroundColor="white" borderRadius={24} padding="$5">
             <XStack justifyContent="space-between" alignItems="center" marginBottom="$4">
@@ -475,6 +476,23 @@ export default function Profile() {
                 </TouchableOpacity>
               ))}
             </ScrollView>
+          </YStack>
+        </YStack>
+      </Modal>
+
+      {/* ── Info Modal ── */}
+      <Modal animationType="fade" transparent visible={infoModal.visible} onRequestClose={() => setInfoModal({ ...infoModal, visible: false })}>
+        <YStack flex={1} backgroundColor="rgba(0,0,0,0.6)" justifyContent="center" alignItems="center">
+          <YStack width="85%" backgroundColor="white" borderRadius={24} padding="$5">
+            <XStack justifyContent="space-between" alignItems="center" marginBottom="$3">
+              <Text fontSize={20} fontWeight="800" color="#1e1e2e">{infoModal.title}</Text>
+              <TouchableOpacity onPress={() => setInfoModal({ ...infoModal, visible: false })}>
+                <X color="#9ca3af" size={24} />
+              </TouchableOpacity>
+            </XStack>
+            <Text fontSize={15} color="#4b5563" lineHeight={22}>
+              {infoModal.content}
+            </Text>
           </YStack>
         </YStack>
       </Modal>
