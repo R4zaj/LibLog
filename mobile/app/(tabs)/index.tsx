@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, TouchableWithoutFeedback, Dimensions, Alert, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, TouchableWithoutFeedback, Dimensions, Alert, Modal, Animated, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
@@ -28,6 +28,8 @@ export default function Home() {
   const [activeUsers, setActiveUsers] = useState<any[]>([]);
   const [books, setBooks] = useState<any[]>([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const fadeAnim = React.useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     let isMounted = true;
@@ -47,9 +49,26 @@ export default function Home() {
           setActiveBorrows(borrowRes.data);
           setActiveUsers(usersRes.data);
           setBooks(booksRes.data);
+          
+          if (isLoading) {
+             setIsLoading(false);
+             Animated.timing(fadeAnim, {
+               toValue: 1,
+               duration: 600,
+               useNativeDriver: true,
+             }).start();
+          }
         }
       } catch (err) {
         console.error('Failed to fetch dashboard data', err);
+        if (isMounted && isLoading) {
+           setIsLoading(false);
+           Animated.timing(fadeAnim, {
+             toValue: 1,
+             duration: 600,
+             useNativeDriver: true,
+           }).start();
+        }
       }
     };
     fetchDashboardData();
@@ -67,7 +86,13 @@ export default function Home() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
-      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 100 }}>
+      {isLoading ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+           <ActivityIndicator size="large" color="#6C48C5" />
+           <Text style={{ marginTop: 16, color: '#6b7280', fontSize: 14 }}>Loading your library dashboard...</Text>
+        </View>
+      ) : (
+        <Animated.ScrollView style={[styles.container, { opacity: fadeAnim }]} contentContainerStyle={{ paddingBottom: 100 }}>
         {/* Top Bar */}
       <View style={styles.topBar}>
         <View style={styles.streakContainer}>
@@ -345,7 +370,8 @@ export default function Home() {
         </>
       )}
 
-      </ScrollView>
+      </Animated.ScrollView>
+      )}
 
       {/* Announcements Modal */}
       <Modal
