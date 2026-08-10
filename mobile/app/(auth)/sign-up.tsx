@@ -26,6 +26,22 @@ export default function SignUp() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [programsList, setProgramsList] = useState([]);
+
+  React.useEffect(() => {
+    const fetchPrograms = async () => {
+      try {
+        const res = await api.get('/settings/programs');
+        if (res.data && Array.isArray(res.data)) {
+          setProgramsList(res.data.map((p: any) => p.name));
+          if (res.data.length > 0) setProgram(res.data[0].name);
+        }
+      } catch (err) {
+        console.error('Failed to load programs', err);
+      }
+    };
+    fetchPrograms();
+  }, []);
 
   const hasMinLength = password.length >= 8;
   const hasUpperCase = /[A-Z]/.test(password);
@@ -33,7 +49,6 @@ export default function SignUp() {
   const hasSymbol = /[!@#$%^&*(),.?":{}|<>]/.test(password);
   const isPasswordValid = hasMinLength && hasUpperCase && hasLowerCase && hasSymbol;
 
-  const programs = ['Computer Science', 'Information Technology', 'Education', 'Business', 'Engineering'];
   const years = ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year'];
 
   const handleNext = () => {
@@ -243,7 +258,7 @@ export default function SignUp() {
               <Text style={styles.label}>Program / Department</Text>
               {/* Simple buttons simulating dropdown for React Native without extra libraries */}
               <View style={styles.gridContainer}>
-                {programs.slice(0, 4).map((prog) => (
+                {(programsList.length > 0 ? programsList : ['Computer Science', 'Information Technology', 'Education', 'Business']).slice(0, 4).map((prog) => (
                   <TouchableOpacity
                     key={prog}
                     style={[styles.gridItem, program === prog && styles.gridItemActive]}
