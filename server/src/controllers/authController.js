@@ -49,7 +49,7 @@ const register = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     const crypto = require('crypto');
-    const uniqueQrCode = `QR-${crypto.randomUUID()}`;
+    const uniqueQrCode = `QR-${crypto.randomBytes(16).toString('hex')}`;
 
     let programId = null;
     if (role === 'STUDENT' && program) {
@@ -69,8 +69,8 @@ const register = async (req, res) => {
         student_id,
         card_no: student_id, // defaulting to student_id since UI doesn't provide separate card_no
         password_hash: hashedPassword,
-        role: role || 'STUDENT',
-        year_level: role === 'STUDENT' ? year_level || null : null,
+        role: role === 'VISITOR' ? 'STUDENT' : (role || 'STUDENT'),
+        year_level: (role === 'STUDENT' || role === 'VISITOR') ? year_level || null : null,
         program_id: programId,
         status: 'ACTIVE',
         qr_code: uniqueQrCode
@@ -82,7 +82,7 @@ const register = async (req, res) => {
     res.status(201).json({ user, token });
   } catch (error) {
     console.error('Register error:', error);
-    res.status(500).json({ error: 'Server error during registration.' });
+    res.status(500).json({ error: 'Server error during registration.', details: error.message });
   }
 };
 

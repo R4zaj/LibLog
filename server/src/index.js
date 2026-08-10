@@ -51,7 +51,7 @@ app.use('/api/notifications', notificationRoutes);
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ error: 'Something went wrong!' });
+  res.status(500).json({ error: 'Something went wrong!', details: err.message, stack: err.stack });
 });
 
 const PORT = process.env.PORT || 5000;
