@@ -669,14 +669,19 @@ export default function Literatures() {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr className="hover:bg-gray-50 dark:hover:bg-dark-hover">
-                    <td className="px-6 py-3 font-bold text-gray-800 dark:text-slate-300">Maternal and Child Health Nursing</td>
-                    <td className="px-6 py-3"><span className="px-2 py-1 bg-cyan-50 text-cyan-600 rounded-full border border-cyan-100 text-[10px] font-bold">Nursing</span></td>
-                    <td className="px-6 py-3 text-gray-600 dark:text-slate-300">RG951 .P55 2018</td>
-                    <td className="px-6 py-3 text-gray-600 dark:text-slate-300">5/5</td>
-                    <td className="px-6 py-3 text-gray-600 dark:text-slate-300 font-medium">NS-01</td>
-                    <td className="px-6 py-3"><span className="px-2 py-0.5 bg-purple-50 text-purple-600 rounded-full border border-purple-100 text-[10px] font-bold">GOOD</span></td>
-                  </tr>
+                  {books.filter(b => b.author === author.name).map(book => (
+                    <tr key={book.id} className="hover:bg-gray-50 dark:hover:bg-dark-hover">
+                      <td className="px-6 py-3 font-bold text-gray-800 dark:text-slate-300">{book.title}</td>
+                      <td className="px-6 py-3"><span className="px-2 py-1 bg-cyan-50 text-cyan-600 rounded-full border border-cyan-100 text-[10px] font-bold">{book.genre}</span></td>
+                      <td className="px-6 py-3 text-gray-600 dark:text-slate-300">{book.lccn}</td>
+                      <td className="px-6 py-3 text-gray-600 dark:text-slate-300">{book.available}/{book.total}</td>
+                      <td className="px-6 py-3 text-gray-600 dark:text-slate-300 font-medium">{book.shelf}</td>
+                      <td className="px-6 py-3"><span className={`px-2 py-0.5 rounded-full border text-[10px] font-bold ${book.condition === 'POOR' ? 'bg-red-50 text-red-600 border-red-100' : book.condition === 'FAIR' ? 'bg-orange-50 text-orange-600 border-orange-100' : 'bg-green-50 text-green-600 border-green-100'}`}>{book.condition}</span></td>
+                    </tr>
+                  ))}
+                  {books.filter(b => b.author === author.name).length === 0 && (
+                    <tr><td colSpan="6" className="px-6 py-4 text-center text-gray-500 text-xs">No books available for this author.</td></tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -728,13 +733,18 @@ export default function Literatures() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
-                    <tr className="hover:bg-gray-50 dark:hover:bg-dark-hover">
-                      <td className="px-4 py-3 font-bold text-gray-800 dark:text-slate-300">Anatomy and Physiology</td>
-                      <td className="px-4 py-3 text-gray-600 dark:text-slate-300">Kevin T. Patton</td>
-                      <td className="px-4 py-3 text-gray-600 dark:text-slate-300">QM31 .P38 2021</td>
-                      <td className="px-4 py-3 text-gray-600 dark:text-slate-300">5/5</td>
-                      <td className="px-4 py-3 text-gray-600 dark:text-slate-300 font-medium">AP-01</td>
-                    </tr>
+                    {books.filter(b => b.genre === genre.name).map(book => (
+                      <tr key={book.id} className="hover:bg-gray-50 dark:hover:bg-dark-hover">
+                        <td className="px-4 py-3 font-bold text-gray-800 dark:text-slate-300">{book.title}</td>
+                        <td className="px-4 py-3 text-gray-600 dark:text-slate-300">{book.author}</td>
+                        <td className="px-4 py-3 text-gray-600 dark:text-slate-300">{book.lccn}</td>
+                        <td className="px-4 py-3 text-gray-600 dark:text-slate-300">{book.available}/{book.total}</td>
+                        <td className="px-4 py-3 text-gray-600 dark:text-slate-300 font-medium">{book.shelf}</td>
+                      </tr>
+                    ))}
+                    {books.filter(b => b.genre === genre.name).length === 0 && (
+                      <tr><td colSpan="5" className="px-4 py-4 text-center text-gray-500 text-xs">No books available for this genre.</td></tr>
+                    )}
                   </tbody>
                 </table>
               </div>
