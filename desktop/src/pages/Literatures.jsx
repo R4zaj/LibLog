@@ -63,6 +63,11 @@ export default function Literatures() {
     landscape: false
   });
   const [editingBook, setEditingBook] = useState(null);
+  
+  // Delete Modal State
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [booksToDelete, setBooksToDelete] = useState([]);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Global theme context instead of local state
   const { isDarkMode, toggleDarkMode } = useTheme();
@@ -216,31 +221,32 @@ export default function Literatures() {
     fetchBooks(); // Refresh list
   };
 
-  const handleDelete = async (id) => {
-    if (confirm('Are you sure you want to delete this book?')) {
-      try {
-        const res = await fetch(`http://localhost:5000/api/literatures/books/${id}`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }, method: 'DELETE' });
-        if (res.ok) {
-          fetchBooks();
-          setSelectedBooks(prev => prev.filter(bId => bId !== id));
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    }
+  const handleDelete = (id) => {
+    setBooksToDelete([id]);
+    setIsDeleteModalOpen(true);
   };
 
-  const handleBulkDelete = async () => {
-    if (confirm(`Are you sure you want to delete ${selectedBooks.length} books?`)) {
-      try {
-        await Promise.all(selectedBooks.map(id => 
-          fetch(`http://localhost:5000/api/literatures/books/${id}`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }, method: 'DELETE' })
-        ));
-        setSelectedBooks([]);
-        fetchBooks();
-      } catch (err) {
-        console.error(err);
-      }
+  const handleBulkDelete = () => {
+    setBooksToDelete(selectedBooks);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await Promise.all(booksToDelete.map(id => 
+        fetch(`http://localhost:5000/api/literatures/books/${id}`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }, method: 'DELETE' })
+      ));
+      
+      setSelectedBooks(prev => prev.filter(id => !booksToDelete.includes(id)));
+      fetchBooks();
+      setIsDeleteModalOpen(false);
+      setBooksToDelete([]);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete books.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -1119,6 +1125,39 @@ export default function Literatures() {
           </div>
         </div>
       )}
+      {/* Delete Confirmation Modal */}
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center animate-fade-in">
+          <div className="bg-white dark:bg-dark-card w-full max-w-sm rounded-xl shadow-xl overflow-hidden">
+            <div className="p-6 flex flex-col items-center text-center">
+              <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mb-4">
+                <Trash2 size={24} />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-slate-200 mb-2">Delete {booksToDelete.length > 1 ? `${booksToDelete.length} Books` : 'Book'}?</h3>
+              <p className="text-sm text-gray-500 dark:text-slate-400 mb-6">
+                Are you sure you want to delete {booksToDelete.length > 1 ? 'these books' : 'this book'}? This action cannot be undone.
+              </p>
+              <div className="flex items-center gap-3 w-full">
+                <button 
+                  onClick={() => setIsDeleteModalOpen(false)}
+                  className="flex-1 py-2.5 bg-gray-100 text-gray-700 dark:bg-dark-bg dark:text-slate-300 font-semibold rounded-lg hover:bg-gray-200 transition-colors"
+                  disabled={isDeleting}
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={confirmDelete}
+                  className="flex-1 py-2.5 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-colors flex justify-center items-center gap-2"
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? 'Deleting...' : 'Delete'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
