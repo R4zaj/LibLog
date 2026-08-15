@@ -37,6 +37,11 @@ const getBooks = async (req, res) => {
 const getAuthors = async (req, res) => {
   try {
     const authors = await prisma.author.findMany({
+      where: {
+        books: {
+          some: {}
+        }
+      },
       include: {
         books: {
           select: { total_copies: true }
@@ -66,6 +71,11 @@ const getAuthors = async (req, res) => {
 const getGenres = async (req, res) => {
   try {
     const genres = await prisma.genre.findMany({
+      where: {
+        books: {
+          some: {}
+        }
+      },
       include: {
         books: {
           select: { total_copies: true }
