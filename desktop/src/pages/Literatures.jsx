@@ -220,10 +220,36 @@ export default function Literatures() {
     if (confirm('Are you sure you want to delete this book?')) {
       try {
         const res = await fetch(`http://localhost:5000/api/literatures/books/${id}`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }, method: 'DELETE' });
-        if (res.ok) fetchBooks();
+        if (res.ok) {
+          fetchBooks();
+          setSelectedBooks(prev => prev.filter(bId => bId !== id));
+        }
       } catch (err) {
         console.error(err);
       }
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (confirm(`Are you sure you want to delete ${selectedBooks.length} books?`)) {
+      try {
+        await Promise.all(selectedBooks.map(id => 
+          fetch(`http://localhost:5000/api/literatures/books/${id}`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }, method: 'DELETE' })
+        ));
+        setSelectedBooks([]);
+        fetchBooks();
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  };
+
+  const handleEditSelected = () => {
+    if (selectedBooks.length === 1) {
+      const bookToEdit = books.find(b => b.id === selectedBooks[0]);
+      if (bookToEdit) handleEditClick(bookToEdit);
+    } else {
+      alert("Please select exactly one book to edit.");
     }
   };
 
@@ -546,7 +572,7 @@ export default function Literatures() {
                   <div className="flex justify-center gap-2">
                     <button onClick={() => handleViewQRCode(book)} className="text-gray-400 dark:text-slate-500 hover:text-primary-600"><QrCode size={14} /></button>
                     <button onClick={() => handleEditClick(book)} className="text-gray-400 dark:text-slate-500 hover:text-primary-600"><Edit3 size={14} /></button>
-                    <button className="text-gray-400 dark:text-slate-500 hover:text-red-600"><Trash2 size={14} /></button>
+                    <button onClick={() => handleDelete(book.id)} className="text-gray-400 dark:text-slate-500 hover:text-red-600"><Trash2 size={14} /></button>
                   </div>
                 </td>
               </tr>
@@ -565,13 +591,13 @@ export default function Literatures() {
             <CheckSquare size={16} /> {selectedBooks.length} selected <span className="text-[10px] bg-primary-200 px-1.5 py-0.5 rounded ml-1">of {filteredBooks.length}</span>
           </div>
           <div className="w-px h-5 bg-gray-200 mx-1"></div>
-          <button className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:bg-dark-bg rounded-full transition-colors">
+          <button onClick={handleEditSelected} className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:bg-dark-bg rounded-full transition-colors">
             <Edit3 size={16} /> Edit Selected
           </button>
           <button onClick={handleExportCSV} className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:bg-dark-bg rounded-full transition-colors">
             <Download size={16} /> Export
           </button>
-          <button className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 rounded-full transition-colors">
+          <button onClick={handleBulkDelete} className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 rounded-full transition-colors">
             <Trash2 size={16} /> Delete
           </button>
           <div className="w-px h-5 bg-gray-200 mx-1"></div>
