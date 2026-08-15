@@ -214,7 +214,7 @@ export default function Profile() {
           <YStack width={40} height={40} borderRadius={14} backgroundColor="#faf5ff" justifyContent="center" alignItems="center" marginBottom="$2">
             <BookOpen color="#6C48C5" size={20} />
           </YStack>
-          <Text fontSize={20} fontWeight="800" color="#1e1e2e" marginBottom={2}>3</Text>
+          <Text fontSize={20} fontWeight="800" color="#1e1e2e" marginBottom={2}>{user?.stats?.borrowed || 0}</Text>
           <Text fontSize={11} color="#9ca3af">Borrowed</Text>
         </YStack>
         <View width={1} height="60%" backgroundColor="#f0eef5" alignSelf="center" />
@@ -222,7 +222,7 @@ export default function Profile() {
           <YStack width={40} height={40} borderRadius={14} backgroundColor="#ecfdf5" justifyContent="center" alignItems="center" marginBottom="$2">
             <MapPin color="#10b981" size={20} />
           </YStack>
-          <Text fontSize={20} fontWeight="800" color="#1e1e2e" marginBottom={2}>2</Text>
+          <Text fontSize={20} fontWeight="800" color="#1e1e2e" marginBottom={2}>{user?.stats?.visits || 0}</Text>
           <Text fontSize={11} color="#9ca3af">Visits</Text>
         </YStack>
         <View width={1} height="60%" backgroundColor="#f0eef5" alignSelf="center" />
@@ -230,7 +230,7 @@ export default function Profile() {
           <YStack width={40} height={40} borderRadius={14} backgroundColor="#fff7ed" justifyContent="center" alignItems="center" marginBottom="$2">
             <Flame color="#f97316" size={20} />
           </YStack>
-          <Text fontSize={20} fontWeight="800" color="#1e1e2e" marginBottom={2}>5</Text>
+          <Text fontSize={20} fontWeight="800" color="#1e1e2e" marginBottom={2}>{user?.stats?.streak || 0}</Text>
           <Text fontSize={11} color="#9ca3af">Streak</Text>
         </YStack>
       </XStack>

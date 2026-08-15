@@ -215,8 +215,62 @@ const getMe = async (req, res) => {
       return res.status(404).json({ error: 'User not found.' });
     }
 
-    // Don't return password hash
-    const { password_hash, ...userWithoutPassword } = user;
+    // Calculate Stats
+    // 1. Total Borrowed
+    const borrowed = await prisma.borrowRecord.count({
+      where: { user_id: req.user.id }
+    });
+
+    // 2. Total Visits
+    const visits = await prisma.attendanceLog.count({
+      where: { user_id: req.user.id, action: 'CHECK_IN' }
+    });
+
+    // 3. Streak
+    const logs = await prisma.attendanceLog.findMany({
+      where: { user_id: req.user.id, action: 'CHECK_IN' },
+      select: { logged_at: true },
+      orderBy: { logged_at: 'desc' }
+    });
+
+    const uniqueDates = [...new Set(logs.map(log => {
+      const d = new Date(log.logged_at);
+      return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    }))];
+
+    let streak = 0;
+    const today = new Date();
+    let dateToProcess = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const todayStr = `${dateToProcess.getFullYear()}-${dateToProcess.getMonth()}-${dateToProcess.getDate()}`;
+
+    if (uniqueDates.includes(todayStr)) {
+      for (let i = 0; i < uniqueDates.length; i++) {
+        const checkStr = `${dateToProcess.getFullYear()}-${dateToProcess.getMonth()}-${dateToProcess.getDate()}`;
+        if (uniqueDates.includes(checkStr)) {
+          streak++;
+          dateToProcess.setDate(dateToProcess.getDate() - 1);
+        } else {
+          break;
+        }
+      }
+    } else {
+      dateToProcess.setDate(dateToProcess.getDate() - 1);
+      const yesterdayStr = `${dateToProcess.getFullYear()}-${dateToProcess.getMonth()}-${dateToProcess.getDate()}`;
+      if (uniqueDates.includes(yesterdayStr)) {
+        for (let i = 0; i < uniqueDates.length; i++) {
+          const checkStr = `${dateToProcess.getFullYear()}-${dateToProcess.getMonth()}-${dateToProcess.getDate()}`;
+          if (uniqueDates.includes(checkStr)) {
+            streak++;
+            dateToProcess.setDate(dateToProcess.getDate() - 1);
+          } else {
+            break;
+          }
+        }
+      }
+    }
+
+    userWithoutPassword.stats = { borrowed, visits, streak };
+
     res.json({ user: userWithoutPassword });
   } catch (error) {
     console.error('Get me error:', error);

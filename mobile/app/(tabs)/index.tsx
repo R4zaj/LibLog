@@ -97,7 +97,7 @@ export default function Home() {
       <View style={styles.topBar}>
         <View style={styles.streakContainer}>
           <Flame color="#f97316" size={20} />
-          <Text style={styles.streakCount}>5</Text>
+          <Text style={styles.streakCount}>{user?.stats?.streak || 0}</Text>
           <Text style={styles.streakText}>day streak</Text>
         </View>
         <View style={styles.topBarActions}>
