@@ -47,8 +47,22 @@ export default function Search() {
   const filteredBooks = books.filter(
     (b: any) =>
       (activeTab === 'All' || b.tags?.[0]?.includes(activeTab)) &&
-      b.title.toLowerCase().includes(searchQuery.toLowerCase())
+      (b.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+       b.author.toLowerCase().includes(searchQuery.toLowerCase()) || 
+       b.tags?.[0]?.toLowerCase().includes(searchQuery.toLowerCase()))
   );
+
+  const getSuggestions = () => {
+    if (!searchQuery) return [];
+    const query = searchQuery.toLowerCase();
+    const suggestions = new Set<string>();
+    books.forEach(b => {
+      if (b.title.toLowerCase().includes(query)) suggestions.add(b.title);
+      if (b.author.toLowerCase().includes(query)) suggestions.add(b.author);
+      if (b.tags?.[0]?.toLowerCase().includes(query)) suggestions.add(b.tags[0]);
+    });
+    return Array.from(suggestions).slice(0, 6);
+  };
 
   return (
     <YStack flex={1} backgroundColor="#f4f1fa">
@@ -76,6 +90,27 @@ export default function Search() {
           />
         </XStack>
       </YStack>
+
+      {/* Auto-Suggestions */}
+      {searchQuery.length > 0 && (
+        <YStack backgroundColor="white" paddingHorizontal="$5" paddingBottom="$4" borderBottomWidth={1} borderBottomColor="#ede9f6" zIndex={10}>
+          {getSuggestions().map((suggestion, idx) => (
+            <TouchableOpacity 
+              key={idx} 
+              onPress={() => setSearchQuery(suggestion)}
+              style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f4f1fa' }}
+            >
+              <XStack alignItems="center">
+                <SearchIcon color="#9ca3af" size={16} style={{ marginRight: 10 }} />
+                <Text color="#1e1e2e" fontSize={15} fontWeight="500">{suggestion}</Text>
+              </XStack>
+            </TouchableOpacity>
+          ))}
+          {getSuggestions().length === 0 && (
+             <Text color="#9ca3af" fontSize={14} paddingVertical={12}>No suggestions found</Text>
+          )}
+        </YStack>
+      )}
 
       <ScrollView showsVerticalScrollIndicator={false}>
         <YStack paddingBottom="$8">
