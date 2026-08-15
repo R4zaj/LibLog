@@ -234,17 +234,30 @@ export default function Literatures() {
   const confirmDelete = async () => {
     setIsDeleting(true);
     try {
-      await Promise.all(booksToDelete.map(id => 
-        fetch(`http://localhost:5000/api/literatures/books/${id}`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }, method: 'DELETE' })
-      ));
+      let failedCount = 0;
+      let lastError = '';
       
-      setSelectedBooks(prev => prev.filter(id => !booksToDelete.includes(id)));
+      await Promise.all(booksToDelete.map(async id => {
+        const res = await fetch(`http://localhost:5000/api/literatures/books/${id}`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }, method: 'DELETE' });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          lastError = data.error || 'Failed to delete';
+          failedCount++;
+        } else {
+          setSelectedBooks(prev => prev.filter(bId => bId !== id));
+        }
+      }));
+      
+      if (failedCount > 0) {
+        alert(`Failed to delete ${failedCount} book(s). Reason: ${lastError}`);
+      }
+      
       fetchBooks();
       setIsDeleteModalOpen(false);
-      setBooksToDelete([]);
+      if (failedCount === 0) setBooksToDelete([]);
     } catch (err) {
       console.error(err);
-      alert('Failed to delete books.');
+      alert('An error occurred during deletion.');
     } finally {
       setIsDeleting(false);
     }

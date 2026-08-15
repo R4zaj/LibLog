@@ -223,6 +223,9 @@ const deleteBook = async (req, res) => {
     res.json({ message: 'Book deleted successfully' });
   } catch (error) {
     console.error('Error deleting book:', error);
+    if (error.code === 'P2003') {
+      return res.status(400).json({ error: 'Cannot delete this book because it has existing borrowing records.' });
+    }
     res.status(500).json({ error: 'Server error deleting book' });
   }
 };
