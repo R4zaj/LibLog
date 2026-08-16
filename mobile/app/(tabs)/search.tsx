@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { TextInput, TouchableOpacity, Dimensions } from 'react-native';
 import { Search as SearchIcon, BookOpen, Clock } from 'lucide-react-native';
 import { YStack, XStack, Text, ScrollView, View } from 'tamagui';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../../api';
 
 const { width } = Dimensions.get('window');
@@ -11,6 +12,8 @@ export default function Search() {
   const [activeTab, setActiveTab] = useState('All');
   const [books, setBooks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [popularSearches, setPopularSearches] = useState<string[]>(['Algorithms', 'Nursing', 'Psychology']);
+  const [recentItems, setRecentItems] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchBooks = async () => {
@@ -24,25 +27,52 @@ export default function Search() {
           avail: b.available > 0 ? `${b.available}/${b.total}` : 'Out',
           availColor: b.available > 0 ? '#22c55e' : '#ef4444',
           typeColor: b.genre?.includes('Magazine') ? '#f97316' : b.genre?.includes('Research') ? '#3b82f6' : '#8b5cf6',
+          coverColor: b.genre?.includes('Magazine') ? '#ef4444' : b.genre?.includes('Research') ? '#3b82f6' : '#6C48C5',
+          type: b.genre || 'Book'
         }));
         setBooks(formatted);
+        
+        const counts: Record<string, number> = {};
+        formatted.forEach((b: any) => {
+          const tag = b.tags[0];
+          if (tag && tag !== 'Unknown') counts[tag] = (counts[tag] || 0) + 1;
+        });
+        const popular = Object.entries(counts)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 6)
+          .map(e => e[0]);
+        if (popular.length > 0) setPopularSearches(popular);
       } catch (err) {
         console.error('Failed to fetch books', err);
       } finally {
         setLoading(false);
       }
     };
+
+    const loadRecent = async () => {
+      try {
+        const stored = await AsyncStorage.getItem('@recent_books');
+        if (stored) setRecentItems(JSON.parse(stored));
+      } catch (e) {
+        console.error('Failed to load recent books', e);
+      }
+    };
+
     fetchBooks();
+    loadRecent();
   }, []);
 
-  const popularSearches = ['Algorithms', 'Deep Learning', 'Database', 'Nursing', 'Psychology', 'Clean Code'];
-  const tabs = ['All', 'Books', 'Research', 'Magazines'];
+  const handleBookPress = async (book: any) => {
+    try {
+      const newRecent = [book, ...recentItems.filter(item => item.id !== book.id)].slice(0, 5);
+      setRecentItems(newRecent);
+      await AsyncStorage.setItem('@recent_books', JSON.stringify(newRecent));
+    } catch (e) {
+      console.error('Failed to save recent book', e);
+    }
+  };
 
-  const recentItems = [
-    { id: 1, title: 'Scientific American', author: 'Springer Nature', type: 'magazine', coverColor: '#ef4444' },
-    { id: 2, title: 'National Geographic March 2026', author: 'National Geographic Society', type: 'magazine', coverColor: '#6C48C5' },
-    { id: 3, title: 'Time Magazine Spring 2026', author: 'Time USA, LLC', type: 'magazine', coverColor: '#6C48C5' },
-  ];
+  const tabs = ['All', 'Books', 'Research', 'Magazines'];
 
   const filteredBooks = books.filter(
     (b: any) =>
@@ -185,56 +215,60 @@ export default function Search() {
           </ScrollView>
 
           {/* Recently Viewed */}
-          <YStack paddingHorizontal="$5" marginBottom="$5">
-            <XStack alignItems="center" marginBottom="$3">
-              <Clock color="#6C48C5" size={16} />
-              <Text fontSize={16} fontWeight="700" color="#1e1e2e" marginLeft="$2">
-                Recently Viewed
-              </Text>
-            </XStack>
-          </YStack>
+          {recentItems.length > 0 && (
+            <YStack paddingHorizontal="$5" marginBottom="$5">
+              <XStack alignItems="center" marginBottom="$3">
+                <Clock color="#6C48C5" size={16} />
+                <Text fontSize={16} fontWeight="700" color="#1e1e2e" marginLeft="$2">
+                  Recently Viewed
+                </Text>
+              </XStack>
+            </YStack>
+          )}
 
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 20, paddingRight: 16 }}
-            style={{ marginBottom: 24 }}
-          >
-            {recentItems.map((item) => (
-              <YStack key={item.id} width={120} marginRight="$4">
-                <YStack
-                  height={160}
-                  borderRadius={16}
-                  justifyContent="center"
-                  alignItems="center"
-                  marginBottom="$2"
-                  backgroundColor={item.coverColor as any}
-                  position="relative"
-                >
-                  <BookOpen color="#fff" size={32} opacity={0.6} />
+          {recentItems.length > 0 && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 20, paddingRight: 16 }}
+              style={{ marginBottom: 24 }}
+            >
+              {recentItems.map((item) => (
+                <YStack key={item.id} width={120} marginRight="$4">
                   <YStack
-                    position="absolute"
-                    top={8}
-                    left={8}
-                    backgroundColor="white"
-                    paddingHorizontal="$1.5"
-                    paddingVertical={2}
-                    borderRadius={8}
+                    height={160}
+                    borderRadius={16}
+                    justifyContent="center"
+                    alignItems="center"
+                    marginBottom="$2"
+                    backgroundColor={item.coverColor as any}
+                    position="relative"
                   >
-                    <Text fontSize={9} fontWeight="700" color="#7c7c8a" textTransform="uppercase">
-                      {item.type}
-                    </Text>
+                    <BookOpen color="#fff" size={32} opacity={0.6} />
+                    <YStack
+                      position="absolute"
+                      top={8}
+                      left={8}
+                      backgroundColor="white"
+                      paddingHorizontal="$1.5"
+                      paddingVertical={2}
+                      borderRadius={8}
+                    >
+                      <Text fontSize={9} fontWeight="700" color="#7c7c8a" textTransform="uppercase">
+                        {item.type}
+                      </Text>
+                    </YStack>
                   </YStack>
+                  <Text fontSize={13} fontWeight="700" color="#1e1e2e" numberOfLines={2} marginBottom={2}>
+                    {item.title}
+                  </Text>
+                  <Text fontSize={11} color="#9ca3af" numberOfLines={1}>
+                    {item.author}
+                  </Text>
                 </YStack>
-                <Text fontSize={13} fontWeight="700" color="#1e1e2e" numberOfLines={2} marginBottom={2}>
-                  {item.title}
-                </Text>
-                <Text fontSize={11} color="#9ca3af" numberOfLines={1}>
-                  {item.author}
-                </Text>
-              </YStack>
-            ))}
-          </ScrollView>
+              ))}
+            </ScrollView>
+          )}
 
           {/* Catalog List */}
           <YStack paddingHorizontal="$5">
@@ -258,70 +292,71 @@ export default function Search() {
               </YStack>
             ) : (
               filteredBooks.map((item: any) => (
-                <XStack
-                  key={item.id}
-                  alignItems="center"
-                  paddingVertical="$3.5"
-                  borderBottomWidth={1}
-                  borderBottomColor="#f0eef5"
-                >
-                  <YStack
-                    width={56}
-                    height={56}
-                    borderRadius={14}
-                    justifyContent="center"
+                <TouchableOpacity key={item.id} onPress={() => handleBookPress(item)} activeOpacity={0.7}>
+                  <XStack
                     alignItems="center"
-                    marginRight="$3"
-                    backgroundColor={
-                      item.typeColor === '#f97316'
-                        ? '#fff7ed'
-                        : item.typeColor === '#3b82f6'
-                        ? '#eff6ff'
-                        : '#faf5ff'
-                    }
+                    paddingVertical="$3.5"
+                    borderBottomWidth={1}
+                    borderBottomColor="#f0eef5"
                   >
-                    <BookOpen color={item.typeColor} size={24} opacity={0.8} />
-                  </YStack>
-                  <YStack flex={1}>
-                    <Text fontSize={15} fontWeight="600" color="#1e1e2e" marginBottom={3}>
-                      {item.title}
-                    </Text>
-                    <Text fontSize={13} color="#7c7c8a" marginBottom="$2">
-                      {item.author}
-                    </Text>
-                    <XStack alignItems="center" flexWrap="wrap" gap="$1.5">
-                      {item.tags?.slice(0, 2).map((tag: string, idx: number) => (
-                        <YStack
-                          key={idx}
-                          backgroundColor={idx === 0 ? item.typeColor + '18' as any : '#f3f4f6'}
-                          paddingHorizontal="$2"
-                          paddingVertical={3}
-                          borderRadius={8}
-                        >
-                          <Text
-                            fontSize={11}
-                            color={idx === 0 ? item.typeColor : '#7c7c8a'}
-                            fontWeight={idx === 0 ? '700' : '400'}
+                    <YStack
+                      width={56}
+                      height={56}
+                      borderRadius={14}
+                      justifyContent="center"
+                      alignItems="center"
+                      marginRight="$3"
+                      backgroundColor={
+                        item.typeColor === '#f97316'
+                          ? '#fff7ed'
+                          : item.typeColor === '#3b82f6'
+                          ? '#eff6ff'
+                          : '#faf5ff'
+                      }
+                    >
+                      <BookOpen color={item.typeColor} size={24} opacity={0.8} />
+                    </YStack>
+                    <YStack flex={1}>
+                      <Text fontSize={15} fontWeight="600" color="#1e1e2e" marginBottom={3}>
+                        {item.title}
+                      </Text>
+                      <Text fontSize={13} color="#7c7c8a" marginBottom="$2">
+                        {item.author}
+                      </Text>
+                      <XStack alignItems="center" flexWrap="wrap" gap="$1.5">
+                        {item.tags?.slice(0, 2).map((tag: string, idx: number) => (
+                          <YStack
+                            key={idx}
+                            backgroundColor={idx === 0 ? item.typeColor + '18' as any : '#f3f4f6'}
+                            paddingHorizontal="$2"
+                            paddingVertical={3}
+                            borderRadius={8}
                           >
-                            {tag}
+                            <Text
+                              fontSize={11}
+                              color={idx === 0 ? item.typeColor : '#7c7c8a'}
+                              fontWeight={idx === 0 ? '700' : '400'}
+                            >
+                              {tag}
+                            </Text>
+                          </YStack>
+                        ))}
+                        <XStack alignItems="center" marginLeft="auto">
+                          <View
+                            width={6}
+                            height={6}
+                            borderRadius={3}
+                            backgroundColor={item.availColor}
+                            marginRight="$1"
+                          />
+                          <Text fontSize={11} fontWeight="700" color={item.availColor}>
+                            {item.avail}
                           </Text>
-                        </YStack>
-                      ))}
-                      <XStack alignItems="center" marginLeft="auto">
-                        <View
-                          width={6}
-                          height={6}
-                          borderRadius={3}
-                          backgroundColor={item.availColor}
-                          marginRight="$1"
-                        />
-                        <Text fontSize={11} fontWeight="700" color={item.availColor}>
-                          {item.avail}
-                        </Text>
+                        </XStack>
                       </XStack>
-                    </XStack>
-                  </YStack>
-                </XStack>
+                    </YStack>
+                  </XStack>
+                </TouchableOpacity>
               ))
             )}
           </YStack>
