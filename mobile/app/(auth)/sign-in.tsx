@@ -4,6 +4,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { CheckSquare, Square } from 'lucide-react-native';
 
 export default function SignIn() {
   const router = useRouter();
@@ -12,10 +14,30 @@ export default function SignIn() {
   const [studentId, setStudentId] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
+
+  React.useEffect(() => {
+    const loadRemembered = async () => {
+      try {
+        const storedId = await AsyncStorage.getItem('@remembered_id');
+        if (storedId) {
+          setStudentId(storedId);
+          setRememberMe(true);
+        }
+      } catch (e) {}
+    };
+    loadRemembered();
+  }, []);
 
   const handleLogin = async () => {
     setError('');
     try {
+      if (rememberMe) {
+        await AsyncStorage.setItem('@remembered_id', studentId);
+      } else {
+        await AsyncStorage.removeItem('@remembered_id');
+      }
+
       const res = await api.post('/auth/login', { student_id: studentId, password });
       if (res.data.token) {
         await signIn(res.data.token, res.data.user);
@@ -58,8 +80,22 @@ export default function SignIn() {
             style={styles.input}
             value={password}
             onChangeText={setPassword}
-            secureTextEntry
+            secureTextEntry={true}
+            textContentType="password"
           />
+
+          <TouchableOpacity 
+            style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}
+            onPress={() => setRememberMe(!rememberMe)}
+            activeOpacity={0.7}
+          >
+            {rememberMe ? (
+              <CheckSquare color="#6C48C5" size={20} />
+            ) : (
+              <Square color="#9ca3af" size={20} />
+            )}
+            <Text style={{ marginLeft: 8, color: '#374151', fontSize: 14 }}>Remember Me</Text>
+          </TouchableOpacity>
 
           <TouchableOpacity style={styles.button} onPress={handleLogin}>
             <Text style={styles.buttonText}>Sign In</Text>
