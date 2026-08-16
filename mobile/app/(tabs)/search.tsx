@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { TextInput, TouchableOpacity, Dimensions } from 'react-native';
-import { Search as SearchIcon, BookOpen, Clock } from 'lucide-react-native';
+import { TextInput, TouchableOpacity, Dimensions, Modal } from 'react-native';
+import { Search as SearchIcon, BookOpen, Clock, X } from 'lucide-react-native';
 import { YStack, XStack, Text, ScrollView, View } from 'tamagui';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../../api';
@@ -14,6 +14,7 @@ export default function Search() {
   const [loading, setLoading] = useState(true);
   const [popularSearches, setPopularSearches] = useState<string[]>(['Algorithms', 'Nursing', 'Psychology']);
   const [recentItems, setRecentItems] = useState<any[]>([]);
+  const [selectedBook, setSelectedBook] = useState<any | null>(null);
 
   useEffect(() => {
     const fetchBooks = async () => {
@@ -23,6 +24,14 @@ export default function Search() {
           id: b.id,
           title: b.title,
           author: b.author,
+          isbn: b.isbn,
+          lccn: b.lccn,
+          year: b.year,
+          shelf: b.shelf,
+          total: b.total,
+          available: b.available,
+          condition: b.condition,
+          genre: b.genre,
           tags: [b.genre, b.condition || 'GOOD'],
           avail: b.available > 0 ? `${b.available}/${b.total}` : 'Out',
           availColor: b.available > 0 ? '#22c55e' : '#ef4444',
@@ -64,6 +73,7 @@ export default function Search() {
 
   const handleBookPress = async (book: any) => {
     try {
+      setSelectedBook(book);
       const newRecent = [book, ...recentItems.filter(item => item.id !== book.id)].slice(0, 5);
       setRecentItems(newRecent);
       await AsyncStorage.setItem('@recent_books', JSON.stringify(newRecent));
@@ -96,6 +106,74 @@ export default function Search() {
 
   return (
     <YStack flex={1} backgroundColor="#f4f1fa">
+      <Modal
+        visible={!!selectedBook}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setSelectedBook(null)}
+      >
+        <View flex={1} backgroundColor="rgba(0,0,0,0.5)" justifyContent="center" alignItems="center" padding="$4">
+          <YStack backgroundColor="white" width="100%" maxWidth={400} borderRadius={24} padding="$5" elevation={5}>
+            <XStack justifyContent="space-between" alignItems="flex-start" marginBottom="$4">
+              <YStack flex={1} marginRight="$3">
+                <Text fontSize={20} fontWeight="800" color="#1e1e2e" marginBottom="$1">
+                  {selectedBook?.title}
+                </Text>
+                <Text fontSize={14} color="#7c7c8a">
+                  By {selectedBook?.author}
+                </Text>
+              </YStack>
+              <TouchableOpacity onPress={() => setSelectedBook(null)}>
+                <View backgroundColor="#f4f1fa" padding="$2" borderRadius={12}>
+                  <X color="#6C48C5" size={20} />
+                </View>
+              </TouchableOpacity>
+            </XStack>
+
+            <ScrollView maxHeight={300} showsVerticalScrollIndicator={false}>
+              <YStack gap="$3" marginBottom="$4">
+                <XStack justifyContent="space-between">
+                  <Text fontSize={14} color="#7c7c8a">Genre</Text>
+                  <Text fontSize={14} fontWeight="600" color="#1e1e2e">{selectedBook?.genre}</Text>
+                </XStack>
+                <XStack justifyContent="space-between">
+                  <Text fontSize={14} color="#7c7c8a">Shelf</Text>
+                  <Text fontSize={14} fontWeight="600" color="#1e1e2e">{selectedBook?.shelf}</Text>
+                </XStack>
+                <XStack justifyContent="space-between">
+                  <Text fontSize={14} color="#7c7c8a">Condition</Text>
+                  <Text fontSize={14} fontWeight="600" color={selectedBook?.condition === 'POOR' ? '#ef4444' : '#22c55e'}>{selectedBook?.condition}</Text>
+                </XStack>
+                <XStack justifyContent="space-between">
+                  <Text fontSize={14} color="#7c7c8a">Availability</Text>
+                  <Text fontSize={14} fontWeight="600" color={selectedBook?.available > 0 ? '#22c55e' : '#ef4444'}>
+                    {selectedBook?.available} / {selectedBook?.total}
+                  </Text>
+                </XStack>
+                <XStack justifyContent="space-between">
+                  <Text fontSize={14} color="#7c7c8a">Year</Text>
+                  <Text fontSize={14} fontWeight="600" color="#1e1e2e">{selectedBook?.year}</Text>
+                </XStack>
+                <XStack justifyContent="space-between">
+                  <Text fontSize={14} color="#7c7c8a">ISBN</Text>
+                  <Text fontSize={14} fontWeight="600" color="#1e1e2e">{selectedBook?.isbn}</Text>
+                </XStack>
+                <XStack justifyContent="space-between">
+                  <Text fontSize={14} color="#7c7c8a">Call No. / LCCN</Text>
+                  <Text fontSize={14} fontWeight="600" color="#1e1e2e">{selectedBook?.lccn}</Text>
+                </XStack>
+              </YStack>
+            </ScrollView>
+
+            <YStack backgroundColor="#f9f8fc" padding="$3" borderRadius={12} borderWidth={1} borderColor="#ede9f6" alignItems="center">
+              <Text fontSize={13} color="#6C48C5" fontWeight="600" textAlign="center">
+                Kindly find the book to scan its qr to borrow
+              </Text>
+            </YStack>
+          </YStack>
+        </View>
+      </Modal>
+
       {/* Header */}
       <YStack paddingTop={52} paddingHorizontal="$5" paddingBottom="$4" backgroundColor="white">
         <Text fontSize={24} fontWeight="800" color="#1e1e2e" marginBottom="$3">
@@ -234,38 +312,40 @@ export default function Search() {
               style={{ marginBottom: 24 }}
             >
               {recentItems.map((item) => (
-                <YStack key={item.id} width={120} marginRight="$4">
-                  <YStack
-                    height={160}
-                    borderRadius={16}
-                    justifyContent="center"
-                    alignItems="center"
-                    marginBottom="$2"
-                    backgroundColor={item.coverColor as any}
-                    position="relative"
-                  >
-                    <BookOpen color="#fff" size={32} opacity={0.6} />
+                <TouchableOpacity key={item.id} onPress={() => handleBookPress(item)} activeOpacity={0.8}>
+                  <YStack width={120} marginRight="$4">
                     <YStack
-                      position="absolute"
-                      top={8}
-                      left={8}
-                      backgroundColor="white"
-                      paddingHorizontal="$1.5"
-                      paddingVertical={2}
-                      borderRadius={8}
+                      height={160}
+                      borderRadius={16}
+                      justifyContent="center"
+                      alignItems="center"
+                      marginBottom="$2"
+                      backgroundColor={item.coverColor as any}
+                      position="relative"
                     >
-                      <Text fontSize={9} fontWeight="700" color="#7c7c8a" textTransform="uppercase">
-                        {item.type}
-                      </Text>
+                      <BookOpen color="#fff" size={32} opacity={0.6} />
+                      <YStack
+                        position="absolute"
+                        top={8}
+                        left={8}
+                        backgroundColor="white"
+                        paddingHorizontal="$1.5"
+                        paddingVertical={2}
+                        borderRadius={8}
+                      >
+                        <Text fontSize={9} fontWeight="700" color="#7c7c8a" textTransform="uppercase">
+                          {item.type}
+                        </Text>
+                      </YStack>
                     </YStack>
+                    <Text fontSize={13} fontWeight="700" color="#1e1e2e" numberOfLines={2} marginBottom={2}>
+                      {item.title}
+                    </Text>
+                    <Text fontSize={11} color="#9ca3af" numberOfLines={1}>
+                      {item.author}
+                    </Text>
                   </YStack>
-                  <Text fontSize={13} fontWeight="700" color="#1e1e2e" numberOfLines={2} marginBottom={2}>
-                    {item.title}
-                  </Text>
-                  <Text fontSize={11} color="#9ca3af" numberOfLines={1}>
-                    {item.author}
-                  </Text>
-                </YStack>
+                </TouchableOpacity>
               ))}
             </ScrollView>
           )}
