@@ -109,7 +109,7 @@ export default function Search() {
       <Modal
         visible={!!selectedBook}
         transparent={true}
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setSelectedBook(null)}
       >
         <View flex={1} backgroundColor="rgba(0,0,0,0.5)" justifyContent="center" alignItems="center" padding="$4">
