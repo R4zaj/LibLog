@@ -328,12 +328,14 @@ export default function Search() {
                         position="absolute"
                         top={8}
                         left={8}
+                        right={8}
                         backgroundColor="white"
                         paddingHorizontal="$1.5"
-                        paddingVertical={2}
-                        borderRadius={8}
+                        paddingVertical={3}
+                        borderRadius={6}
+                        alignSelf="flex-start"
                       >
-                        <Text fontSize={9} fontWeight="700" color="#7c7c8a" textTransform="uppercase">
+                        <Text fontSize={9} fontWeight="800" color="#7c7c8a" textTransform="uppercase" numberOfLines={1} ellipsizeMode="tail">
                           {item.type}
                         </Text>
                       </YStack>
