@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { CheckSquare, Square } from 'lucide-react-native';
+import { CheckSquare, Square, Eye, EyeOff } from 'lucide-react-native';
 
 export default function SignIn() {
   const router = useRouter();
@@ -15,6 +15,7 @@ export default function SignIn() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   React.useEffect(() => {
     const loadRemembered = async () => {
@@ -76,13 +77,21 @@ export default function SignIn() {
           />
 
           <Text style={styles.label}>Password</Text>
-          <TextInput
-            style={styles.input}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry={true}
-            textContentType="password"
-          />
+          <View style={{ position: 'relative', marginBottom: 20 }}>
+            <TextInput
+              style={[styles.input, { marginBottom: 0, paddingRight: 50 }]}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+              textContentType="password"
+            />
+            <TouchableOpacity 
+              style={{ position: 'absolute', right: 16, top: 16 }}
+              onPress={() => setShowPassword(!showPassword)}
+            >
+              {showPassword ? <EyeOff color="#9ca3af" size={20} /> : <Eye color="#9ca3af" size={20} />}
+            </TouchableOpacity>
+          </View>
 
           <TouchableOpacity 
             style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}
