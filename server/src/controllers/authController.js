@@ -269,6 +269,7 @@ const getMe = async (req, res) => {
       }
     }
 
+    const { password_hash, ...userWithoutPassword } = user;
     userWithoutPassword.stats = { borrowed, visits, streak };
 
     res.json({ user: userWithoutPassword });

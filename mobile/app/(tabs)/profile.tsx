@@ -274,7 +274,7 @@ export default function Profile() {
         >
           <Clock color="#6C48C5" size={16} style={{ marginRight: 8 }} />
           <Text color="#6C48C5" fontSize={13} fontWeight="500">
-            Member since April 2026
+            Member since {user?.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'April 2026'}
           </Text>
         </XStack>
 
