@@ -1,58 +1,66 @@
-# LibLog Project Guide for Claude
+# CLAUDE.md
 
-This file provides critical context, commands, and architecture details for the LibLog repository. Use this to orient yourself when debugging or writing code.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Tech Stack
-- **Database**: PostgreSQL (hosted on Supabase), managed via Prisma ORM.
-- **Backend (server)**: Node.js, Express.js, Prisma Client.
-- **Frontend (desktop)**: React 18, Vite, Tailwind CSS, Lucide Icons. (Also configured to be wrapped in Electron).
-- **Mobile (mobile)**: React Native, Expo, Tamagui, Expo Router.
+## Repository layout
 
-## Project Structure
-- `/server`: Express backend and Prisma database schema.
-- `/desktop`: React web application (Admin/Staff dashboard).
-- `/mobile`: Expo mobile application (Student/User app).
+Three independent npm projects (no workspace/monorepo tooling — install and run each separately):
 
-## Common Commands
-### Backend (Server)
+| Dir | What it is |
+|---|---|
+| `server/` | Express + Prisma REST API (CommonJS, Node) — the only thing that touches the database |
+| `desktop/` | Vite + React 19 + Electron librarian station (JS, no TypeScript) |
+| `mobile/` | Expo Router + React Native + Tamagui student app (TypeScript) |
+| `liblog_schema.sql` | Raw SQL source of truth for the Postgres schema (tables, views, triggers, `fn_mark_overdue_and_penalize`) |
+| `System UI/`, `Mobile UI/`, `ICONS/` | Screenshot design references for desktop and mobile screens |
+
+## Commands
+
 ```bash
-cd server
-npm install
-npx prisma generate  # CRITICAL: Always run this after npm install or when cloning!
-npm run dev          # Starts the Express server on port 5000 using nodemon
+# server (port 5000; needs server/src/.env with DATABASE_URL, DIRECT_URL, JWT_SECRET)
+cd server && npm run dev            # nodemon src/index.js
+cd server && npx prisma generate    # after editing prisma/schema.prisma
+cd server && npx prisma db pull     # schema is DB-first; pull instead of authoring migrations
+
+# desktop
+cd desktop && npm run dev           # Vite browser dev server (localhost:5173)
+cd desktop && npm run lint          # eslint
+cd desktop && ELECTRON=true npx vite            # Electron dev on macOS/Linux
+cd desktop && ELECTRON=true npx vite build && npx electron-builder   # packaged build
+
+# mobile
+cd mobile && npm start              # expo start
+cd mobile && npx expo run:android   # / run:ios — native build
 ```
 
-### Desktop (Frontend)
-```bash
-cd desktop
-npm install
-npm run dev          # Starts the Vite dev server on port 5173
-```
+Note the `dev:electron` and `build:electron` scripts in [desktop/package.json](desktop/package.json) use Windows `set VAR=x&&` syntax and fail on macOS/zsh — use the `ELECTRON=true …` forms above instead.
 
-### Mobile (App)
-```bash
-cd mobile
-npm install
-npm run start        # Starts the Expo bundler
-```
+There is no test framework in any project. `server/test_*.js`, `server/check.js`, and `server/perf.js` are one-off scripts run directly with `node`.
 
-## Environment Variables
-The `server` directory requires a `.env` file with the following keys. Without this, the server will crash on boot or throw 500 errors on database queries:
-```env
-PORT=5000
-DATABASE_URL="postgresql://..."
-DIRECT_URL="postgresql://..."
-JWT_SECRET="..."
-```
+## Architecture
 
-## Critical Debugging Notes
-- **Prisma Client Issues**: If you see `500 Internal Server Error` on the first API hit (like `/api/dashboard/overview`), it usually means the Prisma Client wasn't generated for the current OS. ALWAYS run `npx prisma generate` in `/server`.
-- **CORS Issues**: The backend (`server/src/index.js`) is strictly configured to only allow requests from `localhost` and `127.0.0.1`. If testing on another device via a local IP, the CORS policy must be temporarily updated.
-- **No Raw SQL**: The backend heavily relies on Prisma's built-in methods (`findMany`, `groupBy`, etc.). Avoid using `prisma.$queryRaw` unless absolutely necessary.
-- **Mobile Build**: The mobile app is built using EAS (`eas build -p android`). Changes to native code require a new EAS build.
+**Data flow.** Both clients are thin — all business logic (penalty computation, borrow limits, suspension checks, attendance toggling) lives in `server/src/controllers/`. Routes in `server/src/routes/` are mounted under `/api/<domain>` in [server/src/index.js](server/src/index.js): `auth`, `literatures`, `dashboard`, `announcements`, `borrowing`, `attendance`, `reports`, `settings`, `notifications`.
 
-## Code Style
-- Use functional React components with hooks.
-- Styling is done via Tailwind CSS (desktop) and Tamagui (mobile).
-- Keep API routes in `server/src/routes/` and business logic in `server/src/controllers/`.
-- Handle backend errors safely and always return JSON (e.g., `res.status(500).json({ error: 'message' })`).
+**API base URLs are hardcoded, and the two clients point at different backends:**
+- Desktop inlines `` `http://${window.location.hostname}:5000/api/...` `` at every call site — there is no shared API client. Adding an endpoint means editing the URL string in each page/context that uses it.
+- Mobile uses a single axios instance in [mobile/api/index.ts](mobile/api/index.ts) pointed at the deployed Render backend. Change `API_URL` there to develop against a local server.
+
+**Auth.** JWT signed in [server/src/controllers/authController.js](server/src/controllers/authController.js), verified by `verifyToken`/`isAdmin` in [server/src/middleware/authMiddleware.js](server/src/middleware/authMiddleware.js). Most routes are currently *not* wrapped in `verifyToken` even where the README claims admin-only — check the route file before assuming a request is authenticated. Desktop stores the token in `localStorage`; mobile stores it via `expo-secure-store` behind [mobile/utils/Storage.ts](mobile/utils/Storage.ts) (falls back to `localStorage` on web). Mobile's axios response interceptor emits a `auth:logout` DeviceEventEmitter event on 401, which [mobile/context/AuthContext.tsx](mobile/context/AuthContext.tsx) listens for; that context also drives the `(auth)` ⇄ `(tabs)` redirect.
+
+**Desktop offline mode.** [desktop/src/contexts/NetworkContext.jsx](desktop/src/contexts/NetworkContext.jsx) + [desktop/src/hooks/useOfflineApi.js](desktop/src/hooks/useOfflineApi.js) form the offline layer: GETs cache to `localStorage` under `liblog_cache_<key>`, and mutations while offline are pushed onto a persisted `liblog_sync_queue` and replayed on `online`. A queued mutation returns a fake `{ success: true, offlineQueued: true }` response, so any caller must handle a response with no real payload (see how `AttendanceScannerContext` fakes the scan result). Use `fetchWithOfflineSupport` rather than bare `fetch` for anything that should survive a dropped connection.
+
+**Webcam scanning (desktop).** The camera stream lives in app-level providers — `AttendanceScannerContext` and `BorrowingContext` in [desktop/src/context/](desktop/src/context/) — and is portaled into the current page, so the stream survives route changes. Scanner UI changes usually belong in the context, not the page.
+
+**Attendance toggle.** `POST /api/attendance/scan` looks up the user's most recent `attendance_logs` row (not just today's) and emits `CHECK_OUT` if the last action was `CHECK_IN`, otherwise `CHECK_IN`, computing `duration_minutes` on checkout. "Currently inside" counts are derived in JS by folding the day's logs per user, not from the SQL views.
+
+## Conventions and gotchas
+
+- **Prisma models are camelCase, DB tables snake_case** via `@@map`. Field names stay snake_case (`first_name`, `due_date`, `available_copies`). Enums are Postgres enums (`UserRole`, `BorrowStatus`, `PenaltyStatus`, …) — see [server/prisma/schema.prisma](server/prisma/schema.prisma).
+- Controllers use the Prisma query API only; no `$queryRaw` anywhere. The shared client is [server/src/db.js](server/src/db.js).
+- `library_settings` is a single row read with `prisma.librarySettings.findFirst()`; borrow duration, max books, penalty rate, and suspension threshold all come from there — never hardcode those values.
+- Contrary to the README, `available_copies` is adjusted explicitly in [server/src/controllers/borrowingController.js](server/src/controllers/borrowingController.js) (`increment`/`decrement` inside the transaction), not by DB triggers. Don't add a second adjustment.
+- The QR a student presents is their raw `student_id` (format `CCC-{year}-{0001}`, generated on register), not the `USR-…`/`BK-…` formats described in the README. `scanQR` also accepts a JWT and a `CCC-`-stripped fallback.
+- README.md documents the intended design; several sections (route map, trigger-managed copies, QR formats, `USR-`/`BK-` prefixes) describe the plan rather than the shipped code. Verify against the source before relying on it.
+- Mobile: **read the versioned Expo docs at https://docs.expo.dev/versions/v56.0.0/ before writing Expo code** (see [mobile/AGENTS.md](mobile/AGENTS.md)) — this project is on Expo 56 / RN 0.85 / React 19, where many older recipes are wrong. UI is Tamagui (`YStack`/`XStack`/`Text`), styled inline; routes are file-based under `mobile/app/` with `(auth)` and `(tabs)` groups and `typedRoutes` enabled.
+- Desktop is plain JS with Tailwind v4 (via `@tailwindcss/postcss`), `react-router-dom` routes declared in [desktop/src/App.jsx](desktop/src/App.jsx), and `@` aliased to `desktop/src`. Electron runs with `nodeIntegration: true` / `contextIsolation: false` and no preload bridge.
+- `desktop/*.cjs` and `desktop/*_dash.txt` are stale one-off codemods and dashboard backups — ignore them.

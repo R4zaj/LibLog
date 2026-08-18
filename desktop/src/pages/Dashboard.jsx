@@ -56,8 +56,13 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchData = () => {
       fetch(`http://${window.location.hostname}:5000/api/dashboard/overview`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } })
-        .then(res => res.json())
-        .then(json => setData(json))
+        .then(res => {
+          if (!res.ok) throw new Error(`Overview request failed: ${res.status}`);
+          return res.json();
+        })
+        // Merge over the defaults so an error body or a partial payload can
+        // never strip the arrays this page renders.
+        .then(json => setData(prev => ({ ...prev, ...json })))
         .catch(err => console.error('Failed to fetch dashboard data:', err));
     };
 

@@ -1,7 +1,15 @@
 const express = require('express');
+const path = require('path');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
-require('dotenv').config();
+// The .env lives next to this file, so resolve it from __dirname — a bare
+// config() would look in the cwd and silently leave DATABASE_URL unset.
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+
+if (!process.env.DATABASE_URL) {
+  console.error('FATAL: DATABASE_URL is not set. Expected it in server/src/.env');
+  process.exit(1);
+}
 
 const authRoutes = require('./routes/authRoutes');
 const literatureRoutes = require('./routes/literatureRoutes');
