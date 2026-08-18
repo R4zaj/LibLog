@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -17,18 +17,25 @@ export default function SignIn() {
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  React.useEffect(() => {
-    const loadRemembered = async () => {
-      try {
-        const storedId = await AsyncStorage.getItem('@remembered_id');
-        if (storedId) {
-          setStudentId(storedId);
-          setRememberMe(true);
-        }
-      } catch (e) {}
-    };
-    loadRemembered();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      const loadRemembered = async () => {
+        try {
+          const storedId = await AsyncStorage.getItem('@remembered_id');
+          if (storedId) {
+            setStudentId(storedId);
+            setRememberMe(true);
+          } else {
+            setStudentId('');
+            setRememberMe(false);
+          }
+          setPassword('');
+          setError('');
+        } catch (e) {}
+      };
+      loadRemembered();
+    }, [])
+  );
 
   const handleLogin = async () => {
     setError('');
