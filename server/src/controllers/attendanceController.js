@@ -140,7 +140,8 @@ const scanQR = async (req, res) => {
       }
     });
 
-    res.json({ user, action, duration });
+    const { password_hash, ...userWithoutPassword } = user;
+    res.json({ user: userWithoutPassword, action, duration });
   } catch (error) {
     console.error('Attendance Scan Error:', error);
     res.status(500).json({ error: 'Server error' });

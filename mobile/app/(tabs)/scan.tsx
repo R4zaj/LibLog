@@ -42,7 +42,7 @@ export default function ScanScreen() {
       };
 
       fetchHistory();
-      interval = setInterval(fetchHistory, 2000);
+      interval = setInterval(fetchHistory, 10000);
 
       return () => clearInterval(interval);
     }, [])

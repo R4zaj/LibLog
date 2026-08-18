@@ -33,13 +33,14 @@ export default function SignIn() {
   const handleLogin = async () => {
     setError('');
     try {
+      const res = await api.post('/auth/login', { student_id: studentId, password });
+      
       if (rememberMe) {
         await AsyncStorage.setItem('@remembered_id', studentId);
       } else {
         await AsyncStorage.removeItem('@remembered_id');
       }
 
-      const res = await api.post('/auth/login', { student_id: studentId, password });
       if (res.data.token) {
         await signIn(res.data.token, res.data.user);
       }

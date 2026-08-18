@@ -60,7 +60,7 @@ export default function TabLayout() {
         })
         .catch(err => console.error('Failed to fetch borrow count:', err));
     }
-  }, [user?.id, pathname]);
+  }, [user?.id]);
 
   return (
     <Tabs

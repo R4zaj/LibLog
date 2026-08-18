@@ -36,7 +36,7 @@ export default function Home() {
     const fetchDashboardData = async () => {
       try {
         const [statsRes, annRes, borrowRes, usersRes, booksRes] = await Promise.all([
-          api.get('/attendance/stats'),
+          api.get('/attendance/stats').catch(() => ({ data: { insideNow: 0 } })),
           api.get('/announcements/active').catch(() => ({ data: [] })),
           user?.id ? api.get(`/borrowing/user/${user.id}`).catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
           api.get('/attendance/active').catch(() => ({ data: [] })),

@@ -155,7 +155,8 @@ const register = async (req, res) => {
     });
 
     const token = generateToken(user);
-    res.status(201).json({ user, token });
+    const { password_hash, ...userWithoutPassword } = user;
+    res.status(201).json({ user: userWithoutPassword, token });
   } catch (error) {
     console.error('Register error:', error);
     res.status(500).json({ error: 'Server error during registration.', details: error.message });
@@ -184,11 +185,15 @@ const login = async (req, res) => {
     });
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found.' });
+      return res.status(401).json({ error: 'Invalid credentials.' });
+    }
+
+    if (user.status === 'SUSPENDED') {
+      return res.status(403).json({ error: 'Your account has been suspended. Please contact the library administration.' });
     }
 
     if (!user.password_hash) {
-      return res.status(401).json({ error: 'This account does not have a password. Please use alternative login methods or contact administration.' });
+      return res.status(401).json({ error: 'Invalid credentials.' });
     }
 
     const isMatch = await bcrypt.compare(password, user.password_hash);
@@ -197,7 +202,8 @@ const login = async (req, res) => {
     }
 
     const token = generateToken(user);
-    res.json({ user, token });
+    const { password_hash, ...userWithoutPassword } = user;
+    res.json({ user: userWithoutPassword, token });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Server error during login.' });

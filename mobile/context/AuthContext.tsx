@@ -15,6 +15,12 @@ interface User {
   qr_code?: string;
   program?: { name: string; code?: string };
   year_level?: string;
+  created_at?: string;
+  stats?: {
+    borrowed: number;
+    visits: number;
+    streak: number;
+  };
 }
 
 interface AuthContextType {
@@ -81,6 +87,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = async (token: string, userData: User) => {
     await setItem('token', token);
     setUser(userData);
+    try {
+      const res = await api.get('/auth/me');
+      if (res.data.user) setUser(res.data.user);
+    } catch (e) {}
   };
 
   const signOut = async () => {
@@ -88,8 +98,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   };
 
-  const updateUser = (newUserData: User) => {
+  const updateUser = async (newUserData: User) => {
     setUser(newUserData);
+    try {
+      const res = await api.get('/auth/me');
+      if (res.data.user) setUser(res.data.user);
+    } catch (e) {}
   };
 
   return (
