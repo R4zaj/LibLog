@@ -4,8 +4,8 @@ import { getItem } from '../utils/Storage';
 
 import Constants from 'expo-constants';
 
-// Use the configured API URL from app.json
-const API_URL = Constants.expoConfig?.extra?.apiUrl || 'https://liblog-backend.onrender.com/api';
+// Use the global Render backend URL
+const API_URL = 'https://liblog-backend.onrender.com/api';
 
 const api = axios.create({
   baseURL: API_URL,

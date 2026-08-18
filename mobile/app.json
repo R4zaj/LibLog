@@ -43,8 +43,7 @@
       "router": {},
       "eas": {
         "projectId": "92d35e67-0082-4ab3-abb9-5a740b392852"
-      },
-      "apiUrl": "https://liblog-backend.onrender.com/api"
+      }
     }
   }
 }
