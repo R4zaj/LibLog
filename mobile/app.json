@@ -24,7 +24,10 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      ["./withGradleVersion.js", "8.13"],
+      [
+        "./withGradleVersion.js",
+        "8.13"
+      ],
       "expo-router",
       [
         "expo-splash-screen",
@@ -34,7 +37,8 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true

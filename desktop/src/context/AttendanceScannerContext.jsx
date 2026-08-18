@@ -1,7 +1,7 @@
 import { createContext, useState, useRef, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { createPortal } from 'react-dom';
-import { Camera, CameraOff, LogIn, LogOut, X } from 'lucide-react';
+import { Camera, CameraOff, LogIn, LogOut, X, AlertCircle } from 'lucide-react';
 import { useOfflineApi } from '../hooks/useOfflineApi';
 
 export const AttendanceScannerContext = createContext();
@@ -38,6 +38,12 @@ export function AttendanceScannerProvider({ children }) {
 
   const { fetchWithOfflineSupport } = useOfflineApi();
 
+  const pushToast = useCallback((toast) => {
+    const id = Date.now() + Math.random();
+    setToasts(prev => [...prev, { id, ...toast }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 5000);
+  }, []);
+
   const handleScan = useCallback(async (identifier) => {
     try {
       const res = await fetchWithOfflineSupport(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/attendance/scan`, { 
@@ -58,19 +64,21 @@ export function AttendanceScannerProvider({ children }) {
           duration: data.duration
         };
         setLastScan(scanData);
-        
-        const id = Date.now();
-        setToasts(prev => [...prev, { id, ...scanData }]);
-        setTimeout(() => {
-          setToasts(prev => prev.filter(t => t.id !== id));
-        }, 5000);
+        pushToast(scanData);
       } else {
-        console.warn('Scan failed:', data.error);
+        // A failed scan used to be a console.warn only, so at the desk it just
+        // looked like the camera had stopped reading QR codes.
+        const message = res.status === 401 || res.status === 403
+          ? 'Session expired - please log in again'
+          : (data.error || `Scan failed (${res.status})`);
+        console.warn('Scan failed:', message);
+        pushToast({ user: message, error: true, time: new Date().toLocaleTimeString() });
       }
     } catch (e) {
-      console.error('Network error connecting to server');
+      console.error('Network error connecting to server', e);
+      pushToast({ user: 'Cannot reach the server', error: true, time: new Date().toLocaleTimeString() });
     }
-  }, [fetchWithOfflineSupport]);
+  }, [fetchWithOfflineSupport, pushToast]);
 
   handleScanRef.current = handleScan;
 
@@ -238,14 +246,14 @@ export function AttendanceScannerProvider({ children }) {
       {/* Toast Container */}
       <div className="fixed top-4 right-4 z-[9999] flex flex-col gap-2 pointer-events-none">
         {toasts.map(toast => (
-          <div key={toast.id} className={`pointer-events-auto p-4 rounded-lg border shadow-lg flex items-start gap-3 w-72 animate-fade-in ${toast.action === 'CHECK_IN' ? 'bg-green-50 border-green-200 text-gray-900' : 'bg-orange-50 border-orange-200 text-gray-900'} dark:bg-dark-card dark:border-dark-border`}>
-             <div className={`p-2 rounded-full ${toast.action === 'CHECK_IN' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
-                {toast.action === 'CHECK_IN' ? <LogIn size={20} /> : <LogOut size={20} />}
+          <div key={toast.id} className={`pointer-events-auto p-4 rounded-lg border shadow-lg flex items-start gap-3 w-72 animate-fade-in ${toast.error ? 'bg-red-50 border-red-200 text-gray-900' : toast.action === 'CHECK_IN' ? 'bg-green-50 border-green-200 text-gray-900' : 'bg-orange-50 border-orange-200 text-gray-900'} dark:bg-dark-card dark:border-dark-border`}>
+             <div className={`p-2 rounded-full ${toast.error ? 'bg-red-100 text-red-700' : toast.action === 'CHECK_IN' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+                {toast.error ? <AlertCircle size={20} /> : toast.action === 'CHECK_IN' ? <LogIn size={20} /> : <LogOut size={20} />}
              </div>
              <div className="flex-1">
                 <p className="font-bold text-gray-900 dark:text-slate-200 text-sm">{toast.user}</p>
-                <p className={`text-xs font-semibold ${toast.action === 'CHECK_IN' ? 'text-green-700 dark:text-green-400' : 'text-orange-700 dark:text-orange-400'}`}>
-                   {toast.action === 'CHECK_IN' ? 'Checked In' : 'Checked Out'} • {toast.time}
+                <p className={`text-xs font-semibold ${toast.error ? 'text-red-700 dark:text-red-400' : toast.action === 'CHECK_IN' ? 'text-green-700 dark:text-green-400' : 'text-orange-700 dark:text-orange-400'}`}>
+                   {toast.error ? `Scan not recorded • ${toast.time}` : `${toast.action === 'CHECK_IN' ? 'Checked In' : 'Checked Out'} • ${toast.time}`}
                 </p>
                 {toast.duration && (
                    <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">Duration: {toast.duration} mins</p>

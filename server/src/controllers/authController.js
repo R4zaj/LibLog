@@ -63,6 +63,44 @@ const requestOtp = async (req, res) => {
   }
 };
 
+// Visit/borrow/streak figures shown on the mobile home and profile screens.
+// Only /auth/me used to compute these, so signing in or editing your profile
+// left the client with a user object that had no stats at all.
+const computeUserStats = async (userId) => {
+  const borrowed = await prisma.borrowRecord.count({ where: { user_id: userId } });
+  const visits = await prisma.attendanceLog.count({
+    where: { user_id: userId, action: 'CHECK_IN' }
+  });
+
+  const logs = await prisma.attendanceLog.findMany({
+    where: { user_id: userId, action: 'CHECK_IN' },
+    select: { logged_at: true },
+    orderBy: { logged_at: 'desc' }
+  });
+
+  const key = (d) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  const uniqueDates = [...new Set(logs.map(log => key(new Date(log.logged_at))))];
+
+  const today = new Date();
+  let cursor = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+  // A streak may end today or yesterday; anything older means it is broken.
+  if (!uniqueDates.includes(key(cursor))) {
+    cursor.setDate(cursor.getDate() - 1);
+    if (!uniqueDates.includes(key(cursor))) {
+      return { borrowed, visits, streak: 0 };
+    }
+  }
+
+  let streak = 0;
+  while (uniqueDates.includes(key(cursor))) {
+    streak++;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  return { borrowed, visits, streak };
+};
+
 const generateToken = (user) => {
   return jwt.sign(
     { id: user.id, role: user.role, student_id: user.student_id },
@@ -156,6 +194,7 @@ const register = async (req, res) => {
 
     const token = generateToken(user);
     const { password_hash, ...userWithoutPassword } = user;
+    userWithoutPassword.stats = await computeUserStats(user.id);
     res.status(201).json({ user: userWithoutPassword, token });
   } catch (error) {
     console.error('Register error:', error);
@@ -203,6 +242,7 @@ const login = async (req, res) => {
 
     const token = generateToken(user);
     const { password_hash, ...userWithoutPassword } = user;
+    userWithoutPassword.stats = await computeUserStats(user.id);
     res.json({ user: userWithoutPassword, token });
   } catch (error) {
     console.error('Login error:', error);
@@ -221,62 +261,8 @@ const getMe = async (req, res) => {
       return res.status(404).json({ error: 'User not found.' });
     }
 
-    // Calculate Stats
-    // 1. Total Borrowed
-    const borrowed = await prisma.borrowRecord.count({
-      where: { user_id: req.user.id }
-    });
-
-    // 2. Total Visits
-    const visits = await prisma.attendanceLog.count({
-      where: { user_id: req.user.id, action: 'CHECK_IN' }
-    });
-
-    // 3. Streak
-    const logs = await prisma.attendanceLog.findMany({
-      where: { user_id: req.user.id, action: 'CHECK_IN' },
-      select: { logged_at: true },
-      orderBy: { logged_at: 'desc' }
-    });
-
-    const uniqueDates = [...new Set(logs.map(log => {
-      const d = new Date(log.logged_at);
-      return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-    }))];
-
-    let streak = 0;
-    const today = new Date();
-    let dateToProcess = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const todayStr = `${dateToProcess.getFullYear()}-${dateToProcess.getMonth()}-${dateToProcess.getDate()}`;
-
-    if (uniqueDates.includes(todayStr)) {
-      for (let i = 0; i < uniqueDates.length; i++) {
-        const checkStr = `${dateToProcess.getFullYear()}-${dateToProcess.getMonth()}-${dateToProcess.getDate()}`;
-        if (uniqueDates.includes(checkStr)) {
-          streak++;
-          dateToProcess.setDate(dateToProcess.getDate() - 1);
-        } else {
-          break;
-        }
-      }
-    } else {
-      dateToProcess.setDate(dateToProcess.getDate() - 1);
-      const yesterdayStr = `${dateToProcess.getFullYear()}-${dateToProcess.getMonth()}-${dateToProcess.getDate()}`;
-      if (uniqueDates.includes(yesterdayStr)) {
-        for (let i = 0; i < uniqueDates.length; i++) {
-          const checkStr = `${dateToProcess.getFullYear()}-${dateToProcess.getMonth()}-${dateToProcess.getDate()}`;
-          if (uniqueDates.includes(checkStr)) {
-            streak++;
-            dateToProcess.setDate(dateToProcess.getDate() - 1);
-          } else {
-            break;
-          }
-        }
-      }
-    }
-
     const { password_hash, ...userWithoutPassword } = user;
-    userWithoutPassword.stats = { borrowed, visits, streak };
+    userWithoutPassword.stats = await computeUserStats(req.user.id);
 
     res.json({ user: userWithoutPassword });
   } catch (error) {
@@ -324,6 +310,7 @@ const updateProfile = async (req, res) => {
     });
     
     const { password_hash, ...userWithoutPassword } = user;
+    userWithoutPassword.stats = await computeUserStats(user.id);
     res.json({ user: userWithoutPassword, message: 'Profile updated successfully' });
   } catch (error) {
     console.error('Update profile error:', error);

@@ -27,7 +27,7 @@ export default function SignUp() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [otp, setOtp] = useState('');
-  const [programsList, setProgramsList] = useState([]);
+  const [programsList, setProgramsList] = useState<string[]>([]);
 
   React.useEffect(() => {
     const fetchPrograms = async () => {

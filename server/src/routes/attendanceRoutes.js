@@ -4,7 +4,8 @@ const { getStats, scanQR, getActiveUsers, getMyHistory } = require('../controlle
 const { verifyToken } = require('../middleware/authMiddleware');
 
 router.get('/stats', verifyToken, getStats);
-router.post('/scan', scanQR);
+// Writes attendance rows, so it must not stay open - anyone could forge check-ins.
+router.post('/scan', verifyToken, scanQR);
 router.get('/active', verifyToken, getActiveUsers);
 router.get('/my-history', verifyToken, getMyHistory);
 

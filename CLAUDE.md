@@ -6,18 +6,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Three independent npm projects (no workspace/monorepo tooling — install and run each separately):
 
-| Dir | What it is |
-|---|---|
-| `server/` | Express + Prisma REST API (CommonJS, Node) — the only thing that touches the database |
-| `desktop/` | Vite + React 19 + Electron librarian station (JS, no TypeScript) |
-| `mobile/` | Expo Router + React Native + Tamagui student app (TypeScript) |
-| `liblog_schema.sql` | Raw SQL source of truth for the Postgres schema (tables, views, triggers, `fn_mark_overdue_and_penalize`) |
-| `System UI/`, `Mobile UI/`, `ICONS/` | Screenshot design references for desktop and mobile screens |
+| Dir                                  | What it is                                                                                                |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| `server/`                            | Express + Prisma REST API (CommonJS, Node) — the only thing that touches the database                     |
+| `desktop/`                           | Vite + React 19 + Electron librarian station (JS, no TypeScript)                                          |
+| `mobile/`                            | Expo Router + React Native + Tamagui student app (TypeScript)                                             |
+| `liblog_schema.sql`                  | Raw SQL source of truth for the Postgres schema (tables, views, triggers, `fn_mark_overdue_and_penalize`) |
+| `System UI/`, `Mobile UI/`, `ICONS/` | Screenshot design references for desktop and mobile screens                                               |
 
 ## Commands
 
 ```bash
-# server (port 5000; needs server/src/.env with DATABASE_URL, DIRECT_URL, JWT_SECRET)
+# server (port 5000; needs server/.env with DATABASE_URL, DIRECT_URL, JWT_SECRET)
 cd server && npm run dev            # nodemon src/index.js
 cd server && npx prisma generate    # after editing prisma/schema.prisma
 cd server && npx prisma db pull     # schema is DB-first; pull instead of authoring migrations
@@ -42,10 +42,11 @@ There is no test framework in any project. `server/test_*.js`, `server/check.js`
 **Data flow.** Both clients are thin — all business logic (penalty computation, borrow limits, suspension checks, attendance toggling) lives in `server/src/controllers/`. Routes in `server/src/routes/` are mounted under `/api/<domain>` in [server/src/index.js](server/src/index.js): `auth`, `literatures`, `dashboard`, `announcements`, `borrowing`, `attendance`, `reports`, `settings`, `notifications`.
 
 **API base URLs are hardcoded, and the two clients point at different backends:**
-- Desktop inlines `` `http://${window.location.hostname}:5000/api/...` `` at every call site — there is no shared API client. Adding an endpoint means editing the URL string in each page/context that uses it.
-- Mobile uses a single axios instance in [mobile/api/index.ts](mobile/api/index.ts) pointed at the deployed Render backend. Change `API_URL` there to develop against a local server.
 
-**Auth.** JWT signed in [server/src/controllers/authController.js](server/src/controllers/authController.js), verified by `verifyToken`/`isAdmin` in [server/src/middleware/authMiddleware.js](server/src/middleware/authMiddleware.js). Most routes are currently *not* wrapped in `verifyToken` even where the README claims admin-only — check the route file before assuming a request is authenticated. Desktop stores the token in `localStorage`; mobile stores it via `expo-secure-store` behind [mobile/utils/Storage.ts](mobile/utils/Storage.ts) (falls back to `localStorage` on web). Mobile's axios response interceptor emits a `auth:logout` DeviceEventEmitter event on 401, which [mobile/context/AuthContext.tsx](mobile/context/AuthContext.tsx) listens for; that context also drives the `(auth)` ⇄ `(tabs)` redirect.
+- Desktop reads `import.meta.env.VITE_API_URL` at every call site, falling back to the deployed Render backend. There is no shared API client, so the expression is inlined per call — set `VITE_API_URL` in `desktop/.env` to point at a local server.
+- Mobile reads `Constants.expoConfig.extra.apiUrl` from [app.json](mobile/app.json) via the single axios instance in [mobile/api/index.ts](mobile/api/index.ts), with the same Render fallback.
+
+**Auth.** JWT signed in [server/src/controllers/authController.js](server/src/controllers/authController.js), verified by `verifyToken`/`isAdmin` in [server/src/middleware/authMiddleware.js](server/src/middleware/authMiddleware.js). `auth`, `settings` and `attendance` routes enforce `verifyToken` (settings additionally requires `isAdmin`); `literatures`, `dashboard` and `borrowing` are still open — check the route file before assuming a request is authenticated. Desktop stores the token in `localStorage`; mobile stores it via `expo-secure-store` behind [mobile/utils/Storage.ts](mobile/utils/Storage.ts) (falls back to `localStorage` on web). Mobile's axios response interceptor emits a `auth:logout` DeviceEventEmitter event on 401, which [mobile/context/AuthContext.tsx](mobile/context/AuthContext.tsx) listens for; that context also drives the `(auth)` ⇄ `(tabs)` redirect.
 
 **Desktop offline mode.** [desktop/src/contexts/NetworkContext.jsx](desktop/src/contexts/NetworkContext.jsx) + [desktop/src/hooks/useOfflineApi.js](desktop/src/hooks/useOfflineApi.js) form the offline layer: GETs cache to `localStorage` under `liblog_cache_<key>`, and mutations while offline are pushed onto a persisted `liblog_sync_queue` and replayed on `online`. A queued mutation returns a fake `{ success: true, offlineQueued: true }` response, so any caller must handle a response with no real payload (see how `AttendanceScannerContext` fakes the scan result). Use `fetchWithOfflineSupport` rather than bare `fetch` for anything that should survive a dropped connection.
 
@@ -64,3 +65,9 @@ There is no test framework in any project. `server/test_*.js`, `server/check.js`
 - Mobile: **read the versioned Expo docs at https://docs.expo.dev/versions/v56.0.0/ before writing Expo code** (see [mobile/AGENTS.md](mobile/AGENTS.md)) — this project is on Expo 56 / RN 0.85 / React 19, where many older recipes are wrong. UI is Tamagui (`YStack`/`XStack`/`Text`), styled inline; routes are file-based under `mobile/app/` with `(auth)` and `(tabs)` groups and `typedRoutes` enabled.
 - Desktop is plain JS with Tailwind v4 (via `@tailwindcss/postcss`), `react-router-dom` routes declared in [desktop/src/App.jsx](desktop/src/App.jsx), and `@` aliased to `desktop/src`. Electron runs with `nodeIntegration: true` / `contextIsolation: false` and no preload bridge.
 - `desktop/*.cjs` and `desktop/*_dash.txt` are stale one-off codemods and dashboard backups — ignore them.
+
+## Developer Notes
+
+- The `library_settings` table is always a single row. Use `UPDATE` not `INSERT` when changing config values from the Settings page.
+- `report_snapshots.payload` stores the full aggregated JSON of a generated report so the Reports page can reload the last report instantly without re-querying.
+- Notifications are created server-side after each major event (borrow, return, check-in, check-out, penalty). Clients poll; there is no WebSocket.
