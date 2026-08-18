@@ -107,7 +107,7 @@ export default function MainLayout() {
     const fetchStats = async () => {
       if (!navigator.onLine) return; // Skip background fetch if offline
       try {
-        const res = await fetch(`http://${window.location.hostname}:5000/api/dashboard/overview`, {
+        const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/dashboard/overview`, {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
         });
         if (res.ok) {

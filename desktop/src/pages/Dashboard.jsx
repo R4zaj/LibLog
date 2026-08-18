@@ -42,7 +42,7 @@ export default function Dashboard() {
     setIsLogModalOpen(true);
     setIsLoadingLog(true);
     try {
-      const res = await fetch(`http://${window.location.hostname}:5000/api/dashboard/full-log`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/dashboard/full-log`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
       if (res.ok) {
         const data = await res.json();
         setFullLog(data);
@@ -56,7 +56,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     const fetchData = () => {
-      fetch(`http://${window.location.hostname}:5000/api/dashboard/overview`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } })
+      fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/dashboard/overview`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } })
         .then(res => {
           if (!res.ok) throw new Error(`Overview request failed: ${res.status}`);
           return res.json();

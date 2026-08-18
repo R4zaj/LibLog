@@ -68,7 +68,7 @@ export function BorrowingProvider({ children }) {
     if (activeTab === 'Borrow') {
       if (step === 1) {
         try {
-          const res = await fetch(`http://${window.location.hostname}:5000/api/borrowing/validate-book/${identifier}`);
+          const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/borrowing/validate-book/${identifier}`);
           const data = await res.json();
           if (res.ok) {
             setScannedBook(data);
@@ -83,7 +83,7 @@ export function BorrowingProvider({ children }) {
         }
       } else if (step === 2) {
         try {
-          const res = await fetch(`http://${window.location.hostname}:5000/api/borrowing/validate-user/${identifier}`);
+          const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/borrowing/validate-user/${identifier}`);
           const data = await res.json();
           if (res.ok) {
             setScannedUser(data);
@@ -100,7 +100,7 @@ export function BorrowingProvider({ children }) {
     } else if (activeTab === 'Return') {
       if (returnStep === 1) {
         try {
-          const res = await fetch(`http://${window.location.hostname}:5000/api/borrowing/validate-book/${identifier}?action=return`);
+          const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/borrowing/validate-book/${identifier}?action=return`);
           const data = await res.json();
           if (res.ok) {
             setReturnBookIdentifier(identifier);
@@ -115,7 +115,7 @@ export function BorrowingProvider({ children }) {
         }
       } else if (returnStep === 2) {
         try {
-          const res = await fetch(`http://${window.location.hostname}:5000/api/borrowing/user-active-borrow/${returnBookIdentifier}/${identifier}`);
+          const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/borrowing/user-active-borrow/${returnBookIdentifier}/${identifier}`);
           const data = await res.json();
           if (res.ok) {
             setReturnRecord(data);
