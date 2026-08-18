@@ -33,6 +33,7 @@
     ]
   },
   "dependencies": {
+    "barcode-detector": "^3.2.2",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
     "lucide-react": "^1.17.0",
@@ -40,7 +41,6 @@
     "react-dom": "^19.2.6",
     "react-qr-code": "^2.0.21",
     "react-router-dom": "^7.17.0",
-    "react-zxing": "^3.0.0",
     "recharts": "^3.8.1",
     "xlsx": "^0.18.5"
   },

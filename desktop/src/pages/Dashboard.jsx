@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import NotificationDropdown from '../components/NotificationDropdown';
 import { useTheme } from '../components/ThemeContext';
+import { clearSession, getDisplayName, getInitials, getUser } from '../auth';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -77,7 +78,8 @@ export default function Dashboard() {
   }, []);
 
   const handleLogout = () => {
-    navigate('/login');
+    clearSession();
+    navigate('/login', { replace: true });
   };
 
   const currentCapacity = data.capacity || 40;
@@ -118,13 +120,13 @@ export default function Dashboard() {
                 onClick={() => setProfileOpen(!profileOpen)}
                 className="w-8 h-8 rounded-full bg-primary-100 text-primary-800 flex items-center justify-center font-bold text-xs cursor-pointer hover:ring-2 hover:ring-primary-300 transition-all"
               >
-                AL
+                {getInitials()}
               </div>
               {profileOpen && (
                 <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-lg shadow-lg py-1 z-50">
                   <div className="px-4 py-2 border-b border-gray-100 dark:border-dark-border">
-                    <p className="text-sm font-bold text-gray-800 dark:text-slate-300">Admin Librarian</p>
-                    <p className="text-xs text-gray-500 dark:text-slate-400">admin@liblog.edu</p>
+                    <p className="text-sm font-bold text-gray-800 dark:text-slate-300">{getDisplayName()}</p>
+                    <p className="text-xs text-gray-500 dark:text-slate-400">{getUser()?.email || ''}</p>
                   </div>
                   <button onClick={handleLogout} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-50 dark:bg-dark-bg flex items-center gap-2">
                     Log out

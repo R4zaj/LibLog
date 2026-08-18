@@ -67,14 +67,19 @@ export const NetworkProvider = ({ children }) => {
       const job = queue[0];
       try {
         const response = await fetch(job.url, job.options);
-        if (response.ok || response.status >= 400) {
-          // If successful OR if it's a valid server error (e.g., 400 Bad Request)
-          queue.shift();
-          setSyncQueue([...queue]); // Update state incrementally
-        } else {
-          // Network error or 5xx error, retry later
+        if (response.status >= 500) {
+          // Server-side failure: the write never landed, so keep it queued and
+          // retry on the next sync instead of silently dropping it.
+          console.warn('Sync job deferred, server returned', response.status, job.url);
           break;
         }
+        // 2xx succeeded; 4xx is a permanent rejection (bad payload, duplicate
+        // scan, expired token) that retrying will never fix. Both leave the queue.
+        if (!response.ok) {
+          console.warn('Sync job rejected with', response.status, '- discarding', job.url);
+        }
+        queue.shift();
+        setSyncQueue([...queue]); // Update state incrementally
       } catch (error) {
         console.error('Sync failed for job', job.id, error);
         break; // Stop syncing on network failure

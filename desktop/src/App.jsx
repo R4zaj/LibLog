@@ -1,13 +1,19 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
 import MainLayout from './MainLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Literatures from './pages/Literatures';
 import Borrowing from './pages/Borrowing';
 import Attendance from './pages/Attendance';
-import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import Notifications from './pages/Notifications';
+
+import RequireAuth from './components/RequireAuth';
+
+// Reports is the only page that needs xlsx, jspdf and html2canvas. Loading it
+// on demand keeps roughly half the bundle out of the initial download.
+const Reports = lazy(() => import('./pages/Reports'));
 
 import { ThemeProvider } from './components/ThemeContext';
 import { NetworkProvider } from './contexts/NetworkContext';
@@ -19,12 +25,26 @@ function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
-            <Route path="/" element={<MainLayout />}>
+            <Route
+              path="/"
+              element={
+                <RequireAuth>
+                  <MainLayout />
+                </RequireAuth>
+              }
+            >
               <Route index element={<Dashboard />} />
               <Route path="literatures" element={<Literatures />} />
               <Route path="borrowing" element={<Borrowing />} />
               <Route path="attendance" element={<Attendance />} />
-              <Route path="reports" element={<Reports />} />
+              <Route
+                path="reports"
+                element={
+                  <Suspense fallback={<div className="h-full w-full flex items-center justify-center text-sm text-gray-400 dark:text-slate-500">Loading…</div>}>
+                    <Reports />
+                  </Suspense>
+                }
+              />
               <Route path="settings" element={<Settings />} />
               <Route path="notifications" element={<Notifications />} />
             </Route>

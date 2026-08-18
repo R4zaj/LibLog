@@ -1,28 +1,29 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, Eye, Key, Info } from 'lucide-react';
+import { BookOpen, Eye, EyeOff, Key, Info } from 'lucide-react';
+import { setSession } from '../auth';
 
 export default function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
+  const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setErrorMsg('');
     try {
-      const response = await fetch(`http://${window.location.hostname}:5000/api/auth/login`, { method: 'POST', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}`,  'Content-Type': 'application/json'  },
+      const response = await fetch(`http://${window.location.hostname}:5000/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       });
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.error || 'Failed to log in');
       }
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-      navigate('/');
+      setSession(data.token, data.user);
+      navigate('/', { replace: true });
     } catch (err) {
       setErrorMsg(err.message);
     }
@@ -75,14 +76,19 @@ export default function Login() {
               <label className="text-[13px] font-bold text-[#1A1A1A]">Password</label>
               <div className="relative">
                 <input 
-                  type="password" 
+                  type={showPassword ? 'text' : 'password'} 
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••••••"
                   className="w-full pl-4 pr-10 py-2.5 border border-[#E0D8EB] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#4B226E]/20 focus:border-[#4B226E] placeholder-gray-400 font-medium tracking-widest"
                 />
-                <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                  <Eye size={18} />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(v => !v)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>

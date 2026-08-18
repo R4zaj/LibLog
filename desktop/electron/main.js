@@ -20,8 +20,10 @@ function createWindow() {
   if (VITE_DEV_SERVER_URL) {
     win.loadURL(VITE_DEV_SERVER_URL);
   } else {
-    // win.loadFile(path.join(__dirname, '../dist/index.html'))
-    win.loadFile(path.join(process.env.DIST, 'index.html'));
+    // Resolve from __dirname (dist-electron/) up to the built renderer.
+    // process.env.DIST is never set anywhere, so joining on it threw and the
+    // window stayed blank in every packaged build.
+    win.loadFile(path.join(__dirname, '../dist/index.html'));
   }
 }
 

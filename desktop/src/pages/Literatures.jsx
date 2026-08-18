@@ -200,9 +200,9 @@ export default function Literatures() {
       const shelf_number = genreName ? `${genreName.substring(0, 3).toUpperCase()}-01` : 'GEN-01';
 
       try {
-        const res = await fetch(`http://${window.location.hostname}:5000/api/literatures/books`, { method: 'POST', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}`, 
+        const res = await fetch(`http://${window.location.hostname}:5000/api/literatures/books`, { method: 'POST', headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token') }`
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
           },
           body: JSON.stringify({
             title, authorName, genreName, isbn, lccn, year_published, total_copies, condition, shelf_number

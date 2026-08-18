@@ -20,6 +20,7 @@ import { BorrowingProvider } from './context/BorrowingContext';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { useNetwork } from './contexts/NetworkContext';
+import { clearSession, getDisplayName, getInitials, getRoleLabel } from './auth';
 
 const NavItem = ({ to, icon: Icon, label, badge, subItems }) => {
   const location = useLocation();
@@ -129,6 +130,11 @@ export default function MainLayout() {
 
   const { isOnline, syncQueue, isSyncing, processSyncQueue } = useNetwork();
 
+  const handleLogout = () => {
+    clearSession();
+    navigate('/login', { replace: true });
+  };
+
   const literaturesSubItems = [
     { to: '/literatures?tab=catalog', icon: BookCopy, label: 'Literature Catalog' },
     { to: '/literatures?tab=author', icon: BookA, label: 'Author Catalog' },
@@ -231,14 +237,14 @@ export default function MainLayout() {
           <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-dark-border mt-2">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-primary-100 text-primary-800 flex items-center justify-center font-bold text-xs">
-                AL
+                {getInitials()}
               </div>
               <div className="flex flex-col">
-                <span className="text-xs font-bold text-gray-800 dark:text-slate-200">Admin Librarian</span>
-                <span className="text-[10px] text-gray-400">Admin Access</span>
+                <span className="text-xs font-bold text-gray-800 dark:text-slate-200">{getDisplayName()}</span>
+                <span className="text-[10px] text-gray-400">{getRoleLabel()}</span>
               </div>
             </div>
-            <button onClick={() => navigate('/login')} className="text-gray-400 hover:text-gray-600 transition-colors">
+            <button onClick={handleLogout} className="text-gray-400 hover:text-gray-600 transition-colors">
               <LogOut size={14} />
             </button>
           </div>

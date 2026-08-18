@@ -148,7 +148,12 @@ export function AttendanceScannerProvider({ children }) {
       try {
         const mod = await import('barcode-detector/ponyfill');
         BarcodeDetector = mod.BarcodeDetector;
-      } catch (e) { return; }
+      } catch (e) {
+        // Without the detector the camera runs but nothing is ever scanned,
+        // so make the failure loud instead of dying silently.
+        console.error('Failed to load barcode-detector; attendance scanning is disabled.', e);
+        return;
+      }
 
       const detector = new BarcodeDetector({ formats: ['qr_code', 'code_128', 'ean_13', 'ean_8'] });
       const lastScanned = { text: null, time: 0 };

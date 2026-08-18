@@ -9,6 +9,9 @@ export default defineConfig(({ command, mode }) => {
   const isElectron = process.env.ELECTRON === 'true';
 
   return {
+    // Relative asset paths. Electron loads the built index.html over file://,
+    // where a leading "/" resolves to the filesystem root and nothing loads.
+    base: './',
     plugins: [
       react(),
       ...(isElectron ? [

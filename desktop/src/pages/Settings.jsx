@@ -3,6 +3,7 @@ import { Search, Sun, Moon, Bell, Settings as SettingsIcon, Save, Users, Clock, 
 import { useTheme } from '../components/ThemeContext';
 import { useNavigate } from 'react-router-dom';
 import NotificationDropdown from '../components/NotificationDropdown';
+import { clearSession, getDisplayName, getInitials, getUser } from '../auth';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -107,7 +108,7 @@ export default function Settings() {
         body: JSON.stringify(rules)
       });
       // Re-fetch stats to update damage/lost fees at top
-      fetch(`http://${window.location.hostname}:5000/api/settings/stats`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }).then(r => r.json()).then(setStats);
+      fetch(`http://${window.location.hostname}:5000/api/settings/stats`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }).then(r => r.ok ? r.json() : null).then(d => { if (d && !d.error) setStats(d); }).catch(console.error);
     } catch(e) {
       console.error(e);
     }
@@ -125,7 +126,8 @@ export default function Settings() {
   }, []);
 
   const handleLogout = () => {
-    navigate('/login');
+    clearSession();
+    navigate('/login', { replace: true });
   };
 
   const handleCreateAnnouncement = async (e) => {
@@ -139,7 +141,7 @@ export default function Settings() {
         setNewAnnouncement({ title: '', body: '', priority: 'NORMAL', is_active: true });
         fetchAnnouncements();
         // Update stats
-        fetch(`http://${window.location.hostname}:5000/api/settings/stats`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }).then(r => r.json()).then(setStats);
+        fetch(`http://${window.location.hostname}:5000/api/settings/stats`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }).then(r => r.ok ? r.json() : null).then(d => { if (d && !d.error) setStats(d); }).catch(console.error);
       }
     } catch (error) {
       console.error('Error creating announcement:', error);
@@ -158,7 +160,7 @@ export default function Settings() {
       if (res.ok) {
         setAnnouncementToDelete(null);
         fetchAnnouncements();
-        fetch(`http://${window.location.hostname}:5000/api/settings/stats`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }).then(r => r.json()).then(setStats);
+        fetch(`http://${window.location.hostname}:5000/api/settings/stats`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }).then(r => r.ok ? r.json() : null).then(d => { if (d && !d.error) setStats(d); }).catch(console.error);
       }
     } catch (error) {
       console.error('Error deleting announcement:', error);
@@ -272,13 +274,13 @@ export default function Settings() {
                 onClick={() => setProfileOpen(!profileOpen)}
                 className="w-8 h-8 rounded-full bg-primary-100 text-primary-800 flex items-center justify-center font-bold text-xs cursor-pointer hover:ring-2 hover:ring-primary-300 transition-all"
               >
-                AL
+                {getInitials()}
               </div>
               {profileOpen && (
                 <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-lg shadow-lg py-1 z-50 animate-fade-in">
                   <div className="px-4 py-2 border-b border-gray-100 dark:border-dark-border">
-                    <p className="text-sm font-bold text-gray-800 dark:text-slate-200">Admin Librarian</p>
-                    <p className="text-xs text-gray-500 dark:text-slate-400">admin@liblog.edu</p>
+                    <p className="text-sm font-bold text-gray-800 dark:text-slate-200">{getDisplayName()}</p>
+                    <p className="text-xs text-gray-500 dark:text-slate-400">{getUser()?.email || ''}</p>
                   </div>
                   <button className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-dark-hover flex items-center gap-2">
                     <User size={14} /> Profile
