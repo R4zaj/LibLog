@@ -21,6 +21,9 @@ const notificationRoutes = require('./routes/notificationRoutes');
 
 const app = express();
 
+// Trust reverse proxy (Render) to correctly parse X-Forwarded-For headers
+app.set('trust proxy', 1);
+
 app.use(cors({
   origin: ['http://localhost:5173', 'http://127.0.0.1:5173', 'exp://127.0.0.1:8081', 'http://localhost:8081', 'http://127.0.0.1:8081'],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
