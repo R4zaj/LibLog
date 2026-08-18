@@ -46,7 +46,7 @@ export default function Attendance() {
 
   const fetchStats = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/attendance/stats', { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
+      const res = await fetch(`http://${window.location.hostname}:5000/api/attendance/stats`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
       if (res.ok) setStats(await res.json());
     } catch (e) {
       console.error('Error fetching attendance stats:', e);

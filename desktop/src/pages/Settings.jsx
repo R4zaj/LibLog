@@ -38,7 +38,7 @@ export default function Settings() {
   const [savingRoles, setSavingRoles] = useState(false);
   useEffect(() => {
     // Fetch stats
-    fetch('http://localhost:5000/api/settings/stats', {
+    fetch(`http://${window.location.hostname}:5000/api/settings/stats`, {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     })
       .then(r => r.json())
@@ -48,7 +48,7 @@ export default function Settings() {
       .catch(console.error);
 
     // Fetch initial rules
-    fetch('http://localhost:5000/api/settings/library-rules', {
+    fetch(`http://${window.location.hostname}:5000/api/settings/library-rules`, {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     })
       .then(r => r.json())
@@ -63,7 +63,7 @@ export default function Settings() {
   }, []);
 
   const fetchUsers = () => {
-    fetch('http://localhost:5000/api/settings/users', {
+    fetch(`http://${window.location.hostname}:5000/api/settings/users`, {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     })
       .then(r => r.json())
@@ -74,7 +74,7 @@ export default function Settings() {
   };
 
   const fetchAnnouncements = () => {
-    fetch('http://localhost:5000/api/settings/announcements', {
+    fetch(`http://${window.location.hostname}:5000/api/settings/announcements`, {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     })
       .then(r => r.json())
@@ -85,7 +85,7 @@ export default function Settings() {
   };
 
   const fetchCourses = () => {
-    fetch('http://localhost:5000/api/settings/programs', {
+    fetch(`http://${window.location.hostname}:5000/api/settings/programs`, {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     })
       .then(r => r.json())
@@ -103,11 +103,11 @@ export default function Settings() {
   const saveRules = async () => {
     setSaving(true);
     try {
-      await fetch('http://localhost:5000/api/settings/library-rules', { method: 'PUT', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}`,  'Content-Type': 'application/json'  },
+      await fetch(`http://${window.location.hostname}:5000/api/settings/library-rules`, { method: 'PUT', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}`,  'Content-Type': 'application/json'  },
         body: JSON.stringify(rules)
       });
       // Re-fetch stats to update damage/lost fees at top
-      fetch('http://localhost:5000/api/settings/stats', { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }).then(r => r.json()).then(setStats);
+      fetch(`http://${window.location.hostname}:5000/api/settings/stats`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }).then(r => r.json()).then(setStats);
     } catch(e) {
       console.error(e);
     }
@@ -131,7 +131,7 @@ export default function Settings() {
   const handleCreateAnnouncement = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('http://localhost:5000/api/settings/announcements', { method: 'POST', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}`,  'Content-Type': 'application/json'  },
+      const res = await fetch(`http://${window.location.hostname}:5000/api/settings/announcements`, { method: 'POST', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}`,  'Content-Type': 'application/json'  },
         body: JSON.stringify(newAnnouncement)
       });
       if (res.ok) {
@@ -139,7 +139,7 @@ export default function Settings() {
         setNewAnnouncement({ title: '', body: '', priority: 'NORMAL', is_active: true });
         fetchAnnouncements();
         // Update stats
-        fetch('http://localhost:5000/api/settings/stats', { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }).then(r => r.json()).then(setStats);
+        fetch(`http://${window.location.hostname}:5000/api/settings/stats`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }).then(r => r.json()).then(setStats);
       }
     } catch (error) {
       console.error('Error creating announcement:', error);
@@ -153,12 +153,12 @@ export default function Settings() {
   const executeDeleteAnnouncement = async () => {
     if (!announcementToDelete) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/settings/announcements/${announcementToDelete}`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }, method: 'DELETE'
+      const res = await fetch(`http://${window.location.hostname}:5000/api/settings/announcements/${announcementToDelete}`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }, method: 'DELETE'
       });
       if (res.ok) {
         setAnnouncementToDelete(null);
         fetchAnnouncements();
-        fetch('http://localhost:5000/api/settings/stats', { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }).then(r => r.json()).then(setStats);
+        fetch(`http://${window.location.hostname}:5000/api/settings/stats`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }).then(r => r.json()).then(setStats);
       }
     } catch (error) {
       console.error('Error deleting announcement:', error);
@@ -169,8 +169,8 @@ export default function Settings() {
     e.preventDefault();
     try {
       const url = newCourse.id 
-        ? `http://localhost:5000/api/settings/programs/${newCourse.id}` 
-        : 'http://localhost:5000/api/settings/programs';
+        ? `http://${window.location.hostname}:5000/api/settings/programs/${newCourse.id}` 
+        : `http://${window.location.hostname}:5000/api/settings/programs`;
       const method = newCourse.id ? 'PUT' : 'POST';
 
       const res = await fetch(url, { 
@@ -194,7 +194,7 @@ export default function Settings() {
   const executeDeleteCourse = async () => {
     if (!courseToDelete) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/settings/programs/${courseToDelete}`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }, method: 'DELETE' });
+      const res = await fetch(`http://${window.location.hostname}:5000/api/settings/programs/${courseToDelete}`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }, method: 'DELETE' });
       const data = await res.json();
       if (res.ok) {
         setCourseToDelete(null);
@@ -225,7 +225,7 @@ export default function Settings() {
     try {
       const entries = Object.entries(pendingRoleChanges);
       for (const [userId, role] of entries) {
-        await fetch(`http://localhost:5000/api/settings/users/${userId}/role`, {
+        await fetch(`http://${window.location.hostname}:5000/api/settings/users/${userId}/role`, {
           method: 'PUT',
           headers: { 
             'Authorization': `Bearer ${localStorage.getItem('token')}`,

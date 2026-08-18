@@ -41,7 +41,7 @@ export default function Dashboard() {
     setIsLogModalOpen(true);
     setIsLoadingLog(true);
     try {
-      const res = await fetch('http://localhost:5000/api/dashboard/full-log', { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
+      const res = await fetch(`http://${window.location.hostname}:5000/api/dashboard/full-log`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
       if (res.ok) {
         const data = await res.json();
         setFullLog(data);
@@ -55,7 +55,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     const fetchData = () => {
-      fetch('http://localhost:5000/api/dashboard/overview', { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } })
+      fetch(`http://${window.location.hostname}:5000/api/dashboard/overview`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } })
         .then(res => res.json())
         .then(json => setData(json))
         .catch(err => console.error('Failed to fetch dashboard data:', err));

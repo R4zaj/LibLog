@@ -43,7 +43,7 @@ export default function Reports() {
 
   const fetchReportData = () => {
     setData(null);
-    fetch(`http://localhost:5000/api/reports/summary?startDate=${startDate}&endDate=${endDate}`, {
+    fetch(`http://${window.location.hostname}:5000/api/reports/summary?startDate=${startDate}&endDate=${endDate}`, {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     })
       .then(res => {
@@ -281,7 +281,7 @@ export default function Reports() {
 
   const handleExportExcel = async () => {
     try {
-      const res = await fetch(`http://localhost:5000/api/reports/full?startDate=${startDate}&endDate=${endDate}`, {
+      const res = await fetch(`http://${window.location.hostname}:5000/api/reports/full?startDate=${startDate}&endDate=${endDate}`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
       if (!res.ok) throw new Error('Failed to fetch full report data');

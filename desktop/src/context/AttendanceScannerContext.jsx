@@ -40,7 +40,7 @@ export function AttendanceScannerProvider({ children }) {
 
   const handleScan = useCallback(async (identifier) => {
     try {
-      const res = await fetchWithOfflineSupport('http://localhost:5000/api/attendance/scan', { 
+      const res = await fetchWithOfflineSupport(`http://${window.location.hostname}:5000/api/attendance/scan`, { 
         method: 'POST', 
         headers: { 
           'Authorization': `Bearer ${localStorage.getItem('token')}`,  

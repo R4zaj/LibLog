@@ -23,7 +23,7 @@ export default function NotificationDropdown() {
     if (!token) return; // Don't fetch if not logged in
 
     try {
-      const res = await fetch('http://localhost:5000/api/notifications', {
+      const res = await fetch(`http://${window.location.hostname}:5000/api/notifications`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -56,7 +56,7 @@ export default function NotificationDropdown() {
   const handleMarkAsRead = async (id, e) => {
     if (e) e.stopPropagation();
     try {
-      const res = await fetch(`http://localhost:5000/api/notifications/${id}/read`, {
+      const res = await fetch(`http://${window.location.hostname}:5000/api/notifications/${id}/read`, {
         method: 'PUT',
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
@@ -70,7 +70,7 @@ export default function NotificationDropdown() {
 
   const handleMarkAllAsRead = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/notifications/read-all', {
+      const res = await fetch(`http://${window.location.hostname}:5000/api/notifications/read-all`, {
         method: 'PUT',
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });

@@ -106,7 +106,7 @@ export default function MainLayout() {
     const fetchStats = async () => {
       if (!navigator.onLine) return; // Skip background fetch if offline
       try {
-        const res = await fetch('http://localhost:5000/api/dashboard/overview', {
+        const res = await fetch(`http://${window.location.hostname}:5000/api/dashboard/overview`, {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
         });
         if (res.ok) {
