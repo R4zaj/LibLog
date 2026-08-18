@@ -1,7 +1,7 @@
 import { Tabs, usePathname } from 'expo-router';
 import React, { useRef, useEffect, useState } from 'react';
 import { View, Platform, Text, Animated, TouchableWithoutFeedback } from 'react-native';
-import { Home, Search, Scan, BookCopy, User } from 'lucide-react-native';
+import { Home, Search, QrCode, BookCopy, User } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api';
 
@@ -121,7 +121,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="scan"
         options={{
-          title: 'Scan',
+          title: 'QR',
           tabBarLabel: () => null,
           tabBarIcon: () => null,
           tabBarButton: (props) => (
@@ -144,7 +144,7 @@ export default function TabLayout() {
                   borderWidth: 3,
                   borderColor: '#ffffff',
                 }}>
-                  <Scan color="#ffffff" size={24} />
+                  <QrCode color="#ffffff" size={24} />
                 </View>
                 <Text style={{ 
                   color: props.accessibilityState?.selected ? '#6C48C5' : '#9ca3af', 
@@ -153,7 +153,7 @@ export default function TabLayout() {
                   position: 'absolute',
                   bottom: Platform.OS === 'ios' ? -5 : 4
                 }}>
-                  Scan
+                  QR
                 </Text>
               </View>
             </TabButton>
