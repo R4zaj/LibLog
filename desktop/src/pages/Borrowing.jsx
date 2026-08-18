@@ -1,6 +1,6 @@
 import { useState, useEffect, useContext } from 'react';
 import { 
-  ArrowRightLeft, Search, Sun, Moon, Bell, Printer, Maximize, Camera, DollarSign, BookUp
+  ArrowRightLeft, Search, Sun, Moon, Bell, Printer, Maximize, Camera, DollarSign, BookUp, CheckCircle
 } from 'lucide-react';
 import ScannerSim from '../components/ScannerSim';
 import { useTheme } from '../components/ThemeContext';
@@ -40,6 +40,7 @@ export default function Borrowing() {
 
   // Stats State
   const [stats, setStats] = useState({ active: 0, overdue: 0, returned: 0 });
+  const [successMessage, setSuccessMessage] = useState(null);
 
   const { fetchWithOfflineSupport } = useOfflineApi();
 
@@ -78,7 +79,7 @@ export default function Borrowing() {
         if (data.offlineQueued) {
           alert('Saved offline. Will sync when connection is restored.');
         } else {
-          alert('Checkout successful!');
+          setSuccessMessage('Borrowing Successful!');
         }
         // Reset flow
         setStep(1);
@@ -102,9 +103,9 @@ export default function Borrowing() {
       const data = await res.json();
       if (res.ok) {
         if (data.offlineQueued) {
-          alert('Return saved offline. Will sync when connection is restored.');
+          setSuccessMessage('Return saved offline. Will sync when connection is restored.');
         } else {
-          alert('Book returned successfully!');
+          setSuccessMessage('Return Successful!');
         }
         setReturnStep(1);
         setReturnRecord(null);
@@ -493,6 +494,36 @@ export default function Borrowing() {
         )}
 
       </div>
+
+      {/* Success Modal */}
+      {successMessage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div 
+            className="bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-2xl flex flex-col items-center justify-center"
+            style={{ minWidth: '320px', animation: 'scaleUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}
+          >
+            <style>{`
+              @keyframes scaleUp {
+                from { transform: scale(0.5); opacity: 0; }
+                to { transform: scale(1); opacity: 1; }
+              }
+            `}</style>
+            <div className="bg-emerald-100 dark:bg-emerald-900/30 p-4 rounded-full mb-6">
+              <CheckCircle className="text-emerald-500 dark:text-emerald-400 w-16 h-16" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-8 text-center">
+              {successMessage}
+            </h2>
+            <button 
+              onClick={() => setSuccessMessage(null)}
+              className="bg-emerald-500 text-white px-10 py-3 rounded-xl font-bold text-lg hover:bg-emerald-600 transition-colors shadow-lg shadow-emerald-500/30 w-full"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
