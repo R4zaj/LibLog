@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { 
   Search, Plus, Filter, Download, Printer, Upload, BookCopy, User, 
   Tag, QrCode, BookOpen, CheckCircle, XCircle, Library, FileSpreadsheet, FileText,
-  List, Grid, Edit3, Trash2, ChevronDown, ChevronRight, X, LayoutGrid, CheckSquare, Bell, Sun, Moon, ToggleRight, ToggleLeft, FileCode2
+  List, Grid, Edit3, Trash2, ChevronDown, ChevronRight, X, LayoutGrid, CheckSquare, Bell, Sun, Moon, ToggleRight, ToggleLeft, FileCode2, Loader2
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
@@ -32,9 +32,9 @@ const mockGenres = [
 export default function Literatures() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('Literature Catalog');
-  const [books, setBooks] = useState(mockBooks);
-  const [authors, setAuthors] = useState(mockAuthors);
-  const [genres, setGenres] = useState(mockGenres);
+  const [books, setBooks] = useState([]);
+  const [authors, setAuthors] = useState([]);
+  const [genres, setGenres] = useState([]);
   
   // Selection
   const [selectedBooks, setSelectedBooks] = useState([]);
@@ -873,10 +873,19 @@ export default function Literatures() {
       <div className={`flex-1 overflow-y-auto px-8 py-6 flex flex-col gap-5 relative ${activeTab === 'QR of Literatures' ? 'print:hidden' : ''}`}>
         {renderTabs()}
         
-        {activeTab === 'Literature Catalog' && renderLiteratureCatalog()}
-        {activeTab === 'Author Catalog' && renderAuthorCatalog()}
-        {activeTab === 'Genre Catalog' && renderGenreCatalog()}
-        {activeTab === 'QR of Literatures' && renderQRCatalog()}
+        {loading ? (
+          <div className="flex-1 flex flex-col items-center justify-center py-20 animate-fade-in">
+            <Loader2 size={40} className="text-primary-600 animate-spin mb-4" />
+            <p className="text-gray-500 dark:text-slate-400 text-sm font-medium">Loading literatures...</p>
+          </div>
+        ) : (
+          <>
+            {activeTab === 'Literature Catalog' && renderLiteratureCatalog()}
+            {activeTab === 'Author Catalog' && renderAuthorCatalog()}
+            {activeTab === 'Genre Catalog' && renderGenreCatalog()}
+            {activeTab === 'QR of Literatures' && renderQRCatalog()}
+          </>
+        )}
       </div>
       
       {/* Print Only QR Container */}

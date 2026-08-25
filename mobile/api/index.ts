@@ -9,6 +9,7 @@ const API_URL = 'https://liblog-backend.onrender.com/api';
 
 const api = axios.create({
   baseURL: API_URL,
+  timeout: 15000, // 15s timeout to handle Render cold starts gracefully
 });
 
 api.interceptors.request.use(

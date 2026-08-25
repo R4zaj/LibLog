@@ -59,12 +59,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const token = await getItem('token');
         if (token) {
-          const res = await api.get('/auth/me');
-          setUser(res.data.user);
+          // Load cached user data instantly for fast startup
+          const cachedUser = await getItem('cached_user');
+          if (cachedUser) {
+            try {
+              setUser(JSON.parse(cachedUser));
+            } catch (e) {}
+          }
+
+          // Then refresh from server in the background
+          try {
+            const res = await api.get('/auth/me');
+            if (res.data.user) {
+              setUser(res.data.user);
+              await setItem('cached_user', JSON.stringify(res.data.user));
+            }
+          } catch (e) {
+            // If server is unreachable but we have cached data, keep using it
+            if (!cachedUser) {
+              console.warn('Failed to load user: token expired or invalid');
+              await removeItem('token');
+              await removeItem('cached_user');
+            }
+          }
         }
       } catch (e) {
         console.warn('Failed to load user: token expired or invalid');
         await removeItem('token');
+        await removeItem('cached_user');
       } finally {
         setIsLoading(false);
       }
@@ -87,22 +109,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = async (token: string, userData: User) => {
     await setItem('token', token);
     setUser(userData);
+    await setItem('cached_user', JSON.stringify(userData));
     try {
       const res = await api.get('/auth/me');
-      if (res.data.user) setUser(res.data.user);
+      if (res.data.user) {
+        setUser(res.data.user);
+        await setItem('cached_user', JSON.stringify(res.data.user));
+      }
     } catch (e) {}
   };
 
   const signOut = async () => {
     await removeItem('token');
+    await removeItem('cached_user');
     setUser(null);
   };
 
   const updateUser = async (newUserData: User) => {
     setUser(newUserData);
+    await setItem('cached_user', JSON.stringify(newUserData));
     try {
       const res = await api.get('/auth/me');
-      if (res.data.user) setUser(res.data.user);
+      if (res.data.user) {
+        setUser(res.data.user);
+        await setItem('cached_user', JSON.stringify(res.data.user));
+      }
     } catch (e) {}
   };
 
