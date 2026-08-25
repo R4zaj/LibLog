@@ -1,6 +1,6 @@
 import { useState, useEffect, useContext } from 'react';
 import { 
-  ArrowRightLeft, Search, Sun, Moon, Bell, Printer, Maximize, Camera, DollarSign, BookUp, CheckCircle
+  ArrowRightLeft, Search, Sun, Moon, Bell, Printer, Maximize, Camera, DollarSign, BookUp, CheckCircle, AlertCircle
 } from 'lucide-react';
 import ScannerSim from '../components/ScannerSim';
 import { useTheme } from '../components/ThemeContext';
@@ -41,6 +41,7 @@ export default function Borrowing() {
   // Stats State
   const [stats, setStats] = useState({ active: 0, overdue: 0, returned: 0 });
   const [successMessage, setSuccessMessage] = useState(null);
+  const [confirmPenaltyId, setConfirmPenaltyId] = useState(null);
 
   const { fetchWithOfflineSupport } = useOfflineApi();
 
@@ -130,10 +131,16 @@ export default function Borrowing() {
   };
 
   const handlePayPenalty = async (id) => {
-    if (!confirm('Mark this penalty as Paid?')) return;
+    setConfirmPenaltyId(id);
+  };
+
+  const confirmPayPenalty = async () => {
+    const id = confirmPenaltyId;
+    setConfirmPenaltyId(null);
     try {
       const res = await fetchWithOfflineSupport(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/borrowing/penalties/${id}/pay`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }, method: 'POST' });
       if (res.ok) {
+        setSuccessMessage('Penalty Marked as Paid!');
         fetchPenalties();
         fetchStats();
       }
@@ -497,7 +504,7 @@ export default function Borrowing() {
 
       {/* Success Modal */}
       {successMessage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
           <div 
             className="bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-2xl flex flex-col items-center justify-center"
             style={{ minWidth: '320px', animation: 'scaleUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}
@@ -520,6 +527,40 @@ export default function Borrowing() {
             >
               Done
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Penalty Modal */}
+      {confirmPenaltyId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+          <div 
+            className="bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-2xl flex flex-col items-center justify-center"
+            style={{ minWidth: '340px', animation: 'scaleUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}
+          >
+            <div className="bg-amber-100 dark:bg-amber-900/30 p-4 rounded-full mb-6">
+              <DollarSign className="text-amber-500 dark:text-amber-400 w-14 h-14" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2 text-center">
+              Mark as Paid?
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-8 text-center">
+              Are you sure you want to mark this penalty as paid?
+            </p>
+            <div className="flex gap-3 w-full">
+              <button 
+                onClick={() => setConfirmPenaltyId(null)}
+                className="flex-1 py-3 rounded-xl font-bold text-base border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={confirmPayPenalty}
+                className="flex-1 bg-amber-500 text-white py-3 rounded-xl font-bold text-base hover:bg-amber-600 transition-colors shadow-lg shadow-amber-500/30"
+              >
+                Confirm
+              </button>
+            </div>
           </div>
         </div>
       )}
