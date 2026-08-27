@@ -140,6 +140,15 @@ const scanQR = async (req, res) => {
       }
     });
 
+    await prisma.notification.create({
+      data: {
+        category: 'ATTENDANCE',
+        title: action === 'CHECK_IN' ? 'Checked In' : 'Checked Out',
+        message: action === 'CHECK_IN' ? 'You have successfully checked in to the library.' : `You have checked out of the library. Duration: ${duration} mins.`,
+        target_user_id: user.id,
+      }
+    });
+
     const { password_hash, ...userWithoutPassword } = user;
     res.json({ user: userWithoutPassword, action, duration });
   } catch (error) {

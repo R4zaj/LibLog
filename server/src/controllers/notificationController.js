@@ -1,19 +1,25 @@
 const prisma = require('../db');
 
-// Get all notifications for the logged-in user
+// Get all notifications
 const getNotifications = async (req, res) => {
   try {
     const userId = req.user.id;
-    // For admin users (if we want to see system notifications without a specific target)
-    // We can fetch notifications where target_user_id is userId OR target_user_id is null (broadcasts)
+    const userRole = req.user.role;
+    
+    let whereClause = {
+      OR: [
+        { target_user_id: userId },
+        { target_user_id: null }
+      ]
+    };
+    
+    // Admins and Librarians see all activity in the desktop app
+    if (userRole === 'ADMIN' || userRole === 'LIBRARIAN') {
+      whereClause = {};
+    }
     
     const notifications = await prisma.notification.findMany({
-      where: {
-        OR: [
-          { target_user_id: userId },
-          { target_user_id: null }
-        ]
-      },
+      where: whereClause,
       orderBy: { created_at: 'desc' },
       take: 50, // Limit to 50 recent notifications
       include: {
@@ -56,15 +62,22 @@ const markAsRead = async (req, res) => {
 const markAllAsRead = async (req, res) => {
   try {
     const userId = req.user.id;
+    const userRole = req.user.role;
+    
+    let whereClause = {
+      OR: [
+        { target_user_id: userId },
+        { target_user_id: null }
+      ],
+      is_read: false
+    };
+
+    if (userRole === 'ADMIN' || userRole === 'LIBRARIAN') {
+      whereClause = { is_read: false };
+    }
     
     const result = await prisma.notification.updateMany({
-      where: {
-        OR: [
-          { target_user_id: userId },
-          { target_user_id: null }
-        ],
-        is_read: false
-      },
+      where: whereClause,
       data: { is_read: true }
     });
 

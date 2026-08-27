@@ -166,7 +166,7 @@ const checkout = async (req, res) => {
         data: { available_copies: { decrement: 1 } }
       });
 
-      return tx.borrowRecord.create({
+      const record = await tx.borrowRecord.create({
         data: {
           book_id: bId,
           user_id: uId,
@@ -175,6 +175,17 @@ const checkout = async (req, res) => {
           status: 'BORROWED'
         }
       });
+
+      await tx.notification.create({
+        data: {
+          category: 'BORROWING',
+          title: 'Book Borrowed',
+          message: `You borrowed "${book.title}". It is due on ${dueDate.toLocaleDateString()}.`,
+          target_user_id: uId,
+        }
+      });
+
+      return record;
     });
 
     res.json({ message: 'Checkout successful', record });
@@ -267,8 +278,26 @@ const returnBook = async (req, res) => {
               status: 'UNPAID'
             }
           });
+
+          await tx.notification.create({
+            data: {
+              category: 'PENALTIES',
+              title: 'Overdue Penalty',
+              message: `You were assessed a penalty for returning a book late.`,
+              target_user_id: record.user_id,
+            }
+          });
         }
       }
+
+      await tx.notification.create({
+        data: {
+          category: 'BORROWING',
+          title: 'Book Returned',
+          message: `You successfully returned a book.`,
+          target_user_id: record.user_id,
+        }
+      });
     });
 
     res.json({ message: 'Return successful' });
@@ -314,9 +343,18 @@ const payPenalty = async (req, res) => {
   try {
     const { id } = req.params;
 
-    await prisma.penalty.update({
+    const penalty = await prisma.penalty.update({
       where: { id: parseInt(id) },
       data: { status: 'PAID', paid_date: new Date() }
+    });
+
+    await prisma.notification.create({
+      data: {
+        category: 'PENALTIES',
+        title: 'Penalty Paid',
+        message: `Your penalty of $${penalty.amount} was marked as paid.`,
+        target_user_id: penalty.user_id,
+      }
     });
 
     res.json({ message: 'Penalty paid' });
