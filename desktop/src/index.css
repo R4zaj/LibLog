@@ -36,6 +36,15 @@
     background-color: var(--color-dark-bg);
     color: #f8fafc;
   }
+
+  /* Hide scrollbars globally while keeping scroll functionality */
+  * {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+  }
+  *::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Electron */
+  }
 }
 
 @layer utilities {
