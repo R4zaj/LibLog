@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, TouchableW
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
-import { Bell, Settings, Flame, ArrowRight, ScanLine, BookOpen, Bookmark, Calendar, ChevronRight, TrendingUp, Megaphone, Star, Users, Check, X, Activity, ArrowRightLeft, DollarSign, ExternalLink } from 'lucide-react-native';
+import { Bell, Settings, Flame, ArrowRight, ScanLine, BookOpen, Bookmark, Calendar, ChevronRight, TrendingUp, Megaphone, Star, Users, Check, X, Activity, ArrowRightLeft, DollarSign, ExternalLink, AlertCircle } from 'lucide-react-native';
 import api from '../../api';
 
 const { width, height } = Dimensions.get('window');
@@ -45,10 +45,27 @@ export default function Home() {
         
         if (isMounted) {
           setInsideNow(statsRes.data.insideNow);
-          setAnnouncements(annRes.data);
           setActiveBorrows(borrowRes.data);
           setActiveUsers(usersRes.data);
           setBooks(booksRes.data);
+          
+          const rawAnnouncements = annRes.data || [];
+          const rawBorrows = borrowRes.data || [];
+          const now = new Date();
+          const overdueNotifications = rawBorrows
+            .filter((b: any) => b.status === 'OVERDUE' || (b.status === 'BORROWED' && new Date(b.due_date) < now))
+            .map((b: any) => {
+              const daysOverdue = Math.abs(Math.ceil((new Date(b.due_date).getTime() - now.getTime()) / (1000 * 3600 * 24)));
+              return {
+                id: `overdue-${b.id}`,
+                title: 'Book Overdue',
+                body: `"${b.book?.title}" is ${daysOverdue} day${daysOverdue !== 1 ? 's' : ''} overdue. Please return it immediately.`,
+                created_at: b.due_date,
+                is_overdue: true
+              };
+            });
+            
+          setAnnouncements([...overdueNotifications, ...rawAnnouncements]);
           
           if (isLoading) {
              setIsLoading(false);
@@ -387,13 +404,13 @@ export default function Home() {
                 
                 {/* Header */}
                 <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>Announcements {announcementsCount > 0 && `(${announcementsCount})`}</Text>
+                  <Text style={styles.modalTitle}>Notifications {announcementsCount > 0 && `(${announcementsCount})`}</Text>
                 </View>
 
                 {/* List */}
                 <ScrollView style={styles.notifList}>
                   {announcements.length === 0 ? (
-                    <Text style={styles.noNotifsText}>No new announcements</Text>
+                    <Text style={styles.noNotifsText}>No new notifications</Text>
                   ) : (
                     announcements.map(a => {
                       return (
@@ -401,14 +418,18 @@ export default function Home() {
                           key={a.id} 
                           style={styles.notifItem}
                         >
-                          <View style={[styles.notifIconWrapper, { backgroundColor: '#f3e8ff' }]}>
-                            <Megaphone size={18} color="#6C48C5" />
+                          <View style={[styles.notifIconWrapper, { backgroundColor: a.is_overdue ? '#fee2e2' : '#f3e8ff' }]}>
+                            {a.is_overdue ? (
+                              <AlertCircle size={18} color="#ef4444" />
+                            ) : (
+                              <Megaphone size={18} color="#6C48C5" />
+                            )}
                           </View>
                           <View style={styles.notifContent}>
                             <View style={styles.notifTop}>
-                              <Text style={[styles.notifTitle, styles.notifTitleUnread]}>{a.title}</Text>
+                              <Text style={[styles.notifTitle, styles.notifTitleUnread, a.is_overdue && { color: '#ef4444' }]}>{a.title}</Text>
                               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <Text style={styles.notifTime}>{formatTimeAgo(a.created_at)}</Text>
+                                <Text style={styles.notifTime}>{a.is_overdue ? 'Past Due' : formatTimeAgo(a.created_at)}</Text>
                               </View>
                             </View>
                             <Text style={[styles.notifMessage, styles.notifMessageUnread]}>{a.body}</Text>
