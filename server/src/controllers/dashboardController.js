@@ -2,127 +2,136 @@ const prisma = require('../db');
 
 const getOverview = async (req, res) => {
   try {
-    const totalTitles = await prisma.book.count();
-    
-    // Total copies logic
-    const books = await prisma.book.findMany({ select: { total_copies: true } });
-    const totalCopies = books.reduce((acc, book) => acc + book.total_copies, 0);
-
-    const totalBorrowed = await prisma.borrowRecord.count({
-      where: { status: 'BORROWED' }
-    });
-
-    const overdueCount = await prisma.borrowRecord.count({
-      where: { status: 'OVERDUE' }
-    });
-
-    // Accurate students inside logic
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const logs = await prisma.attendanceLog.findMany({
-      where: { logged_at: { gte: today } },
-      orderBy: { logged_at: 'asc' }
+    // Run all independent queries in parallel
+    const [
+      totalTitles,
+      booksAgg,
+      totalBorrowed,
+      overdueCount,
+      todayLogs,
+      settings,
+      unpaidCount,
+      unpaidAgg,
+      avgDurationAgg,
+      topVisitorsRaw,
+      borrowsByProgramRaw,
+      popularBooksRaw,
+      recentBorrows,
+      recentAttendance,
+    ] = await Promise.all([
+      prisma.book.count(),
+      prisma.book.aggregate({ _sum: { total_copies: true } }),
+      prisma.borrowRecord.count({ where: { status: 'BORROWED' } }),
+      prisma.borrowRecord.count({ where: { status: 'OVERDUE' } }),
+      prisma.attendanceLog.findMany({
+        where: { logged_at: { gte: today } },
+        orderBy: { logged_at: 'asc' },
+        select: { user_id: true, action: true }
+      }),
+      prisma.librarySettings.findFirst(),
+      prisma.penalty.count({ where: { status: 'UNPAID' } }),
+      prisma.penalty.aggregate({ _sum: { amount: true }, where: { status: 'UNPAID' } }),
+      prisma.attendanceLog.aggregate({
+        _avg: { duration_minutes: true },
+        where: { duration_minutes: { not: null } }
+      }),
+      prisma.attendanceLog.groupBy({
+        by: ['user_id'],
+        _count: { user_id: true },
+        orderBy: { _count: { user_id: 'desc' } },
+        take: 3
+      }),
+      prisma.borrowRecord.groupBy({
+        by: ['user_id'],
+        _count: { user_id: true },
+      }),
+      prisma.borrowRecord.groupBy({
+        by: ['book_id'],
+        _count: { book_id: true },
+        orderBy: { _count: { book_id: 'desc' } },
+        take: 5
+      }),
+      prisma.borrowRecord.findMany({
+        include: { user: { select: { first_name: true, last_name: true } }, book: { select: { title: true } } },
+        orderBy: { created_at: 'desc' },
+        take: 5
+      }),
+      prisma.attendanceLog.findMany({
+        include: { user: { select: { first_name: true, last_name: true } } },
+        orderBy: { logged_at: 'desc' },
+        take: 5
+      }),
+    ]);
+
+    // Students inside
+    const userStatus = {};
+    todayLogs.forEach(log => {
+      userStatus[log.user_id] = log.action === 'CHECK_IN' ? 'IN' : 'OUT';
     });
+    const studentsInside = Object.values(userStatus).filter(s => s === 'IN').length;
 
-    const userStatus = {}; 
-    logs.forEach(log => {
-      if (log.action === 'CHECK_IN') userStatus[log.user_id] = 'IN';
-      else if (log.action === 'CHECK_OUT') userStatus[log.user_id] = 'OUT';
-    });
-
-    const studentsInside = Object.values(userStatus).filter(status => status === 'IN').length;
-
-    // Fetch capacity
-    const settings = await prisma.librarySettings.findFirst();
-    const capacity = settings ? settings.library_capacity : 40;
-    const collectionTarget = settings ? settings.book_collection_target : 5000;
+    const capacity = settings?.library_capacity ?? 40;
+    const collectionTarget = settings?.book_collection_target ?? 5000;
     const availableSlots = capacity - studentsInside;
+    const totalCopies = booksAgg._sum.total_copies || 0;
+    const unpaidAmount = parseFloat(unpaidAgg._sum.amount || 0);
+    const avgVisitDuration = Math.round(avgDurationAgg._avg.duration_minutes || 0);
 
-    const unpaidCount = await prisma.penalty.count({
-      where: { status: 'UNPAID' }
+    // Top visitors — batch fetch users
+    const topUserIds = topVisitorsRaw.map(tv => tv.user_id);
+    const topUsers = await prisma.user.findMany({
+      where: { id: { in: topUserIds } },
+      select: { id: true, first_name: true, last_name: true }
     });
-    
-    const unpaidPenalties = await prisma.penalty.findMany({
-      where: { status: 'UNPAID' }
-    });
-    const unpaidAmount = unpaidPenalties.reduce((acc, p) => acc + parseFloat(p.amount || 0), 0);
+    const topUsersMap = Object.fromEntries(topUsers.map(u => [u.id, u]));
+    const activeUsers = topVisitorsRaw
+      .map(tv => {
+        const u = topUsersMap[tv.user_id];
+        return u ? { name: `${u.first_name} ${u.last_name}`, visits: tv._count.user_id } : null;
+      })
+      .filter(Boolean);
 
-    const logsWithDuration = await prisma.attendanceLog.findMany({
-      where: { duration_minutes: { not: null } }
+    // Borrows by program — batch fetch users with programs
+    const borrowUserIds = [...new Set(borrowsByProgramRaw.map(b => b.user_id))];
+    const borrowUsers = await prisma.user.findMany({
+      where: { id: { in: borrowUserIds } },
+      select: { id: true, program: { select: { name: true } } }
     });
-    const avgVisitDuration = logsWithDuration.length > 0 
-      ? Math.round(logsWithDuration.reduce((acc, log) => acc + log.duration_minutes, 0) / logsWithDuration.length)
-      : 0;
-
-    // Active users (Top Visitors)
-    const topVisitorsRaw = await prisma.attendanceLog.groupBy({
-      by: ['user_id'],
-      _count: { user_id: true },
-      orderBy: { _count: { user_id: 'desc' } },
-      take: 3
-    });
-    
-    const activeUsers = [];
-    for (const tv of topVisitorsRaw) {
-      const u = await prisma.user.findUnique({ where: { id: tv.user_id } });
-      if (u) {
-        activeUsers.push({ name: `${u.first_name} ${u.last_name}`, visits: tv._count.user_id });
-      }
-    }
-
-    // Borrows by Program
-    const allBorrows = await prisma.borrowRecord.findMany({
-      include: { user: { include: { program: true } } }
-    });
-    
+    const borrowUsersMap = Object.fromEntries(borrowUsers.map(u => [u.id, u]));
     const programCounts = {};
-    allBorrows.forEach(b => {
-      const progName = b.user?.program?.name || 'Unknown';
-      programCounts[progName] = (programCounts[progName] || 0) + 1;
+    borrowsByProgramRaw.forEach(b => {
+      const prog = borrowUsersMap[b.user_id]?.program?.name || 'Unknown';
+      programCounts[prog] = (programCounts[prog] || 0) + b._count.user_id;
     });
-    const borrowsByProgram = Object.keys(programCounts).map(k => ({ program: k, count: programCounts[k] }));
+    const borrowsByProgram = Object.entries(programCounts).map(([program, count]) => ({ program, count }));
 
-    // Popular Books (Top 5)
-    const popularBooksRaw = await prisma.borrowRecord.groupBy({
-      by: ['book_id'],
-      _count: { book_id: true },
-      orderBy: { _count: { book_id: 'desc' } },
-      take: 5
+    // Popular books — batch fetch books
+    const popularBookIds = popularBooksRaw.map(pb => pb.book_id);
+    const popularBookData = await prisma.book.findMany({
+      where: { id: { in: popularBookIds } },
+      select: { id: true, title: true, author: { select: { name: true } }, genre: { select: { name: true } } }
     });
-    
-    const popularBooks = [];
-    let totalPopularBorrows = 0;
-    for (const pb of popularBooksRaw) {
-      const b = await prisma.book.findUnique({ where: { id: pb.book_id }, include: { author: true, genre: true } });
-      if (b) {
-        popularBooks.push({ 
-          id: b.id, 
-          title: b.title, 
+    const popularBookMap = Object.fromEntries(popularBookData.map(b => [b.id, b]));
+    const totalPopularBorrows = popularBooksRaw.reduce((acc, pb) => acc + pb._count.book_id, 0);
+    const popularBooks = popularBooksRaw
+      .map(pb => {
+        const b = popularBookMap[pb.book_id];
+        if (!b) return null;
+        return {
+          id: b.id,
+          title: b.title,
           author: b.author?.name || 'Unknown',
           genre: b.genre?.name || 'Unknown',
-          borrows: pb._count.book_id 
-        });
-        totalPopularBorrows += pb._count.book_id;
-      }
-    }
-    // Calculate percentages for donut chart
-    popularBooks.forEach(pb => {
-      pb.percentage = totalPopularBorrows > 0 ? Math.round((pb.borrows / totalPopularBorrows) * 100) : 0;
-    });
+          borrows: pb._count.book_id,
+          percentage: totalPopularBorrows > 0 ? Math.round((pb._count.book_id / totalPopularBorrows) * 100) : 0
+        };
+      })
+      .filter(Boolean);
 
     // Recent Activity
-    const recentBorrows = await prisma.borrowRecord.findMany({
-      include: { user: true, book: true },
-      orderBy: { created_at: 'desc' },
-      take: 5
-    });
-    const recentAttendance = await prisma.attendanceLog.findMany({
-      include: { user: true },
-      orderBy: { logged_at: 'desc' },
-      take: 5
-    });
-
     const activities = [];
     recentBorrows.forEach(b => {
       activities.push({
@@ -142,8 +151,7 @@ const getOverview = async (req, res) => {
         date: a.logged_at
       });
     });
-    activities.sort((a, b) => b.date - a.date);
-    const recentActivity = activities.slice(0, 5);
+    activities.sort((a, b) => new Date(b.date) - new Date(a.date));
 
     res.json({
       totalTitles,
@@ -152,7 +160,7 @@ const getOverview = async (req, res) => {
       overdueCount,
       studentsInside: Math.max(0, studentsInside),
       availableSlots: Math.max(0, availableSlots),
-      capacity: capacity,
+      capacity,
       collectionTarget,
       avgVisitDuration,
       unpaidAmount,
@@ -160,7 +168,7 @@ const getOverview = async (req, res) => {
       activeUsers,
       borrowsByProgram,
       popularBooks,
-      recentActivity
+      recentActivity: activities.slice(0, 5)
     });
   } catch (error) {
     console.error('Dashboard Overview Error:', error);
@@ -170,16 +178,18 @@ const getOverview = async (req, res) => {
 
 const getFullLog = async (req, res) => {
   try {
-    const recentBorrows = await prisma.borrowRecord.findMany({
-      include: { user: true, book: true },
-      orderBy: { created_at: 'desc' },
-      take: 50
-    });
-    const recentAttendance = await prisma.attendanceLog.findMany({
-      include: { user: true },
-      orderBy: { logged_at: 'desc' },
-      take: 50
-    });
+    const [recentBorrows, recentAttendance] = await Promise.all([
+      prisma.borrowRecord.findMany({
+        include: { user: { select: { first_name: true, last_name: true } }, book: { select: { title: true } } },
+        orderBy: { created_at: 'desc' },
+        take: 50
+      }),
+      prisma.attendanceLog.findMany({
+        include: { user: { select: { first_name: true, last_name: true } } },
+        orderBy: { logged_at: 'desc' },
+        take: 50
+      }),
+    ]);
 
     const activities = [];
     recentBorrows.forEach(b => {
@@ -200,8 +210,8 @@ const getFullLog = async (req, res) => {
         date: a.logged_at
       });
     });
-    activities.sort((a, b) => b.date - a.date);
-    
+    activities.sort((a, b) => new Date(b.date) - new Date(a.date));
+
     res.json(activities.slice(0, 50));
   } catch (error) {
     console.error('Dashboard Full Log Error:', error);

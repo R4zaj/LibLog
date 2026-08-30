@@ -65,6 +65,7 @@ export function AttendanceScannerProvider({ children }) {
         };
         setLastScan(scanData);
         pushToast(scanData);
+        setTimeout(() => setLastScan(null), 5000); // auto-dismiss after 5s
       } else {
         // A failed scan used to be a console.warn only, so at the desk it just
         // looked like the camera had stopped reading QR codes.

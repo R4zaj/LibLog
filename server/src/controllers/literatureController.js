@@ -3,6 +3,7 @@ const prisma = require('../db');
 const getBooks = async (req, res) => {
   try {
     const books = await prisma.book.findMany({
+      where: { is_archived: false },
       include: {
         author: true,
         genre: true
@@ -226,8 +227,9 @@ const deleteBook = async (req, res) => {
       return res.status(404).json({ error: 'Book not found' });
     }
 
-    await prisma.book.delete({
-      where: { id: parseInt(id) }
+    await prisma.book.update({
+      where: { id: parseInt(id) },
+      data: { is_archived: true }
     });
 
     res.json({ message: 'Book deleted successfully' });

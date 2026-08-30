@@ -1,5 +1,5 @@
-import { 
-  Search, Sun, Bell, LayoutDashboard, Calendar, Clock, BookUp, UserCheck, PlusSquare, 
+import {
+  Search, Sun, Bell, LayoutDashboard, Calendar, Clock, BookUp, UserCheck, PlusSquare,
   BarChart3, Users, BookOpen, AlertCircle, Bookmark, Armchair, ArrowRightLeft,
   Moon, LogIn, Activity
 } from 'lucide-react';
@@ -11,7 +11,10 @@ import { clearSession, getDisplayName, getInitials, getUser } from '../auth';
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [data, setData] = useState({
+  const [isLoading, setIsLoading] = useState(() => {
+    try { return !localStorage.getItem('dashboard_cache'); } catch { return true; }
+  });
+  const defaultData = {
     totalTitles: 0,
     totalCopies: 0,
     totalBorrowed: 0,
@@ -27,12 +30,18 @@ export default function Dashboard() {
     borrowsByProgram: [],
     popularBooks: [],
     recentActivity: []
+  };
+  const [data, setData] = useState(() => {
+    try {
+      const cached = localStorage.getItem('dashboard_cache');
+      return cached ? { ...defaultData, ...JSON.parse(cached) } : defaultData;
+    } catch { return defaultData; }
   });
 
   const [currentTime, setCurrentTime] = useState(new Date());
   const { isDarkMode, toggleDarkMode } = useTheme();
   const [profileOpen, setProfileOpen] = useState(false);
-  
+
   // Full Log Modal State
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
   const [fullLog, setFullLog] = useState([]);
@@ -61,10 +70,15 @@ export default function Dashboard() {
           if (!res.ok) throw new Error(`Overview request failed: ${res.status}`);
           return res.json();
         })
-        // Merge over the defaults so an error body or a partial payload can
-        // never strip the arrays this page renders.
-        .then(json => setData(prev => ({ ...prev, ...json })))
-        .catch(err => console.error('Failed to fetch dashboard data:', err));
+        .then(json => {
+          setData(prev => ({ ...prev, ...json }));
+          setIsLoading(false);
+          try { localStorage.setItem('dashboard_cache', JSON.stringify(json)); } catch { }
+        })
+        .catch(err => {
+          console.error('Failed to fetch dashboard data:', err);
+          setIsLoading(false);
+        });
     };
 
     fetchData(); // initial fetch
@@ -116,7 +130,7 @@ export default function Dashboard() {
             </button>
             <NotificationDropdown />
             <div className="relative">
-              <div 
+              <div
                 onClick={() => setProfileOpen(!profileOpen)}
                 className="w-8 h-8 rounded-full bg-primary-100 text-primary-800 flex items-center justify-center font-bold text-xs cursor-pointer hover:ring-2 hover:ring-primary-300 transition-all"
               >
@@ -140,10 +154,10 @@ export default function Dashboard() {
 
       {/* Main Content Area */}
       <div className="flex-1 overflow-y-auto p-8 flex flex-col gap-6 max-w-7xl mx-auto w-full">
-        
+
         {/* Welcome Banner */}
         <div className="bg-gradient-to-b from-purple-500 to-purple-900 rounded-2xl p-8 text-white flex justify-between items-center shadow-md">
-          
+
           <div className="flex flex-col">
             <div className="flex items-center gap-2 mb-2">
               <div className="w-8 h-8 rounded-full bg-purple-950 flex items-center justify-center font-bold text-xs text-white">LL</div>
@@ -152,7 +166,7 @@ export default function Dashboard() {
             <h2 className="text-3xl font-bold mb-1 tracking-tight">Welcome to LibLog</h2>
             <p className="text-purple-200/80 text-sm">Your library management dashboard — everything at a glance.</p>
           </div>
-          
+
           <div className="flex gap-4">
             <div className="flex items-center gap-3 bg-white/10 dark:bg-dark-card/10 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-3">
               <Calendar size={20} className="text-white" />
@@ -224,7 +238,7 @@ export default function Dashboard() {
             </div>
             <BookOpen className="absolute right-[-10px] bottom-[-10px] text-gray-50 opacity-50 dark:hidden" size={80} />
           </div>
-          
+
           <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-100 dark:border-dark-border border-l-4 border-l-orange-400 p-5 flex flex-col relative overflow-hidden">
             <span className="text-xs text-gray-500 dark:text-slate-400 font-medium mb-1">Total Borrowed</span>
             <span className="text-2xl font-bold text-gray-800 dark:text-slate-300 mb-2">{data.totalBorrowed}</span>
@@ -314,13 +328,13 @@ export default function Dashboard() {
             <h3 className="font-bold text-gray-800 dark:text-slate-300 text-sm">User Insights</h3>
             <span className="text-xs text-gray-400 dark:text-slate-500 ml-2">Library usage patterns and top visitors</span>
           </div>
-          
+
           <div className="grid grid-cols-4 gap-8">
             <div className="col-span-1 flex flex-col gap-3">
               <span className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider mb-2">Top Visitors</span>
-              {data.activeUsers.slice(0,3).map((user, i) => (
+              {data.activeUsers.slice(0, 3).map((user, i) => (
                 <div key={i} className="flex gap-3 items-center">
-                  <div className="w-6 h-6 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-xs font-bold">{i+1}</div>
+                  <div className="w-6 h-6 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-xs font-bold">{i + 1}</div>
                   <div className="flex flex-col">
                     <span className="text-xs font-bold text-gray-800 dark:text-slate-300">{user.name}</span>
                     <span className="text-[10px] text-gray-400 dark:text-slate-500">{user.visits} visits</span>
@@ -365,20 +379,20 @@ export default function Dashboard() {
           <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-200 dark:border-dark-border p-6 flex flex-col">
             <h3 className="font-bold text-gray-800 dark:text-slate-300 text-sm mb-1 flex items-center gap-2"><BarChart3 size={16} /> Borrows by Program</h3>
             <span className="text-xs text-gray-400 dark:text-slate-500 mb-6">Distribution of borrowed books across academic programs</span>
-            
+
             <div className="flex-1 flex flex-col">
               <div className="flex justify-end mb-4">
                 <span className="flex items-center gap-1 text-[10px] font-medium text-gray-500 dark:text-slate-400">
                   <div className="w-2 h-2 rounded-full bg-purple-700"></div> Books Borrowed
                 </span>
               </div>
-              
+
               <div className="flex-1 flex items-end justify-around pb-6 border-b border-gray-200 dark:border-dark-border relative h-48">
                 {/* Y Axis */}
                 <div className="absolute left-0 top-0 bottom-0 flex flex-col justify-between text-[10px] text-gray-400 dark:text-slate-500 w-4 pb-6">
                   <span>Max</span><span>...</span><span>0</span>
                 </div>
-                
+
                 {/* Bars */}
                 {data.borrowsByProgram.length === 0 ? (
                   <span className="text-xs text-gray-400 dark:text-slate-500 m-auto">No borrows yet</span>
@@ -386,7 +400,7 @@ export default function Dashboard() {
                   const maxCount = Math.max(...data.borrowsByProgram.map(p => p.count), 1);
                   const heightPercent = (prog.count / maxCount) * 100;
                   return (
-                    <div key={idx} className="w-12 bg-purple-700 rounded-t flex flex-col justify-end items-center relative group" style={{height: `${heightPercent}%`}}>
+                    <div key={idx} className="w-12 bg-purple-700 rounded-t flex flex-col justify-end items-center relative group" style={{ height: `${heightPercent}%` }}>
                       <span className="absolute -bottom-6 text-[10px] font-medium text-gray-600 dark:text-slate-300 whitespace-nowrap overflow-hidden text-ellipsis w-16 text-center">{prog.program}</span>
                       <span className="absolute -top-5 text-[10px] font-bold text-purple-700 opacity-0 group-hover:opacity-100 transition-opacity">{prog.count}</span>
                     </div>
@@ -403,7 +417,7 @@ export default function Dashboard() {
                 <span className="text-xs text-gray-400 dark:text-slate-500">Most borrowed books in the library</span>
               </div>
             </div>
-            
+
             <div className="relative w-64 h-64 flex items-center justify-center">
               {data.popularBooks.length === 0 ? (
                 <span className="text-xs text-gray-400 dark:text-slate-500">No data available</span>
@@ -426,7 +440,7 @@ export default function Dashboard() {
                     <span className="text-2xl font-bold text-gray-800 dark:text-slate-300">{data.popularBooks.length}</span>
                     <span className="text-[10px] text-gray-400 dark:text-slate-500 uppercase font-bold tracking-wider">Top Books</span>
                   </div>
-                  
+
                   {/* Labels */}
                   {(() => {
                     let cumulativePercent = 0;
@@ -434,22 +448,22 @@ export default function Dashboard() {
                       const startPercent = cumulativePercent;
                       const endPercent = cumulativePercent + pb.percentage;
                       cumulativePercent += pb.percentage;
-                      
+
                       const midPercent = (startPercent + endPercent) / 2;
                       const angle = (midPercent / 100) * 2 * Math.PI;
-                      
+
                       const labelRadius = 52;
                       const x = 50 + labelRadius * Math.sin(angle);
                       const y = 50 - labelRadius * Math.cos(angle);
-                      
+
                       const colors = ['text-purple-700', 'text-red-500', 'text-orange-500', 'text-cyan-600', 'text-green-500'];
-                      
+
                       return (
-                        <div 
-                          key={idx} 
+                        <div
+                          key={idx}
                           className={`absolute text-[10px] font-bold ${colors[idx % 5]} whitespace-nowrap`}
-                          style={{ 
-                            left: `${x}%`, 
+                          style={{
+                            left: `${x}%`,
                             top: `${y}%`,
                             transform: `translate(${x > 50 ? 5 : -105}%, ${y > 50 ? 5 : -105}%)`
                           }}
@@ -476,7 +490,7 @@ export default function Dashboard() {
               <span className="text-xs text-gray-400 dark:text-slate-500">Students in the library now</span>
               <span className="px-2 py-0.5 bg-purple-50 text-purple-700 text-[10px] font-bold rounded-full">{data.studentsInside} inside</span>
             </div>
-            
+
             <div className="flex-1 border border-dashed border-gray-200 dark:border-dark-border rounded-lg flex flex-col items-center justify-center p-8 bg-gray-50/50">
               <Users size={32} className="text-gray-300 mb-2" />
               <span className="text-sm font-bold text-gray-600 dark:text-slate-300">Library is quiet right now</span>
@@ -492,10 +506,10 @@ export default function Dashboard() {
               </div>
               <button onClick={fetchFullLog} className="text-[10px] font-bold text-purple-700 hover:underline">View Full Log</button>
             </div>
-            
+
             <div className="flex-1 overflow-y-auto pr-2 relative">
               <div className="absolute left-[15px] top-0 bottom-0 w-px bg-gray-200"></div>
-              
+
               <div className="flex flex-col gap-5 relative z-10">
                 {data.recentActivity.length === 0 ? (
                   <span className="text-xs text-gray-400 dark:text-slate-500 m-auto mt-10">No recent activity</span>
@@ -525,7 +539,7 @@ export default function Dashboard() {
             <h3 className="font-bold text-gray-800 dark:text-slate-300 text-sm">Top Borrowed</h3>
           </div>
           <span className="text-xs text-gray-400 dark:text-slate-500 -mt-2">Most popular titles</span>
-          
+
           <div className="flex gap-4 overflow-x-auto pb-4">
             {data.popularBooks.length === 0 ? (
               <span className="text-xs text-gray-400 dark:text-slate-500 ml-2">No borrows recorded yet</span>
@@ -558,14 +572,14 @@ export default function Dashboard() {
               <h2 className="text-lg font-bold text-gray-800 dark:text-slate-200 flex items-center gap-2">
                 <Activity size={20} className="text-purple-600" /> Full Activity Log
               </h2>
-              <button 
+              <button
                 onClick={() => setIsLogModalOpen(false)}
                 className="text-gray-400 hover:text-gray-600 dark:text-slate-500 dark:hover:text-slate-300 p-1 rounded hover:bg-gray-100 dark:hover:bg-dark-hover"
               >
                 ✕
               </button>
             </div>
-            
+
             <div className="flex-1 overflow-y-auto p-6">
               {isLoadingLog ? (
                 <div className="flex justify-center items-center h-40">
@@ -585,7 +599,7 @@ export default function Dashboard() {
                         <div className="flex flex-col flex-1">
                           <div className="flex justify-between items-start">
                             <p className="text-sm font-bold text-gray-800 dark:text-slate-300">
-                              {act.user} 
+                              {act.user}
                               <span className={`px-1.5 py-0.5 ml-2 text-[10px] rounded uppercase ${act.type === 'BORROW' ? 'bg-orange-50 text-orange-600 border border-orange-100' : 'bg-gray-100 text-gray-500 dark:text-slate-400 border border-gray-200 dark:border-dark-border'}`}>
                                 {act.type.replace('_', ' ')}
                               </span>
@@ -602,9 +616,9 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
-            
+
             <div className="p-4 border-t border-gray-100 dark:border-dark-border bg-gray-50 dark:bg-dark-bg flex justify-end shrink-0 rounded-b-xl">
-              <button 
+              <button
                 onClick={() => setIsLogModalOpen(false)}
                 className="px-4 py-2 bg-white dark:bg-dark-card border border-gray-300 dark:border-dark-border rounded text-sm font-medium hover:bg-gray-50 dark:hover:bg-dark-hover"
               >

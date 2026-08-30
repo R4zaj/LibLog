@@ -2,7 +2,7 @@ const prisma = require('../db');
 
 const getSummary = async (req, res) => {
   try {
-    const { startDate, endDate } = req.query;
+    const { startDate, endDate, department } = req.query;
     const dateFilter = {};
     const attendanceDateFilter = {};
     if (startDate && endDate) {
@@ -12,43 +12,70 @@ const getSummary = async (req, res) => {
       attendanceDateFilter.logged_at = { gte, lte };
     }
 
-    // 1. Top Books
+    // Department filter — applied to user's program name
+    const deptUserFilter = department && department !== 'All'
+      ? { user: { program: { name: department } } }
+      : {};
+
+    const deptAttendanceFilter = department && department !== 'All'
+      ? { user: { program: { name: department } } }
+      : {};
+
+    // 1. Top Books (with department filter + author)
     const topBooksRaw = await prisma.borrowRecord.groupBy({
       by: ['book_id'],
-      where: dateFilter,
+      where: { ...dateFilter, ...deptUserFilter },
       _count: { book_id: true },
       orderBy: { _count: { book_id: 'desc' } },
       take: 5
     });
-    
-    const topBooks = [];
-    for (const pb of topBooksRaw) {
-      const b = await prisma.book.findUnique({ where: { id: pb.book_id } });
-      if (b) topBooks.push({ title: b.title, borrows: pb._count.book_id });
-    }
 
-    // 2. Least Books
+    const topBookIds = topBooksRaw.map(b => b.book_id);
+    const topBookDetails = await prisma.book.findMany({
+      where: { id: { in: topBookIds }, is_archived: false },
+      include: { author: true }
+    });
+    const topBookMap = Object.fromEntries(topBookDetails.map(b => [b.id, b]));
+    const topBooks = topBooksRaw.map(pb => {
+      const b = topBookMap[pb.book_id];
+      return b ? {
+        title: b.title,
+        author: b.author?.name || 'Unknown',
+        borrows: pb._count.book_id
+      } : null;
+    }).filter(Boolean);
+
+    // 2. Least Books (with department filter + author)
     const leastBooksRaw = await prisma.borrowRecord.groupBy({
       by: ['book_id'],
-      where: dateFilter,
+      where: { ...dateFilter, ...deptUserFilter },
       _count: { book_id: true },
       orderBy: { _count: { book_id: 'asc' } },
       take: 5
     });
-    
-    const leastBooks = [];
-    for (const lb of leastBooksRaw) {
-      const b = await prisma.book.findUnique({ where: { id: lb.book_id } });
-      if (b) leastBooks.push({ title: b.title, borrows: lb._count.book_id });
-    }
+
+    const leastBookIds = leastBooksRaw.map(b => b.book_id);
+    const leastBookDetails = await prisma.book.findMany({
+      where: { id: { in: leastBookIds }, is_archived: false },
+      include: { author: true }
+    });
+    const leastBookMap = Object.fromEntries(leastBookDetails.map(b => [b.id, b]));
+    const leastBooks = leastBooksRaw.map(lb => {
+      const b = leastBookMap[lb.book_id];
+      return b ? {
+        title: b.title,
+        author: b.author?.name || 'Unknown',
+        borrows: lb._count.book_id
+      } : null;
+    }).filter(Boolean);
 
     // 3. Popular Genres
-    const allBooks = await prisma.borrowRecord.findMany({
-      where: dateFilter,
+    const allBorrows = await prisma.borrowRecord.findMany({
+      where: { ...dateFilter, ...deptUserFilter, book: { is_archived: false } },
       include: { book: { include: { genre: true } } }
     });
     const genreCounts = {};
-    allBooks.forEach(r => {
+    allBorrows.forEach(r => {
       const gName = r.book?.genre?.name || 'Unknown';
       genreCounts[gName] = (genreCounts[gName] || 0) + 1;
     });
@@ -60,32 +87,31 @@ const getSummary = async (req, res) => {
     // 4. Top Students
     const topStudentsRaw = await prisma.borrowRecord.groupBy({
       by: ['user_id'],
-      where: dateFilter,
+      where: { ...dateFilter, ...deptUserFilter },
       _count: { user_id: true },
       orderBy: { _count: { user_id: 'desc' } },
       take: 3
     });
-    const topStudents = [];
-    let rank = 1;
-    for (const ts of topStudentsRaw) {
-      const u = await prisma.user.findUnique({ 
-        where: { id: ts.user_id },
-        include: { program: true }
-      });
-      if (u) {
-        topStudents.push({
-          rank: rank++,
-          name: `${u.first_name} ${u.last_name}`,
-          student_id: u.student_id,
-          program: u.program?.name || 'N/A',
-          borrows: ts._count.user_id
-        });
-      }
-    }
+    const topStudentIds = topStudentsRaw.map(s => s.user_id);
+    const topStudentUsers = await prisma.user.findMany({
+      where: { id: { in: topStudentIds } },
+      include: { program: true }
+    });
+    const topStudentMap = Object.fromEntries(topStudentUsers.map(u => [u.id, u]));
+    const topStudents = topStudentsRaw.map((ts, i) => {
+      const u = topStudentMap[ts.user_id];
+      return u ? {
+        rank: i + 1,
+        name: `${u.first_name} ${u.last_name}`,
+        student_id: u.student_id,
+        program: u.program?.name || 'N/A',
+        borrows: ts._count.user_id
+      } : null;
+    }).filter(Boolean);
 
-    // 5. Visits by Program
+    // 5. Visits by Program (department filtered)
     const allAttendance = await prisma.attendanceLog.findMany({
-      where: { action: 'CHECK_IN', ...attendanceDateFilter },
+      where: { action: 'CHECK_IN', ...attendanceDateFilter, ...deptAttendanceFilter },
       include: { user: { include: { program: true } } }
     });
     const progCounts = {};
@@ -97,25 +123,30 @@ const getSummary = async (req, res) => {
       .map(name => ({ name, value: progCounts[name] }))
       .sort((a, b) => b.value - a.value);
 
-    // 6. Penalties & Financials
-    const unpaidPenaltiesRaw = await prisma.penalty.findMany({
-      where: { status: 'UNPAID', ...dateFilter },
-      include: { user: true }
+    // Attendance logs for department filter (full list for the report table)
+    const attendanceLogs = await prisma.attendanceLog.findMany({
+      where: { ...attendanceDateFilter, ...deptAttendanceFilter },
+      include: { user: { include: { program: true } } },
+      orderBy: { logged_at: 'desc' },
+      take: 100
     });
+    const attendanceLogList = attendanceLogs.map(a => ({
+      name: `${a.user.first_name} ${a.user.last_name}`,
+      program: a.user.program?.name || 'N/A',
+      action: a.action,
+      time: a.logged_at
+    }));
+
+    // 6. Penalties & Financials
+    const [unpaidPenaltiesRaw, paidPenaltiesRaw, unpaidSumRaw] = await Promise.all([
+      prisma.penalty.findMany({ where: { status: 'UNPAID', ...dateFilter }, include: { user: true } }),
+      prisma.penalty.aggregate({ where: { status: 'PAID', ...dateFilter }, _sum: { amount: true } }),
+      prisma.penalty.aggregate({ where: { status: 'UNPAID', ...dateFilter }, _sum: { amount: true } })
+    ]);
     const penalties = unpaidPenaltiesRaw.map(p => ({
       name: `${p.user.first_name} ${p.user.last_name}`,
       amount: parseFloat(p.amount)
     }));
-
-    const paidPenaltiesRaw = await prisma.penalty.aggregate({
-      where: { status: 'PAID', ...dateFilter },
-      _sum: { amount: true }
-    });
-    const unpaidSumRaw = await prisma.penalty.aggregate({
-      where: { status: 'UNPAID', ...dateFilter },
-      _sum: { amount: true }
-    });
-
     const financials = {
       unpaidCount: unpaidPenaltiesRaw.length,
       totalUnpaid: parseFloat(unpaidSumRaw._sum.amount || 0),
@@ -124,7 +155,7 @@ const getSummary = async (req, res) => {
 
     // 7. Overdue Records
     const overdueRaw = await prisma.borrowRecord.findMany({
-      where: { status: 'OVERDUE', ...dateFilter },
+      where: { status: 'OVERDUE', ...dateFilter, ...deptUserFilter },
       include: { user: { include: { program: true } } }
     });
     const overdue = overdueRaw.map(o => {
@@ -137,46 +168,39 @@ const getSummary = async (req, res) => {
       };
     });
 
-    // 7b. Faculty / Teachers with Unreturned Books
+    // 7b. Faculty with Unreturned Books
     const facultyUnreturnedRaw = await prisma.borrowRecord.findMany({
-      where: { 
+      where: {
         status: { in: ['BORROWED', 'OVERDUE'] },
         user: { role: 'FACULTY' }
       },
-      include: { 
+      include: {
         user: { include: { program: true } },
         book: true
       }
     });
-    const facultyUnreturned = facultyUnreturnedRaw.map(r => ({
-      name: `${r.user.first_name} ${r.user.last_name}`,
-      student_id: r.user.student_id,
-      program: r.user.program?.name || 'Faculty',
-      bookTitle: r.book?.title || 'Unknown',
-      bookCount: 1
-    }));
-    // Group by user
     const facultyGrouped = {};
-    facultyUnreturned.forEach(f => {
-      if (!facultyGrouped[f.student_id]) {
-        facultyGrouped[f.student_id] = { ...f, bookCount: 0, books: [] };
+    facultyUnreturnedRaw.forEach(r => {
+      const key = r.user.id;
+      if (!facultyGrouped[key]) {
+        facultyGrouped[key] = {
+          name: `${r.user.first_name} ${r.user.last_name}`,
+          student_id: r.user.student_id,
+          program: r.user.program?.name || 'Faculty',
+          bookCount: 0,
+          books: []
+        };
       }
-      facultyGrouped[f.student_id].bookCount++;
-      facultyGrouped[f.student_id].books.push(f.bookTitle);
+      facultyGrouped[key].bookCount++;
+      facultyGrouped[key].books.push(r.book?.title || 'Unknown');
     });
-    const facultyUnreturnedGrouped = Object.values(facultyGrouped);
+    const facultyUnreturned = Object.values(facultyGrouped);
 
-    // 7c. Current Penalty Summary (all time, not date-filtered)
-    const penaltySummaryPaid = await prisma.penalty.aggregate({
-      _sum: { amount: true },
-      _count: true,
-      where: { status: 'PAID' }
-    });
-    const penaltySummaryUnpaid = await prisma.penalty.aggregate({
-      _sum: { amount: true },
-      _count: true,
-      where: { status: 'UNPAID' }
-    });
+    // 7c. Penalty Summary (all time)
+    const [penaltySummaryPaid, penaltySummaryUnpaid] = await Promise.all([
+      prisma.penalty.aggregate({ _sum: { amount: true }, _count: true, where: { status: 'PAID' } }),
+      prisma.penalty.aggregate({ _sum: { amount: true }, _count: true, where: { status: 'UNPAID' } })
+    ]);
     const penaltySummary = {
       paidCount: penaltySummaryPaid._count || 0,
       paidAmount: parseFloat(penaltySummaryPaid._sum.amount || 0),
@@ -185,38 +209,30 @@ const getSummary = async (req, res) => {
       totalAmount: parseFloat(penaltySummaryPaid._sum.amount || 0) + parseFloat(penaltySummaryUnpaid._sum.amount || 0)
     };
 
-    // 8. Borrow Trend (Last 30 Days)
+    // 8. Borrow Trend
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
     const recentBorrows = await prisma.borrowRecord.findMany({
-      where: { created_at: { gte: thirtyDaysAgo } },
+      where: { created_at: { gte: thirtyDaysAgo }, ...deptUserFilter },
       select: { created_at: true }
     });
-    
-    // Group by day string
     const dateMap = {};
-    // Pre-fill last 30 days
     for (let i = 29; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      const ds = `${d.getMonth()+1}/${d.getDate()}`;
-      dateMap[ds] = 0;
+      dateMap[`${d.getMonth()+1}/${d.getDate()}`] = 0;
     }
-    
     recentBorrows.forEach(b => {
       const ds = `${b.created_at.getMonth()+1}/${b.created_at.getDate()}`;
       if (dateMap[ds] !== undefined) dateMap[ds]++;
     });
-    
-    const trendAnalysis = Object.keys(dateMap).map(date => ({
-      date,
-      borrows: dateMap[date]
-    }));
+    const trendAnalysis = Object.keys(dateMap).map(date => ({ date, borrows: dateMap[date] }));
 
-    const totalBorrowsRaw = await prisma.borrowRecord.count({ where: dateFilter });
-    const totalReturnedRaw = await prisma.borrowRecord.count({ where: { status: 'RETURNED', ...dateFilter } });
-    const totalVisitsRaw = await prisma.attendanceLog.count({ where: { action: 'CHECK_IN', ...attendanceDateFilter } });
+    const [totalBorrowsRaw, totalReturnedRaw, totalVisitsRaw] = await Promise.all([
+      prisma.borrowRecord.count({ where: { ...dateFilter, ...deptUserFilter } }),
+      prisma.borrowRecord.count({ where: { status: 'RETURNED', ...dateFilter, ...deptUserFilter } }),
+      prisma.attendanceLog.count({ where: { action: 'CHECK_IN', ...attendanceDateFilter, ...deptAttendanceFilter } })
+    ]);
 
     res.json({
       topBooks,
@@ -232,8 +248,9 @@ const getSummary = async (req, res) => {
       totalReturned: totalReturnedRaw,
       totalVisits: totalVisitsRaw,
       overdueCount: overdueRaw.length,
-      facultyUnreturned: facultyUnreturnedGrouped,
-      penaltySummary
+      facultyUnreturned,
+      penaltySummary,
+      attendanceLogList
     });
 
   } catch (error) {
@@ -244,7 +261,7 @@ const getSummary = async (req, res) => {
 
 const getFullReport = async (req, res) => {
   try {
-    const { startDate, endDate } = req.query;
+    const { startDate, endDate, department } = req.query;
     const dateFilter = {};
     const attendanceDateFilter = {};
     if (startDate && endDate) {
@@ -254,34 +271,46 @@ const getFullReport = async (req, res) => {
       attendanceDateFilter.logged_at = { gte, lte };
     }
 
-    const allBorrows = await prisma.borrowRecord.findMany({
-      where: dateFilter,
-      include: {
-        user: { select: { first_name: true, last_name: true, program: true } },
-        book: { select: { title: true, isbn: true, author: true } }
-      }
-    });
+    const deptUserFilter = department && department !== 'All'
+      ? { user: { program: { name: department } } }
+      : {};
+    const deptAttendanceFilter = department && department !== 'All'
+      ? { user: { program: { name: department } } }
+      : {};
 
-    const allVisits = await prisma.attendanceLog.findMany({
-      where: attendanceDateFilter,
-      include: {
-        user: { select: { first_name: true, last_name: true, program: true } }
-      }
-    });
+    const [allBorrows, allVisits, allBooks, allPenalties, archivedBooks] = await Promise.all([
+      prisma.borrowRecord.findMany({
+        where: { ...dateFilter, ...deptUserFilter },
+        include: {
+          user: { select: { first_name: true, last_name: true, program: { select: { name: true } } } },
+          book: { select: { title: true, isbn: true, author: { select: { name: true } } } }
+        }
+      }),
+      prisma.attendanceLog.findMany({
+        where: { ...attendanceDateFilter, ...deptAttendanceFilter },
+        include: {
+          user: { select: { first_name: true, last_name: true, program: { select: { name: true } } } }
+        }
+      }),
+      // Book inventory: show available/total + author
+      prisma.book.findMany({
+        where: { is_archived: false },
+        include: {
+          genre: true,
+          author: true
+        }
+      }),
+      prisma.penalty.findMany({
+        where: dateFilter,
+        include: { user: { select: { first_name: true, last_name: true } } }
+      }),
+      prisma.book.findMany({
+        where: { is_archived: true },
+        include: { genre: true, author: true }
+      })
+    ]);
 
-    // Books inventory doesn't need date filtering usually, but can be left as is.
-    const allBooks = await prisma.book.findMany({
-      include: { genre: true }
-    });
-
-    const allPenalties = await prisma.penalty.findMany({
-      where: dateFilter,
-      include: {
-        user: { select: { first_name: true, last_name: true } }
-      }
-    });
-
-    res.json({ allBorrows, allVisits, allBooks, allPenalties });
+    res.json({ allBorrows, allVisits, allBooks, allPenalties, archivedBooks });
   } catch (error) {
     console.error('Error fetching full report:', error);
     res.status(500).json({ error: 'Server error fetching full report' });
