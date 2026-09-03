@@ -32,7 +32,7 @@ const getSummary = async (req, res) => {
 
     const topBookIds = topBooksRaw.map(b => b.book_id);
     const topBookDetails = await prisma.book.findMany({
-      where: { id: { in: topBookIds }, is_archived: false },
+      where: { id: { in: topBookIds } },
       include: { author: true }
     });
     const topBookMap = Object.fromEntries(topBookDetails.map(b => [b.id, b]));
@@ -56,7 +56,7 @@ const getSummary = async (req, res) => {
 
     const leastBookIds = leastBooksRaw.map(b => b.book_id);
     const leastBookDetails = await prisma.book.findMany({
-      where: { id: { in: leastBookIds }, is_archived: false },
+      where: { id: { in: leastBookIds } },
       include: { author: true }
     });
     const leastBookMap = Object.fromEntries(leastBookDetails.map(b => [b.id, b]));
@@ -71,7 +71,7 @@ const getSummary = async (req, res) => {
 
     // 3. Popular Genres
     const allBorrows = await prisma.borrowRecord.findMany({
-      where: { ...dateFilter, ...deptUserFilter, book: { is_archived: false } },
+      where: { ...dateFilter, ...deptUserFilter },
       include: { book: { include: { genre: true } } }
     });
     const genreCounts = {};
@@ -294,7 +294,6 @@ const getFullReport = async (req, res) => {
       }),
       // Book inventory: show available/total + author
       prisma.book.findMany({
-        where: { is_archived: false },
         include: {
           genre: true,
           author: true
@@ -305,7 +304,7 @@ const getFullReport = async (req, res) => {
         include: { user: { select: { first_name: true, last_name: true } } }
       }),
       prisma.book.findMany({
-        where: { is_archived: true },
+        where: { id: -1 },
         include: { genre: true, author: true }
       })
     ]);

@@ -226,9 +226,8 @@ const deleteBook = async (req, res) => {
       return res.status(404).json({ error: 'Book not found' });
     }
 
-    await prisma.book.update({
-      where: { id: parseInt(id) },
-      data: { is_archived: true }
+    await prisma.book.delete({
+      where: { id: parseInt(id) }
     });
 
     res.json({ message: 'Book deleted successfully' });
