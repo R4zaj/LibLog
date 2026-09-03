@@ -31,7 +31,7 @@ const getBooks = async (req, res) => {
     res.json(mappedBooks);
   } catch (error) {
     console.error('Error fetching books:', error);
-    res.status(500).json({ error: 'Server error fetching books' });
+    res.status(500).json({ error: 'Server error fetching books', detail: error.message, code: error.code });
   }
 };
 
