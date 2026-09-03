@@ -3,7 +3,6 @@ const prisma = require('../db');
 const getBooks = async (req, res) => {
   try {
     const books = await prisma.book.findMany({
-      where: { is_archived: false },
       include: {
         author: true,
         genre: true
