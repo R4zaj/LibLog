@@ -2,7 +2,7 @@ services:
   - type: web
     name: liblog-backend
     env: node
-    buildCommand: "cd server && npm install && npx prisma generate && npx prisma db push"
+    buildCommand: "cd server && npm install && rm -rf node_modules/.prisma && npx prisma generate && npx prisma db push"
     startCommand: "cd server && npm run start"
     envVars:
       - key: NODE_VERSION
