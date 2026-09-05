@@ -5,7 +5,7 @@ const verifyToken = (req, res, next) => {
   if (!authHeader) return res.status(401).json({ error: 'No token provided' });
 
   const token = authHeader.split(' ')[1];
-  if (!token) return res.status(401).json({ error: 'Malformed token' });
+  if (!token || token === 'null' || token === 'undefined') return res.status(401).json({ error: 'No token provided' });
 
   jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret_key', (err, decoded) => {
     if (err) return res.status(403).json({ error: 'Failed to authenticate token' });

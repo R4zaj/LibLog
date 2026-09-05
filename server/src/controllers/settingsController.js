@@ -3,27 +3,33 @@ const prisma = require('../db');
 // GET /api/settings/stats
 const getStats = async (req, res) => {
   try {
-    const totalUsers = await prisma.user.count();
-    
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const activeToday = await prisma.attendanceLog.count({
-      where: {
-        logged_at: { gte: today },
-        action: 'CHECK_IN'
-      }
-    });
 
-    const penaltiesResult = await prisma.penalty.aggregate({
-      _sum: { amount: true }
-    });
+    const [
+      totalUsers,
+      activeToday,
+      penaltiesResult,
+      activeAnnouncements,
+      settings
+    ] = await Promise.all([
+      prisma.user.count(),
+      prisma.attendanceLog.count({
+        where: {
+          logged_at: { gte: today },
+          action: 'CHECK_IN'
+        }
+      }),
+      prisma.penalty.aggregate({
+        _sum: { amount: true }
+      }),
+      prisma.announcement.count({
+        where: { is_active: true }
+      }),
+      prisma.librarySettings.findFirst()
+    ]);
+
     const totalPenalties = parseFloat(penaltiesResult._sum.amount || 0);
-
-    const activeAnnouncements = await prisma.announcement.count({
-      where: { is_active: true }
-    });
-
-    const settings = await prisma.librarySettings.findFirst();
 
     res.json({
       totalUsers,
@@ -112,7 +118,8 @@ const getUsers = async (req, res) => {
           select: { name: true }
         },
         penalties: {
-          where: { status: 'UNPAID' }
+          where: { status: 'UNPAID' },
+          select: { amount: true }
         }
       },
       orderBy: { created_at: 'desc' }

@@ -5,6 +5,7 @@ import ScannerSim from '../components/ScannerSim';
 import { useState, useEffect, useMemo, useContext } from 'react';
 import NotificationDropdown from '../components/NotificationDropdown';
 import { AttendanceScannerContext } from '../context/AttendanceScannerContext';
+import { authHeaders } from '../auth';
 
 export default function Attendance() {
   const [stats, setStats] = useState({ checkIns: 0, checkOuts: 0, insideNow: 0, avgDuration: 0, heatmapCounts: null });
@@ -46,8 +47,13 @@ export default function Attendance() {
 
   const fetchStats = async () => {
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/attendance/stats`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
-      if (res.ok) setStats(await res.json());
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/attendance/stats`, { headers: authHeaders() });
+      if (res.ok) {
+        setStats(await res.json());
+      } else if (res.status === 401 || res.status === 403) {
+        // If token is invalid or expired, clear it to avoid repeated auth failures
+        localStorage.removeItem('token');
+      }
     } catch (e) {
       console.error('Error fetching attendance stats:', e);
     }

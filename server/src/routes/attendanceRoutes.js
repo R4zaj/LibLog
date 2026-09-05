@@ -3,7 +3,7 @@ const router = express.Router();
 const { getStats, scanQR, getActiveUsers, getMyHistory } = require('../controllers/attendanceController');
 const { verifyToken } = require('../middleware/authMiddleware');
 
-router.get('/stats', verifyToken, getStats);
+router.get('/stats', getStats);
 // Writes attendance rows, so it must not stay open - anyone could forge check-ins.
 router.post('/scan', verifyToken, scanQR);
 router.get('/active', verifyToken, getActiveUsers);

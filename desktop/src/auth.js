@@ -4,7 +4,10 @@
 const TOKEN_KEY = 'token';
 const USER_KEY = 'user';
 
-export const getToken = () => localStorage.getItem(TOKEN_KEY);
+export const getToken = () => {
+  const token = localStorage.getItem(TOKEN_KEY);
+  return token && token !== 'null' && token !== 'undefined' ? token : null;
+};
 
 export const isLoggedIn = () => !!getToken();
 
