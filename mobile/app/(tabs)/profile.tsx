@@ -97,9 +97,9 @@ export default function Profile() {
   const menuItems = [
     { id: 1, title: 'Edit Profile', sub: 'Update your information', icon: Edit, color: '#6C48C5', bg: '#faf5ff', action: () => setEditProfileVisible(true) },
     { id: 2, title: 'My Favorites', sub: '0 saved books', icon: Heart, color: '#ef4444', bg: '#fef2f2', action: () => router.push('/search') },
-    { id: 5, title: 'Privacy Policy', sub: 'How we protect your data', icon: Shield, color: '#6C48C5', bg: '#faf5ff', action: () => setInfoModal({ visible: true, title: 'Privacy Policy', content: 'LibLog values your privacy. We collect only the necessary data to manage your library account securely. We do not sell or share your data with third parties.' }) },
+    { id: 5, title: 'Privacy Policy', sub: 'How we protect your data', icon: Shield, color: '#6C48C5', bg: '#faf5ff', action: () => setInfoModal({ visible: true, title: 'Privacy Policy', content: 'CCC LIB APP values your privacy. We collect only the necessary data to manage your library account securely. We do not sell or share your data with third parties.' }) },
     { id: 6, title: 'Help & Support', sub: 'FAQs and contact info', icon: HelpCircle, color: '#6C48C5', bg: '#faf5ff', action: () => setInfoModal({ visible: true, title: 'Help & Support', content: 'For assistance, please contact the library administration at admin@university.edu or visit the front desk.' }) },
-    { id: 7, title: 'About', sub: 'Version 1.0.0', icon: Info, color: '#6C48C5', bg: '#faf5ff', action: () => setInfoModal({ visible: true, title: 'About', content: 'LibLog Mobile Version 1.0.0\nDeveloped by the CCC Library Team.' }) },
+    { id: 7, title: 'About', sub: 'Version 1.0.0', icon: Info, color: '#6C48C5', bg: '#faf5ff', action: () => setInfoModal({ visible: true, title: 'About', content: 'CCC LIB APP Mobile Version 1.0.0\nDeveloped by the CCC Library Team.' }) },
     ...(user?.role === 'ADMIN'
       ? [{ id: 8, title: 'Create Announcement', sub: 'Broadcast to all users', icon: Megaphone, color: '#fff', bg: '#6C48C5', action: () => setCreateAnnouncementVisible(true) }]
       : []),

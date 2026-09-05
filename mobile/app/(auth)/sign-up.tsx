@@ -194,7 +194,7 @@ export default function SignUp() {
                 <View style={[styles.largeIconCircle, { backgroundColor: 'transparent' }]}>
                   <Image source={require('../../assets/images/CCC_icon.jpg')} style={{ width: 80, height: 80, borderRadius: 20 }} />
                 </View>
-                <Text style={styles.title}>Welcome to LibLog</Text>
+                <Text style={styles.title}>Welcome to CCC LIB APP</Text>
                 <Text style={styles.subtitle}>Choose your role to get started with the digital library</Text>
               </View>
 
@@ -416,7 +416,7 @@ export default function SignUp() {
                   <BellRing size={40} color="#fff" />
                 </View>
                 <Text style={styles.title}>Almost Done!</Text>
-                <Text style={styles.subtitle}>You're ready to explore LibLog</Text>
+                <Text style={styles.subtitle}>You're ready to explore CCC LIB APP</Text>
               </View>
 
               <View style={styles.successBox}>

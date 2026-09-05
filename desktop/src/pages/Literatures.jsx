@@ -891,7 +891,7 @@ export default function Literatures() {
       {/* Print Only QR Container */}
       {activeTab === 'QR of Literatures' && (
         <div className="hidden print:block w-full bg-white text-black p-4">
-          <h1 className="text-xl font-bold mb-4 text-black">LibLog QR Codes</h1>
+          <h1 className="text-xl font-bold mb-4 text-black">CCC LIB APP QR Codes</h1>
           <div className="grid grid-cols-7 gap-3 w-full">
             {(selectedQRs.length > 0 ? books.filter(b => selectedQRs.includes(b.id)) : books).map(qr => {
               const QR = QRCode.default || QRCode.QRCode || QRCode;

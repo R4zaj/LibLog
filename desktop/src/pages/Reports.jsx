@@ -153,7 +153,7 @@ export default function Reports() {
         const fullData = await res.json();
         const doc = generatePDFDoc(fullData);
         if (exportFormat === 'PDF') {
-          doc.save(`LibLog_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+          doc.save(`CCC_LIB_APP_Report_${new Date().toISOString().split('T')[0]}.pdf`);
         } else {
           doc.autoPrint();
           window.open(doc.output('bloburl'), '_blank');
@@ -179,19 +179,17 @@ export default function Reports() {
     doc.setTextColor(primaryColor);
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text('PAMANTASAN NG LUNGSOD NG SAN PABLO', doc.internal.pageSize.width / 2, 40, { align: 'center' });
+    doc.text('Calauan Community Campus', doc.internal.pageSize.width / 2, 45, { align: 'center' });
     doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Calauan Community Campus', doc.internal.pageSize.width / 2, 55, { align: 'center' });
     doc.setFont('helvetica', 'italic');
-    doc.text('LibLog Library Management System', doc.internal.pageSize.width / 2, 70, { align: 'center' });
+    doc.text('CCC LIB APP Library Management System', doc.internal.pageSize.width / 2, 62, { align: 'center' });
 
     // Double Horizontal Line
     doc.setDrawColor(primaryColor);
     doc.setLineWidth(2);
-    doc.line(40, 85, doc.internal.pageSize.width - 40, 85);
+    doc.line(40, 78, doc.internal.pageSize.width - 40, 78);
     doc.setLineWidth(0.5);
-    doc.line(40, 88, doc.internal.pageSize.width - 40, 88);
+    doc.line(40, 81, doc.internal.pageSize.width - 40, 81);
 
     // Title
     doc.setFontSize(16);
@@ -463,7 +461,7 @@ export default function Reports() {
         XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(penaltiesData), 'Penalties');
       }
 
-      XLSX.writeFile(wb, `LibLog_Export_${new Date().toISOString().split('T')[0]}.xlsx`);
+      XLSX.writeFile(wb, `CCC_LIB_APP_Export_${new Date().toISOString().split('T')[0]}.xlsx`);
     } catch (error) {
       console.error(error);
       alert('Failed to generate full Excel report');

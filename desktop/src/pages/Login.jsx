@@ -42,7 +42,7 @@ export default function Login() {
         <div className="w-16 h-16 flex items-center justify-center shadow-sm mb-3 rounded-2xl overflow-hidden">
           <img src="/CCC_icon.jpg" alt="Logo" className="w-full h-full object-cover" />
         </div>
-        <h1 className="text-2xl font-bold text-[#1A1A1A] mb-1">LibLog</h1>
+        <h1 className="text-2xl font-bold text-[#1A1A1A] mb-1">CCC LIB APP</h1>
         <p className="text-xs text-[#666666] font-medium tracking-wide">Library Logbook Management System</p>
       </div>
 
@@ -144,7 +144,7 @@ export default function Login() {
 
       {/* Footer */}
       <div className="mt-8">
-        <p className="text-[10px] text-[#999999]">LibLog v2.0 — Library Management System</p>
+        <p className="text-[10px] text-[#999999]">CCC LIB APP v2.0 — Library Management System</p>
       </div>
 
     </div>

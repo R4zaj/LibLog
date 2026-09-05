@@ -11,16 +11,33 @@ export default function Settings() {
   const profileRef = useRef(null);
   const { isDarkMode, toggleDarkMode } = useTheme();
   const [activeTab, setActiveTab] = useState('manage-users');
-  const [stats, setStats] = useState(null);
-  const [users, setUsers] = useState([]);
-  const [announcements, setAnnouncements] = useState([]);
-  const [courses, setCourses] = useState([]);
+  const getCached = (key, fallback) => {
+    try {
+      const saved = localStorage.getItem(`liblog_cache_settings_${key}`);
+      return saved ? JSON.parse(saved) : fallback;
+    } catch {
+      return fallback;
+    }
+  };
+
+  const setCached = (key, val) => {
+    try {
+      localStorage.setItem(`liblog_cache_settings_${key}`, JSON.stringify(val));
+    } catch (e) {
+      console.warn('Cache error:', e);
+    }
+  };
+
+  const [stats, setStats] = useState(() => getCached('stats', null));
+  const [users, setUsers] = useState(() => getCached('users', []));
+  const [announcements, setAnnouncements] = useState(() => getCached('announcements', []));
+  const [courses, setCourses] = useState(() => getCached('courses', []));
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
   const [newCourse, setNewCourse] = useState({ id: null, code: '', name: '' });
   const [courseToDelete, setCourseToDelete] = useState(null);
   
   // Library Rules State
-  const [rules, setRules] = useState({
+  const [rules, setRules] = useState(() => getCached('rules', {
     library_capacity: 40,
     max_books_per_user: 2,
     borrow_duration_students: 3,
@@ -29,72 +46,112 @@ export default function Settings() {
     suspension_threshold: 100.00,
     damage_fee: 5.00,
     lost_book_fee: 5.00
-  });
+  }));
 
+  const [loadingUsers, setLoadingUsers] = useState(() => !localStorage.getItem('liblog_cache_settings_users'));
   const [saving, setSaving] = useState(false);
   const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
   const [newAnnouncement, setNewAnnouncement] = useState({ title: '', body: '', priority: 'NORMAL', is_active: true });
   const [announcementToDelete, setAnnouncementToDelete] = useState(null);
   const [pendingRoleChanges, setPendingRoleChanges] = useState({});
   const [savingRoles, setSavingRoles] = useState(false);
+
+  const fetchStats = async () => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/settings/stats`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (!data.error) {
+          setStats(data);
+          setCached('stats', data);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const fetchRules = async () => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/settings/library-rules`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.id && !data.error) {
+          setRules(data);
+          setCached('rules', data);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/settings/users`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (!data.error) {
+          setUsers(data);
+          setCached('users', data);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const fetchAnnouncements = async () => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/settings/announcements`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (!data.error) {
+          setAnnouncements(data);
+          setCached('announcements', data);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const fetchCourses = async () => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/settings/programs`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (!data.error) {
+          setCourses(data);
+          setCached('courses', data);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   useEffect(() => {
-    // Fetch stats
-    fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/settings/stats`, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-    })
-      .then(r => r.json())
-      .then(data => {
-        if (!data.error) setStats(data);
-      })
-      .catch(console.error);
-
-    // Fetch initial rules
-    fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/settings/library-rules`, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-    })
-      .then(r => r.json())
-      .then(data => {
-        if(data.id && !data.error) setRules(data);
-      })
-      .catch(console.error);
-
-    fetchUsers();
-    fetchAnnouncements();
-    fetchCourses();
+    Promise.allSettled([
+      fetchStats(),
+      fetchRules(),
+      fetchUsers(),
+      fetchAnnouncements(),
+      fetchCourses()
+    ]);
   }, []);
-
-  const fetchUsers = () => {
-    fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/settings/users`, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-    })
-      .then(r => r.json())
-      .then(data => {
-        if (!data.error) setUsers(data);
-      })
-      .catch(console.error);
-  };
-
-  const fetchAnnouncements = () => {
-    fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/settings/announcements`, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-    })
-      .then(r => r.json())
-      .then(data => {
-        if (!data.error) setAnnouncements(data);
-      })
-      .catch(console.error);
-  };
-
-  const fetchCourses = () => {
-    fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/settings/programs`, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-    })
-      .then(r => r.json())
-      .then(data => {
-        if (!data.error) setCourses(data);
-      })
-      .catch(console.error);
-  };
 
   const handleRuleChange = (e) => {
     const { name, value } = e.target;
@@ -104,11 +161,14 @@ export default function Settings() {
   const saveRules = async () => {
     setSaving(true);
     try {
-      await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/settings/library-rules`, { method: 'PUT', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}`,  'Content-Type': 'application/json'  },
+      await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/settings/library-rules`, { 
+        method: 'PUT', 
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}`,  'Content-Type': 'application/json'  },
         body: JSON.stringify(rules)
       });
+      setCached('rules', rules);
       // Re-fetch stats to update damage/lost fees at top
-      fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/settings/stats`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }).then(r => r.ok ? r.json() : null).then(d => { if (d && !d.error) setStats(d); }).catch(console.error);
+      fetchStats();
     } catch(e) {
       console.error(e);
     }
@@ -140,8 +200,7 @@ export default function Settings() {
         setIsAnnouncementModalOpen(false);
         setNewAnnouncement({ title: '', body: '', priority: 'NORMAL', is_active: true });
         fetchAnnouncements();
-        // Update stats
-        fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/settings/stats`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }).then(r => r.ok ? r.json() : null).then(d => { if (d && !d.error) setStats(d); }).catch(console.error);
+        fetchStats();
       }
     } catch (error) {
       console.error('Error creating announcement:', error);
@@ -160,7 +219,7 @@ export default function Settings() {
       if (res.ok) {
         setAnnouncementToDelete(null);
         fetchAnnouncements();
-        fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/settings/stats`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }).then(r => r.ok ? r.json() : null).then(d => { if (d && !d.error) setStats(d); }).catch(console.error);
+        fetchStats();
       }
     } catch (error) {
       console.error('Error deleting announcement:', error);
@@ -311,7 +370,7 @@ export default function Settings() {
         </div>
 
         {/* Top Stats Dashboard */}
-        {stats && (
+        {stats ? (
           <div className="grid grid-cols-6 gap-4 mb-6">
             <div className="bg-white dark:bg-transparent border border-gray-200 dark:border-dark-border rounded-xl p-4 flex gap-4 items-center shadow-sm">
               <div className="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 flex items-center justify-center"><Users size={20} /></div>
@@ -355,6 +414,18 @@ export default function Settings() {
                 <p className="text-xl font-bold text-gray-800 dark:text-slate-300 leading-none">₱{stats.lostBookFee?.toFixed(2) || '0.00'}</p>
               </div>
             </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-6 gap-4 mb-6">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="bg-white dark:bg-transparent border border-gray-200 dark:border-dark-border rounded-xl p-4 flex gap-4 items-center shadow-sm animate-pulse">
+                <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-dark-hover" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-2 bg-gray-200 dark:bg-dark-hover rounded w-16" />
+                  <div className="h-4 bg-gray-200 dark:bg-dark-hover rounded w-10" />
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
@@ -477,7 +548,24 @@ export default function Settings() {
                       <td className="p-4 text-right font-medium text-gray-700">₱{u.penalty.toFixed(2)}</td>
                     </tr>
                   ))}
-                  {users.length === 0 && <tr><td colSpan="8" className="p-8 text-center text-gray-400 dark:text-slate-500">Loading users...</td></tr>}
+                  {users.length === 0 && (
+                    loadingUsers ? (
+                      <tr>
+                        <td colSpan="8" className="p-8 text-center text-gray-400 dark:text-slate-500">
+                          <div className="flex items-center justify-center gap-2">
+                            <div className="w-4 h-4 border-2 border-primary-600 border-t-transparent rounded-full animate-spin" />
+                            <span>Loading users...</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      <tr>
+                        <td colSpan="8" className="p-8 text-center text-gray-400 dark:text-slate-500">
+                          No users found
+                        </td>
+                      </tr>
+                    )
+                  )}
                 </tbody>
               </table>
             </div>

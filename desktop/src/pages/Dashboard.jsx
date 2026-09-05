@@ -160,10 +160,10 @@ export default function Dashboard() {
 
           <div className="flex flex-col">
             <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-full bg-purple-950 flex items-center justify-center font-bold text-xs text-white">LL</div>
+              <div className="w-8 h-8 rounded-full bg-purple-950 flex items-center justify-center font-bold text-xs text-white">CCC</div>
               <span className="text-white text-sm">Good Evening</span>
             </div>
-            <h2 className="text-3xl font-bold mb-1 tracking-tight">Welcome to LibLog</h2>
+            <h2 className="text-3xl font-bold mb-1 tracking-tight">Welcome to CCC LIB APP</h2>
             <p className="text-purple-200/80 text-sm">Your library management dashboard — everything at a glance.</p>
           </div>
 

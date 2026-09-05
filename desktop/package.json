@@ -14,7 +14,7 @@
   },
   "build": {
     "appId": "com.liblog.desktop",
-    "productName": "LibLog Desktop",
+    "productName": "CCC LIB APP Desktop",
     "directories": {
       "output": "../desktop-release"
     },

@@ -154,7 +154,7 @@ export default function MainLayout() {
             <img src="/CCC_icon.jpg" alt="Logo" className="w-full h-full object-cover" />
           </div>
           <div className="flex flex-col">
-            <span className="font-bold text-lg text-primary-900 dark:text-primary-300 leading-tight">LibLog</span>
+            <span className="font-bold text-lg text-primary-900 dark:text-primary-300 leading-tight">CCC LIB APP</span>
             <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Library System</span>
           </div>
         </div>
