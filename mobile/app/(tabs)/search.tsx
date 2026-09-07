@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { TextInput, TouchableOpacity, Dimensions, Modal } from 'react-native';
-import { Search as SearchIcon, BookOpen, Clock, X } from 'lucide-react-native';
+import { Search as SearchIcon, BookOpen, Clock, X, Heart } from 'lucide-react-native';
 import { YStack, XStack, Text, ScrollView, View } from 'tamagui';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../../api';
+import { useFavorites } from '../../context/FavoritesContext';
 
 const { width } = Dimensions.get('window');
 
 export default function Search() {
+  const { isFavorite, toggleFavorite } = useFavorites();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('All');
   const [books, setBooks] = useState<any[]>([]);
@@ -123,11 +125,22 @@ export default function Search() {
                   By {selectedBook?.author}
                 </Text>
               </YStack>
-              <TouchableOpacity onPress={() => setSelectedBook(null)}>
-                <View backgroundColor="#f4f1fa" padding="$2" borderRadius={12}>
-                  <X color="#6C48C5" size={20} />
-                </View>
-              </TouchableOpacity>
+              <XStack gap="$2" alignItems="center">
+                <TouchableOpacity onPress={() => selectedBook && toggleFavorite(selectedBook)} activeOpacity={0.7}>
+                  <View backgroundColor={selectedBook && isFavorite(selectedBook.id) ? '#fef2f2' : '#f4f1fa'} padding="$2" borderRadius={12}>
+                    <Heart
+                      color={selectedBook && isFavorite(selectedBook.id) ? '#ef4444' : '#6C48C5'}
+                      size={20}
+                      fill={selectedBook && isFavorite(selectedBook.id) ? '#ef4444' : 'none'}
+                    />
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setSelectedBook(null)}>
+                  <View backgroundColor="#f4f1fa" padding="$2" borderRadius={12}>
+                    <X color="#6C48C5" size={20} />
+                  </View>
+                </TouchableOpacity>
+              </XStack>
             </XStack>
 
             <ScrollView maxHeight={300} showsVerticalScrollIndicator={false}>
@@ -328,7 +341,7 @@ export default function Search() {
                         position="absolute"
                         top={8}
                         left={8}
-                        right={8}
+                        right={40}
                         backgroundColor="white"
                         paddingHorizontal="$1.5"
                         paddingVertical={3}
@@ -339,6 +352,27 @@ export default function Search() {
                           {item.type}
                         </Text>
                       </YStack>
+                      <TouchableOpacity
+                        onPress={(e) => {
+                          e.stopPropagation?.();
+                          toggleFavorite(item);
+                        }}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        style={{
+                          position: 'absolute',
+                          top: 8,
+                          right: 8,
+                          backgroundColor: 'rgba(255,255,255,0.9)',
+                          padding: 5,
+                          borderRadius: 10,
+                        }}
+                      >
+                        <Heart
+                          color={isFavorite(item.id) ? '#ef4444' : '#9ca3af'}
+                          size={13}
+                          fill={isFavorite(item.id) ? '#ef4444' : 'none'}
+                        />
+                      </TouchableOpacity>
                     </YStack>
                     <Text fontSize={13} fontWeight="700" color="#1e1e2e" numberOfLines={2} marginBottom={2}>
                       {item.title}
@@ -399,9 +433,25 @@ export default function Search() {
                       <BookOpen color={item.typeColor} size={24} opacity={0.8} />
                     </YStack>
                     <YStack flex={1}>
-                      <Text fontSize={15} fontWeight="600" color="#1e1e2e" marginBottom={3}>
-                        {item.title}
-                      </Text>
+                      <XStack justifyContent="space-between" alignItems="flex-start">
+                        <Text fontSize={15} fontWeight="600" color="#1e1e2e" marginBottom={3} flex={1} marginRight="$2">
+                          {item.title}
+                        </Text>
+                        <TouchableOpacity
+                          onPress={(e) => {
+                            e.stopPropagation?.();
+                            toggleFavorite(item);
+                          }}
+                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                          style={{ padding: 3 }}
+                        >
+                          <Heart
+                            color={isFavorite(item.id) ? '#ef4444' : '#cbd5e1'}
+                            size={18}
+                            fill={isFavorite(item.id) ? '#ef4444' : 'none'}
+                          />
+                        </TouchableOpacity>
+                      </XStack>
                       <Text fontSize={13} color="#7c7c8a" marginBottom="$2">
                         {item.author}
                       </Text>

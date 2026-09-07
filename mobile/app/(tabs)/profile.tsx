@@ -8,11 +8,15 @@ import {
 import QRCode from 'react-native-qrcode-svg';
 import { YStack, XStack, Text, ScrollView, View, Separator } from 'tamagui';
 import api from '../../api';
+import { useFavorites } from '../../context/FavoritesContext';
 
 export default function Profile() {
   const { user, signOut, updateUser } = useAuth();
+  const { favorites, removeFavorite } = useFavorites();
   const router = useRouter();
   const [qrVisible, setQrVisible] = React.useState(false);
+  const [favoritesModalVisible, setFavoritesModalVisible] = React.useState(false);
+  const [selectedFavBook, setSelectedFavBook] = React.useState<any | null>(null);
 
   const handleLogout = async () => {
     try {
@@ -96,7 +100,7 @@ export default function Profile() {
 
   const menuItems = [
     { id: 1, title: 'Edit Profile', sub: 'Update your information', icon: Edit, color: '#6C48C5', bg: '#faf5ff', action: () => setEditProfileVisible(true) },
-    { id: 2, title: 'My Favorites', sub: '0 saved books', icon: Heart, color: '#ef4444', bg: '#fef2f2', action: () => router.push('/search') },
+    { id: 2, title: 'My Favorites', sub: `${favorites.length} Favorite Book${favorites.length === 1 ? '' : 's'}`, icon: Heart, color: '#ef4444', bg: '#fef2f2', action: () => setFavoritesModalVisible(true) },
     { id: 5, title: 'Privacy Policy', sub: 'How we protect your data', icon: Shield, color: '#6C48C5', bg: '#faf5ff', action: () => setInfoModal({ visible: true, title: 'Privacy Policy', content: 'CCC LIB APP values your privacy. We collect only the necessary data to manage your library account securely. We do not sell or share your data with third parties.' }) },
     { id: 6, title: 'Help & Support', sub: 'FAQs and contact info', icon: HelpCircle, color: '#6C48C5', bg: '#faf5ff', action: () => setInfoModal({ visible: true, title: 'Help & Support', content: 'For assistance, please contact the library administration at admin@university.edu or visit the front desk.' }) },
     { id: 7, title: 'About', sub: 'Version 1.0.0', icon: Info, color: '#6C48C5', bg: '#faf5ff', action: () => setInfoModal({ visible: true, title: 'About', content: 'CCC LIB APP Mobile Version 1.0.0\nDeveloped by the CCC Library Team.' }) },
@@ -236,32 +240,6 @@ export default function Profile() {
       </XStack>
 
       <YStack paddingHorizontal="$5" paddingTop="$5">
-        {/* Favorites Card */}
-        <TouchableOpacity onPress={() => router.push('/search')}>
-          <XStack
-            backgroundColor="white"
-            borderRadius={16}
-            padding="$4"
-            marginBottom="$4"
-            borderWidth={1}
-            borderColor="#f0eef5"
-            alignItems="center"
-          >
-            <YStack width={40} height={40} borderRadius={14} backgroundColor="#fef2f2" justifyContent="center" alignItems="center" marginRight="$3">
-              <Heart color="#ef4444" size={18} fill="#ef4444" />
-            </YStack>
-            <YStack flex={1}>
-              <Text fontSize={15} fontWeight="700" color="#1e1e2e" marginBottom={2}>
-                Favorite Books
-              </Text>
-              <Text fontSize={12} color="#9ca3af">
-                0 books saved to your collection
-              </Text>
-            </YStack>
-            <ChevronRight color="#d1d5db" size={20} />
-          </XStack>
-        </TouchableOpacity>
-
         {/* Member Since */}
         <XStack
           backgroundColor="#faf9fe"
@@ -495,6 +473,243 @@ export default function Profile() {
             </Text>
           </YStack>
         </YStack>
+      </Modal>
+
+      {/* ── Favorites Modal ── */}
+      <Modal
+        animationType="slide"
+        transparent
+        visible={favoritesModalVisible}
+        onRequestClose={() => {
+          setSelectedFavBook(null);
+          setFavoritesModalVisible(false);
+        }}
+      >
+        <YStack flex={1} backgroundColor="rgba(0,0,0,0.6)" justifyContent="center" alignItems="center" padding="$4">
+          <YStack width="100%" maxWidth={460} maxHeight="82%" backgroundColor="white" borderRadius={24} padding="$5" elevation={8}>
+            <XStack justifyContent="space-between" alignItems="center" marginBottom="$4">
+              <XStack alignItems="center" gap="$2.5">
+                <YStack width={40} height={40} borderRadius={14} backgroundColor="#fef2f2" justifyContent="center" alignItems="center">
+                  <Heart color="#ef4444" size={20} fill="#ef4444" />
+                </YStack>
+                <YStack>
+                  <Text fontSize={20} fontWeight="800" color="#1e1e2e">Favorite Books</Text>
+                  <Text fontSize={12} color="#7c7c8a">
+                    {favorites.length} {favorites.length === 1 ? 'book' : 'books'} saved in collection
+                  </Text>
+                </YStack>
+              </XStack>
+              <TouchableOpacity
+                onPress={() => {
+                  setSelectedFavBook(null);
+                  setFavoritesModalVisible(false);
+                }}
+              >
+                <View backgroundColor="#f4f1fa" padding="$2" borderRadius={12}>
+                  <X color="#6C48C5" size={20} />
+                </View>
+              </TouchableOpacity>
+            </XStack>
+
+            {favorites.length === 0 ? (
+              <YStack alignItems="center" justifyContent="center" paddingVertical="$8">
+                <YStack width={68} height={68} borderRadius={34} backgroundColor="#fef2f2" justifyContent="center" alignItems="center" marginBottom="$3">
+                  <Heart color="#ef4444" size={32} />
+                </YStack>
+                <Text fontSize={17} fontWeight="700" color="#1e1e2e" marginBottom="$1">
+                  No Favorite Books Yet
+                </Text>
+                <Text fontSize={13} color="#9ca3af" textAlign="center" paddingHorizontal="$4" marginBottom="$5">
+                  Tap the heart icon on any book while browsing to save it to your favorites list.
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setFavoritesModalVisible(false);
+                    router.push('/search');
+                  }}
+                  style={{
+                    backgroundColor: '#6C48C5',
+                    paddingHorizontal: 20,
+                    paddingVertical: 10,
+                    borderRadius: 12,
+                  }}
+                >
+                  <Text color="white" fontSize={14} fontWeight="700">Explore Catalog</Text>
+                </TouchableOpacity>
+              </YStack>
+            ) : (
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <YStack gap="$2.5" paddingBottom="$4">
+                  {favorites.map((book) => (
+                    <TouchableOpacity
+                      key={book.id}
+                      onPress={() => setSelectedFavBook(book)}
+                      activeOpacity={0.7}
+                    >
+                      <XStack
+                        backgroundColor="#faf9fe"
+                        borderRadius={16}
+                        padding="$3"
+                        alignItems="center"
+                        borderWidth={1}
+                        borderColor="#f0eef5"
+                      >
+                        <YStack
+                          width={48}
+                          height={48}
+                          borderRadius={12}
+                          backgroundColor="#ede9fe"
+                          justifyContent="center"
+                          alignItems="center"
+                          marginRight="$3"
+                        >
+                          <BookOpen color="#6C48C5" size={22} />
+                        </YStack>
+                        <YStack flex={1} marginRight="$2">
+                          <Text fontSize={14} fontWeight="700" color="#1e1e2e" numberOfLines={1}>
+                            {book.title}
+                          </Text>
+                          <Text fontSize={12} color="#7c7c8a" numberOfLines={1} marginBottom={2}>
+                            {book.author}
+                          </Text>
+                          <XStack alignItems="center" gap="$2">
+                            <YStack backgroundColor="rgba(108, 72, 197, 0.1)" paddingHorizontal="$1.5" paddingVertical={2} borderRadius={6}>
+                              <Text fontSize={10} fontWeight="700" color="#6C48C5">
+                                {book.genre || book.type || 'Book'}
+                              </Text>
+                            </YStack>
+                            <Text fontSize={10} fontWeight="600" color={book.available && book.available > 0 ? '#10b981' : '#ef4444'}>
+                              {book.available && book.available > 0 ? `${book.available} available` : 'Out of stock'}
+                            </Text>
+                          </XStack>
+                        </YStack>
+                        <TouchableOpacity
+                          onPress={() => removeFavorite(book.id)}
+                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                          style={{
+                            padding: 8,
+                            borderRadius: 10,
+                            backgroundColor: '#fef2f2',
+                          }}
+                        >
+                          <Heart color="#ef4444" size={18} fill="#ef4444" />
+                        </TouchableOpacity>
+                      </XStack>
+                    </TouchableOpacity>
+                  ))}
+                </YStack>
+              </ScrollView>
+            )}
+          </YStack>
+        </YStack>
+      </Modal>
+
+      {/* ── Favorite Book Detail Sub-Modal ── */}
+      <Modal
+        animationType="fade"
+        transparent
+        visible={!!selectedFavBook}
+        onRequestClose={() => setSelectedFavBook(null)}
+      >
+        <View flex={1} backgroundColor="rgba(0,0,0,0.6)" justifyContent="center" alignItems="center" padding="$4">
+          <YStack backgroundColor="white" width="100%" maxWidth={400} borderRadius={24} padding="$5" elevation={8}>
+            <XStack justifyContent="space-between" alignItems="flex-start" marginBottom="$4">
+              <YStack flex={1} marginRight="$3">
+                <Text fontSize={18} fontWeight="800" color="#1e1e2e" marginBottom="$1">
+                  {selectedFavBook?.title}
+                </Text>
+                <Text fontSize={13} color="#7c7c8a">
+                  By {selectedFavBook?.author}
+                </Text>
+              </YStack>
+              <TouchableOpacity onPress={() => setSelectedFavBook(null)}>
+                <View backgroundColor="#f4f1fa" padding="$2" borderRadius={12}>
+                  <X color="#6C48C5" size={20} />
+                </View>
+              </TouchableOpacity>
+            </XStack>
+
+            <ScrollView maxHeight={280} showsVerticalScrollIndicator={false}>
+              <YStack gap="$2.5" marginBottom="$4">
+                <XStack justifyContent="space-between">
+                  <Text fontSize={13} color="#7c7c8a">Genre</Text>
+                  <Text fontSize={13} fontWeight="600" color="#1e1e2e">{selectedFavBook?.genre || selectedFavBook?.type || 'N/A'}</Text>
+                </XStack>
+                {selectedFavBook?.shelf ? (
+                  <XStack justifyContent="space-between">
+                    <Text fontSize={13} color="#7c7c8a">Shelf</Text>
+                    <Text fontSize={13} fontWeight="600" color="#1e1e2e">{selectedFavBook?.shelf}</Text>
+                  </XStack>
+                ) : null}
+                <XStack justifyContent="space-between">
+                  <Text fontSize={13} color="#7c7c8a">Condition</Text>
+                  <Text fontSize={13} fontWeight="600" color={selectedFavBook?.condition === 'POOR' ? '#ef4444' : '#22c55e'}>{selectedFavBook?.condition || 'GOOD'}</Text>
+                </XStack>
+                <XStack justifyContent="space-between">
+                  <Text fontSize={13} color="#7c7c8a">Availability</Text>
+                  <Text fontSize={13} fontWeight="600" color={selectedFavBook?.available > 0 ? '#22c55e' : '#ef4444'}>
+                    {selectedFavBook?.available ?? 'N/A'} {selectedFavBook?.total ? `/ ${selectedFavBook.total}` : ''}
+                  </Text>
+                </XStack>
+                {selectedFavBook?.year ? (
+                  <XStack justifyContent="space-between">
+                    <Text fontSize={13} color="#7c7c8a">Year</Text>
+                    <Text fontSize={13} fontWeight="600" color="#1e1e2e">{selectedFavBook?.year}</Text>
+                  </XStack>
+                ) : null}
+                {selectedFavBook?.isbn ? (
+                  <XStack justifyContent="space-between">
+                    <Text fontSize={13} color="#7c7c8a">ISBN</Text>
+                    <Text fontSize={13} fontWeight="600" color="#1e1e2e">{selectedFavBook?.isbn}</Text>
+                  </XStack>
+                ) : null}
+                {selectedFavBook?.lccn ? (
+                  <XStack justifyContent="space-between">
+                    <Text fontSize={13} color="#7c7c8a">Call No. / LCCN</Text>
+                    <Text fontSize={13} fontWeight="600" color="#1e1e2e">{selectedFavBook?.lccn}</Text>
+                  </XStack>
+                ) : null}
+              </YStack>
+            </ScrollView>
+
+            <XStack gap="$2" marginTop="$2">
+              <TouchableOpacity
+                onPress={() => {
+                  const toRemoveId = selectedFavBook?.id;
+                  setSelectedFavBook(null);
+                  if (toRemoveId) removeFavorite(toRemoveId);
+                }}
+                style={{
+                  flex: 1,
+                  backgroundColor: '#fef2f2',
+                  paddingVertical: 12,
+                  borderRadius: 12,
+                  alignItems: 'center',
+                  borderWidth: 1,
+                  borderColor: '#fee2e2',
+                }}
+              >
+                <Text color="#ef4444" fontSize={13} fontWeight="700">Remove</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  setSelectedFavBook(null);
+                  setFavoritesModalVisible(false);
+                  router.push('/search');
+                }}
+                style={{
+                  flex: 1,
+                  backgroundColor: '#6C48C5',
+                  paddingVertical: 12,
+                  borderRadius: 12,
+                  alignItems: 'center',
+                }}
+              >
+                <Text color="white" fontSize={13} fontWeight="700">Find in Catalog</Text>
+              </TouchableOpacity>
+            </XStack>
+          </YStack>
+        </View>
       </Modal>
     </ScrollView>
   );

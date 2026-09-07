@@ -3,8 +3,9 @@ import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, TouchableW
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
-import { Bell, Settings, Flame, ArrowRight, ScanLine, BookOpen, Bookmark, Calendar, ChevronRight, TrendingUp, Megaphone, Star, Users, Check, X, Activity, ArrowRightLeft, DollarSign, ExternalLink, AlertCircle } from 'lucide-react-native';
+import { Bell, Settings, Flame, ArrowRight, ScanLine, BookOpen, Bookmark, Calendar, ChevronRight, TrendingUp, Megaphone, Star, Users, Check, X, Activity, ArrowRightLeft, DollarSign, ExternalLink, AlertCircle, Heart } from 'lucide-react-native';
 import api from '../../api';
+import { useFavorites } from '../../context/FavoritesContext';
 
 const { width, height } = Dimensions.get('window');
 
@@ -21,6 +22,7 @@ function formatTimeAgo(dateString: string) {
 
 export default function Home() {
   const { user } = useAuth();
+  const { isFavorite, toggleFavorite } = useFavorites();
   const router = useRouter();
   const [insideNow, setInsideNow] = useState<number | null>(null);
   const [announcements, setAnnouncements] = useState<any[]>([]);
@@ -189,9 +191,22 @@ export default function Home() {
               <BookOpen color="#fff" size={40} opacity={0.6} />
             </View>
             <View style={styles.highlightContent}>
-              <View style={styles.featuredTag}>
-                <Star color="#fbbf24" size={12} fill="#fbbf24" />
-                <Text style={styles.featuredTagText}>Featured Pick</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <View style={styles.featuredTag}>
+                  <Star color="#fbbf24" size={12} fill="#fbbf24" />
+                  <Text style={styles.featuredTagText}>Featured Pick</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => toggleFavorite(books[0])}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  style={{ padding: 4 }}
+                >
+                  <Heart
+                    color={isFavorite(books[0].id) ? '#ef4444' : 'rgba(255,255,255,0.7)'}
+                    size={20}
+                    fill={isFavorite(books[0].id) ? '#ef4444' : 'none'}
+                  />
+                </TouchableOpacity>
               </View>
               <Text style={styles.highlightBookTitle} numberOfLines={2}>{books[0].title}</Text>
               <Text style={styles.highlightBookAuthor} numberOfLines={1}>{books[0].author}</Text>
@@ -346,6 +361,25 @@ export default function Home() {
                     <View style={styles.recTypeTag}><Text style={styles.recTypeText}>{book.genre || 'Book'}</Text></View>
                     <View style={styles.forYouTag}><Star color="#fff" size={10} fill="#fff" /><Text style={styles.forYouText}> For You</Text></View>
                   </View>
+                  <TouchableOpacity
+                    onPress={() => toggleFavorite(book)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    style={{
+                      position: 'absolute',
+                      bottom: 10,
+                      right: 10,
+                      backgroundColor: 'rgba(255,255,255,0.9)',
+                      padding: 6,
+                      borderRadius: 14,
+                      zIndex: 2,
+                    }}
+                  >
+                    <Heart
+                      color={isFavorite(book.id) ? '#ef4444' : '#9ca3af'}
+                      size={15}
+                      fill={isFavorite(book.id) ? '#ef4444' : 'none'}
+                    />
+                  </TouchableOpacity>
                   <BookOpen color="#fff" size={40} opacity={0.6} />
                 </View>
                 <Text style={styles.recAvail}>
@@ -378,6 +412,17 @@ export default function Home() {
                   <Text style={styles.trendingTitle} numberOfLines={1}>{book.title}</Text>
                   <Text style={styles.trendingAuthor} numberOfLines={1}>{book.author}</Text>
                 </View>
+                <TouchableOpacity
+                  onPress={() => toggleFavorite(book)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  style={{ padding: 6, marginRight: 4 }}
+                >
+                  <Heart
+                    color={isFavorite(book.id) ? '#ef4444' : '#cbd5e1'}
+                    size={18}
+                    fill={isFavorite(book.id) ? '#ef4444' : 'none'}
+                  />
+                </TouchableOpacity>
                 <View style={styles.trendingCount}>
                   <Text style={styles.countText}>⏱ {book.total} copies</Text>
                 </View>
