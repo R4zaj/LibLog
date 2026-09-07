@@ -101,18 +101,24 @@ export default function SignIn() {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity 
-            style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}
-            onPress={() => setRememberMe(!rememberMe)}
-            activeOpacity={0.7}
-          >
-            {rememberMe ? (
-              <CheckSquare color="#6C48C5" size={20} />
-            ) : (
-              <Square color="#9ca3af" size={20} />
-            )}
-            <Text style={{ marginLeft: 8, color: '#374151', fontSize: 14 }}>Remember Me</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <TouchableOpacity 
+              style={{ flexDirection: 'row', alignItems: 'center' }}
+              onPress={() => setRememberMe(!rememberMe)}
+              activeOpacity={0.7}
+            >
+              {rememberMe ? (
+                <CheckSquare color="#6C48C5" size={20} />
+              ) : (
+                <Square color="#9ca3af" size={20} />
+              )}
+              <Text style={{ marginLeft: 8, color: '#374151', fontSize: 14 }}>Remember Me</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => router.push('/(auth)/forgot-password')}>
+              <Text style={{ color: '#6C48C5', fontSize: 14, fontWeight: '600' }}>Forgot Password?</Text>
+            </TouchableOpacity>
+          </View>
 
           <TouchableOpacity style={styles.button} onPress={handleLogin}>
             <Text style={styles.buttonText}>Sign In</Text>
