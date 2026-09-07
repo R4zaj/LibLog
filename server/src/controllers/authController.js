@@ -6,18 +6,46 @@ const otpStore = new Map(); // Store OTPs in memory: { email: { otp, expiresAt }
 
 const requestOtp = async (req, res) => {
   try {
-    const { email } = req.body;
-    if (!email) return res.status(400).json({ error: 'Email is required' });
+    const { email, identifier, type } = req.body;
+    const lookupKey = (email || identifier || '').trim();
+    if (!lookupKey) return res.status(400).json({ error: 'Email or Library ID is required' });
 
-    // Check if user already exists
-    const existingUser = await prisma.user.findFirst({ where: { email } });
-    if (existingUser) return res.status(400).json({ error: 'User with this email already exists.' });
+    let targetEmail = lookupKey;
+    let subject = 'CCC LIB APP - Verification Code';
+
+    if (type === 'reset') {
+      const user = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { email: { equals: lookupKey, mode: 'insensitive' } },
+            { student_id: lookupKey }
+          ]
+        }
+      });
+      if (!user) {
+        return res.status(404).json({ error: 'No account found with this Email or Library ID.' });
+      }
+      targetEmail = user.email;
+      subject = 'CCC LIB APP - Password Reset Code';
+    } else {
+      // Check if user already exists for registration
+      const existingUser = await prisma.user.findFirst({ where: { email: lookupKey } });
+      if (existingUser) return res.status(400).json({ error: 'User with this email already exists.' });
+    }
 
     // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
 
-    otpStore.set(email, { otp, expiresAt });
+    otpStore.set(targetEmail.toLowerCase(), { otp, expiresAt });
+
+    const textContent = type === 'reset'
+      ? `Your password reset code is: ${otp}\n\nThis code will expire in 10 minutes.\nIf you did not request this, please ignore this email.`
+      : `Your verification code is: ${otp}\n\nThis code will expire in 10 minutes.`;
+
+    const htmlContent = type === 'reset'
+      ? `<p>Your password reset code is: <strong>${otp}</strong></p><p>This code will expire in 10 minutes.</p><p>If you did not request a password reset, please ignore this email.</p>`
+      : `<p>Your verification code is: <strong>${otp}</strong></p><p>This code will expire in 10 minutes.</p>`;
 
     // Send Email via HTTP API (Bypasses Render SMTP Block)
     if (process.env.SENDGRID_API_KEY) {
@@ -28,10 +56,10 @@ const requestOtp = async (req, res) => {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          personalizations: [{ to: [{ email: email }] }],
-          from: { email: process.env.SENDER_EMAIL || 'noreply@liblog.com', name: 'LibLog' },
-          subject: 'LibLog - Your Verification Code',
-          content: [{ type: 'text/plain', value: `Your verification code is: ${otp}\n\nThis code will expire in 10 minutes.` }]
+          personalizations: [{ to: [{ email: targetEmail }] }],
+          from: { email: process.env.SENDER_EMAIL || 'noreply@liblog.com', name: 'CCC LIB APP' },
+          subject: subject,
+          content: [{ type: 'text/plain', value: textContent }]
         })
       });
       if (!response.ok) throw new Error(`SendGrid API error: ${await response.text()}`);
@@ -44,22 +72,81 @@ const requestOtp = async (req, res) => {
           'content-type': 'application/json'
         },
         body: JSON.stringify({
-          sender: { name: 'LibLog', email: process.env.SENDER_EMAIL || 'noreply@liblog.com' },
-          to: [{ email: email }],
-          subject: 'LibLog - Your Verification Code',
-          htmlContent: `<p>Your verification code is: <strong>${otp}</strong></p><p>This code will expire in 10 minutes.</p>`
+          sender: { name: 'CCC LIB APP', email: process.env.SENDER_EMAIL || 'noreply@liblog.com' },
+          to: [{ email: targetEmail }],
+          subject: subject,
+          htmlContent: htmlContent
         })
       });
       if (!response.ok) throw new Error(`Brevo API error: ${await response.text()}`);
     } else {
       console.warn('No EMAIL API key set (SENDGRID_API_KEY or BREVO_API_KEY). Logging OTP to console instead:', otp);
-      return res.json({ message: 'OTP generated (check console since email API is not configured)' });
+      const maskedEmail = targetEmail.replace(/(.{2})(.*)(?=@)/, (_, a, b) => a + '*'.repeat(Math.max(1, b.length)));
+      return res.json({ 
+        message: 'Verification code generated (check console since email API is not configured)',
+        email: targetEmail,
+        maskedEmail
+      });
     }
 
-    res.json({ message: 'OTP sent successfully to ' + email });
+    const maskedEmail = targetEmail.replace(/(.{2})(.*)(?=@)/, (_, a, b) => a + '*'.repeat(Math.max(1, b.length)));
+    res.json({ message: 'Verification code sent successfully.', email: targetEmail, maskedEmail });
   } catch (error) {
     console.error('OTP request error:', error);
-    res.status(500).json({ error: 'Failed to send OTP email.' });
+    res.status(500).json({ error: 'Failed to send verification code email.' });
+  }
+};
+
+const resetPassword = async (req, res) => {
+  try {
+    const { email, otp, new_password } = req.body;
+    if (!email || !otp || !new_password) {
+      return res.status(400).json({ error: 'Email, verification code, and new password are required.' });
+    }
+
+    if (new_password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters long.' });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const user = await prisma.user.findFirst({
+      where: { email: { equals: cleanEmail, mode: 'insensitive' } }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    // Verify OTP
+    const stored = otpStore.get(cleanEmail);
+    if (!stored) {
+      return res.status(400).json({ error: 'No verification code requested for this email or it has expired.' });
+    }
+
+    if (stored.otp !== otp.trim()) {
+      return res.status(400).json({ error: 'Invalid verification code.' });
+    }
+
+    if (Date.now() > stored.expiresAt) {
+      otpStore.delete(cleanEmail);
+      return res.status(400).json({ error: 'Verification code has expired. Please request a new one.' });
+    }
+
+    otpStore.delete(cleanEmail); // consume OTP
+
+    // Hash new password
+    const salt = await bcrypt.genSalt(12);
+    const password_hash = await bcrypt.hash(new_password, salt);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { password_hash }
+    });
+
+    res.json({ message: 'Password has been reset successfully. You can now log in.' });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ error: 'Server error during password reset.' });
   }
 };
 
@@ -331,4 +418,4 @@ const getQrToken = async (req, res) => {
   }
 };
 
-module.exports = { register, login, getMe, updateProfile, getQrToken, requestOtp };
+module.exports = { register, login, getMe, updateProfile, getQrToken, requestOtp, resetPassword };
