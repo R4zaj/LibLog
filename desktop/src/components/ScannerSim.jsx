@@ -2,8 +2,10 @@ import { useState, useRef, useEffect, useContext } from 'react';
 import { Maximize, Camera, Printer, ArrowRightLeft, CameraOff } from 'lucide-react';
 import { AttendanceScannerContext } from '../context/AttendanceScannerContext';
 import { BorrowingContext } from '../context/BorrowingContext';
+import { useCameraMirror } from '../hooks/useCameraMirror';
 
 export function ZxingScanner({ onScan, deviceId }) {
+  const { isMirrored } = useCameraMirror();
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const scanTimerRef = useRef(null);
@@ -177,7 +179,14 @@ export function ZxingScanner({ onScan, deviceId }) {
 
   return (
     <div className="relative w-full h-full flex items-center justify-center bg-black overflow-hidden">
-      <video ref={videoRef} className="w-full h-auto object-cover max-h-96" autoPlay playsInline muted />
+      <video
+        ref={videoRef}
+        className="w-full h-auto object-cover max-h-96"
+        style={{ transform: isMirrored ? 'scaleX(-1)' : 'none' }}
+        autoPlay
+        playsInline
+        muted
+      />
       {showCheck && (
         <div className="absolute inset-0 bg-green-500/20 backdrop-blur-sm flex items-center justify-center transition-all z-10">
           <div className="bg-white dark:bg-dark-card rounded-full p-4 shadow-2xl animate-pulse">
@@ -212,6 +221,7 @@ export default function ScannerSim({
   const [localIsScanning, setLocalIsScanning] = useState(false);
   const [devices, setDevices] = useState([]);
   const [localSelectedDevice, setLocalSelectedDevice] = useState('');
+  const { isMirrored, toggleMirror } = useCameraMirror();
 
   const isScanning = isGlobalScanner ? globalIsScanning : localIsScanning;
   const selectedDevice = isGlobalScanner ? globalSelectedDevice : localSelectedDevice;
@@ -298,13 +308,24 @@ export default function ScannerSim({
             </span>
           </div>
           
-          <div className={`w-full overflow-hidden rounded bg-gray-50 dark:bg-transparent border border-gray-200 dark:border-dark-border ${!isScanning ? 'h-64 flex flex-col items-center justify-center text-primary-600 dark:text-primary-400 gap-3' : 'bg-black flex items-center justify-center min-h-[16rem]'}`}>
+          <div className={`w-full overflow-hidden rounded bg-gray-50 dark:bg-transparent border border-gray-200 dark:border-dark-border relative ${!isScanning ? 'h-64 flex flex-col items-center justify-center text-primary-600 dark:text-primary-400 gap-3' : 'bg-black flex items-center justify-center min-h-[16rem]'}`}>
             {isScanning ? (
-              isGlobalScanner ? (
-                <div ref={(el) => setPortalTarget && setPortalTarget(el)} className="w-full h-full min-h-[16rem] bg-black overflow-hidden relative"></div>
-              ) : (
-                <ZxingScanner key={selectedDevice || 'default'} onScan={handleScanSuccess} deviceId={selectedDevice} />
-              )
+              <>
+                {isGlobalScanner ? (
+                  <div ref={(el) => setPortalTarget && setPortalTarget(el)} className="w-full h-full min-h-[16rem] bg-black overflow-hidden relative"></div>
+                ) : (
+                  <ZxingScanner key={selectedDevice || 'default'} onScan={handleScanSuccess} deviceId={selectedDevice} />
+                )}
+                <button
+                  type="button"
+                  onClick={toggleMirror}
+                  title={isMirrored ? "Camera preview is mirrored (click to unmirror)" : "Camera preview is normal (click to mirror)"}
+                  className="absolute top-2 right-2 z-20 bg-black/60 hover:bg-black/80 text-white px-2.5 py-1 rounded-md text-xs backdrop-blur-sm transition-opacity opacity-80 hover:opacity-100 flex items-center gap-1.5 shadow"
+                >
+                  <ArrowRightLeft size={12} />
+                  <span>{isMirrored ? 'Mirrored' : 'Normal'}</span>
+                </button>
+              </>
             ) : (
               <>
                 <div className="w-12 h-12 bg-white dark:bg-transparent border border-transparent dark:border-primary-800 rounded-full flex items-center justify-center shadow-sm">
@@ -322,9 +343,24 @@ export default function ScannerSim({
               <Camera size={16} /> Start Scanner
             </button>
           ) : (
-            <button onClick={stopScanner} className="self-start px-4 py-2 bg-red-600 text-white text-sm font-medium rounded shadow-sm hover:bg-red-700 flex items-center gap-2 transition-colors">
-              <CameraOff size={16} /> Stop Scanner
-            </button>
+            <>
+              <button onClick={stopScanner} className="self-start px-4 py-2 bg-red-600 text-white text-sm font-medium rounded shadow-sm hover:bg-red-700 flex items-center gap-2 transition-colors">
+                <CameraOff size={16} /> Stop Scanner
+              </button>
+              <button
+                type="button"
+                onClick={toggleMirror}
+                title={isMirrored ? "Camera preview is mirrored (click to unmirror)" : "Camera preview is normal (click to mirror)"}
+                className={`self-start px-3 py-2 border rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                  isMirrored
+                    ? 'bg-primary-50 dark:bg-primary-900/30 border-primary-200 dark:border-primary-800 text-primary-700 dark:text-primary-300'
+                    : 'bg-white dark:bg-dark-card border-gray-300 dark:border-dark-border text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-dark-hover'
+                }`}
+              >
+                <ArrowRightLeft size={14} />
+                <span>{isMirrored ? 'Mirrored' : 'Normal'}</span>
+              </button>
+            </>
           )}
           
           {devices.length > 0 && (

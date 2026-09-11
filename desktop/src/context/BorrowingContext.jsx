@@ -3,18 +3,32 @@ import { useLocation } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { BookUp, X } from 'lucide-react';
 
+import { useCameraMirror } from '../hooks/useCameraMirror';
+
 export const BorrowingContext = createContext(null);
 
-// Simple video mirror - just displays an existing MediaStream
+// Simple video mirror - displays an existing MediaStream with mirror transform
 function StreamVideo({ stream, className }) {
   const videoRef = useRef(null);
+  const { isMirrored } = useCameraMirror();
+
   useEffect(() => {
     if (videoRef.current) {
       videoRef.current.srcObject = stream || null;
       if (stream) videoRef.current.play().catch(() => {});
     }
   }, [stream]);
-  return <video ref={videoRef} className={className} autoPlay playsInline muted />;
+
+  return (
+    <video
+      ref={videoRef}
+      className={className}
+      style={{ transform: isMirrored ? 'scaleX(-1)' : 'none' }}
+      autoPlay
+      playsInline
+      muted
+    />
+  );
 }
 
 export function BorrowingProvider({ children }) {

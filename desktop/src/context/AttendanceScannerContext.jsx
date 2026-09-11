@@ -4,18 +4,32 @@ import { createPortal } from 'react-dom';
 import { Camera, CameraOff, LogIn, LogOut, X, AlertCircle } from 'lucide-react';
 import { useOfflineApi } from '../hooks/useOfflineApi';
 
+import { useCameraMirror } from '../hooks/useCameraMirror';
+
 export const AttendanceScannerContext = createContext();
 
-// Simple video mirror - just displays an existing MediaStream
+// Simple video mirror - displays an existing MediaStream with mirror transform
 function StreamVideo({ stream, className }) {
   const videoRef = useRef(null);
+  const { isMirrored } = useCameraMirror();
+
   useEffect(() => {
     if (videoRef.current) {
       videoRef.current.srcObject = stream || null;
       if (stream) videoRef.current.play().catch(() => {});
     }
   }, [stream]);
-  return <video ref={videoRef} className={className} autoPlay playsInline muted />;
+
+  return (
+    <video
+      ref={videoRef}
+      className={className}
+      style={{ transform: isMirrored ? 'scaleX(-1)' : 'none' }}
+      autoPlay
+      playsInline
+      muted
+    />
+  );
 }
 
 export function AttendanceScannerProvider({ children }) {
