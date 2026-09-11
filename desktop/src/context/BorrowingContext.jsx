@@ -3,14 +3,11 @@ import { useLocation } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { BookUp, X } from 'lucide-react';
 
-import { useCameraMirror } from '../hooks/useCameraMirror';
-
 export const BorrowingContext = createContext(null);
 
 // Simple video mirror - displays an existing MediaStream with mirror transform
 function StreamVideo({ stream, className }) {
   const videoRef = useRef(null);
-  const { isMirrored } = useCameraMirror();
 
   useEffect(() => {
     if (videoRef.current) {
@@ -23,7 +20,7 @@ function StreamVideo({ stream, className }) {
     <video
       ref={videoRef}
       className={className}
-      style={{ transform: isMirrored ? 'scaleX(-1)' : 'none' }}
+      style={{ transform: 'scaleX(-1)' }}
       autoPlay
       playsInline
       muted

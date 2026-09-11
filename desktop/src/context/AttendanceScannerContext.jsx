@@ -4,14 +4,11 @@ import { createPortal } from 'react-dom';
 import { Camera, CameraOff, LogIn, LogOut, X, AlertCircle } from 'lucide-react';
 import { useOfflineApi } from '../hooks/useOfflineApi';
 
-import { useCameraMirror } from '../hooks/useCameraMirror';
-
 export const AttendanceScannerContext = createContext();
 
 // Simple video mirror - displays an existing MediaStream with mirror transform
 function StreamVideo({ stream, className }) {
   const videoRef = useRef(null);
-  const { isMirrored } = useCameraMirror();
 
   useEffect(() => {
     if (videoRef.current) {
@@ -24,7 +21,7 @@ function StreamVideo({ stream, className }) {
     <video
       ref={videoRef}
       className={className}
-      style={{ transform: isMirrored ? 'scaleX(-1)' : 'none' }}
+      style={{ transform: 'scaleX(-1)' }}
       autoPlay
       playsInline
       muted
