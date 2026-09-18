@@ -1,11 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, TouchableWithoutFeedback, Dimensions, Alert, Modal, Animated, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
-import { Bell, Settings, Flame, ArrowRight, ScanLine, BookOpen, Bookmark, Calendar, ChevronRight, TrendingUp, Megaphone, Star, Users, Check, X, Activity, ArrowRightLeft, DollarSign, ExternalLink, AlertCircle, Heart } from 'lucide-react-native';
+import { Bell, Settings, Flame, ArrowRight, ScanLine, BookOpen, Bookmark, Calendar, ChevronRight, Clock, TrendingUp, Megaphone, Star, Users, Check, X, Activity, ArrowRightLeft, DollarSign, ExternalLink, AlertCircle, Heart } from 'lucide-react-native';
 import api from '../../api';
 import { useFavorites } from '../../context/FavoritesContext';
+import type {
+  Announcement,
+  DashboardNotification,
+  BorrowRecordWithBook,
+  ActiveAttendanceUser,
+  LiteratureBook,
+  AttendanceStats,
+} from '../../types/api';
 
 const { width, height } = Dimensions.get('window');
 
@@ -25,81 +33,99 @@ export default function Home() {
   const { isFavorite, toggleFavorite } = useFavorites();
   const router = useRouter();
   const [insideNow, setInsideNow] = useState<number | null>(null);
-  const [announcements, setAnnouncements] = useState<any[]>([]);
-  const [activeBorrows, setActiveBorrows] = useState<any[]>([]);
-  const [activeUsers, setActiveUsers] = useState<any[]>([]);
-  const [books, setBooks] = useState<any[]>([]);
+  const [announcements, setAnnouncements] = useState<DashboardNotification[]>([]);
+  const [activeBorrows, setActiveBorrows] = useState<BorrowRecordWithBook[]>([]);
+  const [activeUsers, setActiveUsers] = useState<ActiveAttendanceUser[]>([]);
+  const [books, setBooks] = useState<LiteratureBook[]>([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
-    let isMounted = true;
-    const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
+    if (!user?.id) return; // don't hit authenticated-adjacent endpoints before login resolves
+
+    // Each source degrades to an empty fallback on its own failure (so one broken
+    // endpoint doesn't blank the whole dashboard), but `hadError` still records that
+    // it happened — otherwise a fully-down backend and a brand-new empty account
+    // render identically, with no signal that anything actually failed.
+    let hadError = false;
+    const safeGet = async <T,>(promise: Promise<{ data: T }>, fallback: T): Promise<{ data: T }> => {
       try {
-        const [statsRes, annRes, borrowRes, usersRes, booksRes] = await Promise.all([
-          api.get('/attendance/stats').catch(() => ({ data: { insideNow: 0 } })),
-          api.get('/announcements/active').catch(() => ({ data: [] })),
-          user?.id ? api.get(`/borrowing/user/${user.id}`).catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
-          api.get('/attendance/active').catch(() => ({ data: [] })),
-          api.get('/literatures/books').catch(() => ({ data: [] }))
-        ]);
-        
-        if (isMounted) {
-          setInsideNow(statsRes.data.insideNow);
-          setActiveBorrows(borrowRes.data);
-          setActiveUsers(usersRes.data);
-          setBooks(booksRes.data);
-          
-          const rawAnnouncements = annRes.data || [];
-          const rawBorrows = borrowRes.data || [];
-          const now = new Date();
-          const overdueNotifications = rawBorrows
-            .filter((b: any) => b.status === 'OVERDUE' || (b.status === 'BORROWED' && new Date(b.due_date) < now))
-            .map((b: any) => {
-              const daysOverdue = Math.abs(Math.ceil((new Date(b.due_date).getTime() - now.getTime()) / (1000 * 3600 * 24)));
-              return {
-                id: `overdue-${b.id}`,
-                title: 'Book Overdue',
-                body: `"${b.book?.title}" is ${daysOverdue} day${daysOverdue !== 1 ? 's' : ''} overdue. Please return it immediately.`,
-                created_at: b.due_date,
-                is_overdue: true
-              };
-            });
-            
-          setAnnouncements([...overdueNotifications, ...rawAnnouncements]);
-          
-          if (isLoading) {
-             setIsLoading(false);
-             Animated.timing(fadeAnim, {
-               toValue: 1,
-               duration: 600,
-               useNativeDriver: true,
-             }).start();
-          }
-        }
-      } catch (err) {
-        console.error('Failed to fetch dashboard data', err);
-        if (isMounted && isLoading) {
-           setIsLoading(false);
-           Animated.timing(fadeAnim, {
-             toValue: 1,
-             duration: 600,
-             useNativeDriver: true,
-           }).start();
-        }
+        return await promise;
+      } catch (e) {
+        hadError = true;
+        return { data: fallback };
       }
     };
-    fetchDashboardData();
-    
-    const interval = setInterval(fetchDashboardData, 30000); // refresh every 30s
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
+
+    try {
+      const [statsRes, annRes, borrowRes, usersRes, booksRes] = await Promise.all([
+        safeGet<Partial<AttendanceStats>>(api.get<AttendanceStats>('/attendance/stats'), { insideNow: 0 }),
+        safeGet<Announcement[]>(api.get<Announcement[]>('/announcements/active'), []),
+        user?.id
+          ? safeGet<BorrowRecordWithBook[]>(api.get<BorrowRecordWithBook[]>(`/borrowing/user/${user.id}`), [])
+          : Promise.resolve({ data: [] as BorrowRecordWithBook[] }),
+        safeGet<ActiveAttendanceUser[]>(api.get<ActiveAttendanceUser[]>('/attendance/active'), []),
+        safeGet<LiteratureBook[]>(api.get<LiteratureBook[]>('/literatures/books'), []),
+      ]);
+
+      setInsideNow(statsRes.data.insideNow ?? 0);
+      setActiveBorrows(borrowRes.data);
+      setActiveUsers(usersRes.data);
+      setBooks(booksRes.data);
+
+      const rawAnnouncements = annRes.data || [];
+      const rawBorrows = borrowRes.data || [];
+      const now = new Date();
+      const overdueNotifications: DashboardNotification[] = rawBorrows
+        .filter((b) => b.status === 'OVERDUE' || (b.status === 'BORROWED' && new Date(b.due_date) < now))
+        .map((b) => {
+          const daysOverdue = Math.abs(Math.ceil((new Date(b.due_date).getTime() - now.getTime()) / (1000 * 3600 * 24)));
+          return {
+            id: `overdue-${b.id}`,
+            title: 'Book Overdue',
+            body: `"${b.book?.title}" is ${daysOverdue} day${daysOverdue !== 1 ? 's' : ''} overdue. Please return it immediately.`,
+            created_at: b.due_date,
+            is_overdue: true,
+          };
+        });
+
+      setAnnouncements([...overdueNotifications, ...rawAnnouncements]);
+      setFetchError(hadError);
+    } catch (err) {
+      console.error('Failed to fetch dashboard data', err);
+      setFetchError(true);
+    } finally {
+      setIsLoading((prev) => {
+        if (prev) {
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 600,
+            useNativeDriver: true,
+          }).start();
+        }
+        return false;
+      });
+    }
   }, [user?.id]);
 
+  useFocusEffect(
+    useCallback(() => {
+      fetchDashboardData();
+      const interval = setInterval(fetchDashboardData, 30000); // refresh every 30s, only while this tab is focused
+      return () => clearInterval(interval);
+    }, [fetchDashboardData])
+  );
+
   const currentDate = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+
+  const greetingWord = (() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 18) return 'Good afternoon';
+    return 'Good evening';
+  })();
 
   const announcementsCount = announcements.length;
 
@@ -120,11 +146,23 @@ export default function Home() {
           <Text style={styles.streakText}>day streak</Text>
         </View>
         <View style={styles.topBarActions}>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => setNotificationsOpen(true)}>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() => setNotificationsOpen(true)}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityRole="button"
+            accessibilityLabel="Notifications"
+          >
             <Bell color="#1f2937" size={24} />
             {announcementsCount > 0 && <View style={styles.badge}><Text style={styles.badgeText}>{announcementsCount}</Text></View>}
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/profile')}>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() => router.push('/profile')}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityRole="button"
+            accessibilityLabel="Settings"
+          >
             <Settings color="#1f2937" size={24} />
           </TouchableOpacity>
         </View>
@@ -136,7 +174,7 @@ export default function Home() {
           <Text style={styles.avatarText}>{user?.first_name?.[0]?.toUpperCase() || 'J'}{user?.last_name?.[0]?.toUpperCase() || 'D'}</Text>
         </View>
         <View style={styles.headerTextCont}>
-          <Text style={styles.greeting}>Good afternoon, {user?.first_name || 'Juan'}!</Text>
+          <Text style={styles.greeting}>{greetingWord}, {user?.first_name || 'Juan'}!</Text>
           <Text style={styles.subtitle}>{user?.program?.name || 'Computer Science'} • {user?.year_level || '1st Year'} • {user?.role === 'STUDENT' ? 'Student' : 'Staff'}</Text>
         </View>
       </View>
@@ -148,8 +186,22 @@ export default function Home() {
             Library Open {insideNow !== null ? `· ${insideNow} inside` : '· Closes 9PM'}
           </Text>
         </View>
-        <Text style={styles.dateText}>📅 {currentDate}</Text>
+        <View style={styles.dateRow}>
+          <Calendar size={12} color="#6b7280" strokeWidth={2} />
+          <Text style={styles.dateText}>{currentDate}</Text>
+        </View>
       </View>
+
+      {/* Fetch error banner */}
+      {fetchError && (
+        <View style={styles.fetchErrorCard}>
+          <AlertCircle color="#dc2626" size={18} />
+          <Text style={styles.fetchErrorText}>Couldn't load dashboard data</Text>
+          <TouchableOpacity onPress={fetchDashboardData} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+            <Text style={styles.fetchErrorRetry}>Tap to retry</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Section: Announcements */}
       {announcements.length > 0 && (
@@ -188,7 +240,7 @@ export default function Home() {
           </View>
           <View style={styles.highlightCard}>
             <View style={styles.highlightIconCont}>
-              <BookOpen color="#fff" size={40} opacity={0.6} />
+              <BookOpen color="#fff" size={40} opacity={0.85} />
             </View>
             <View style={styles.highlightContent}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -202,7 +254,7 @@ export default function Home() {
                   style={{ padding: 4 }}
                 >
                   <Heart
-                    color={isFavorite(books[0].id) ? '#ef4444' : 'rgba(255,255,255,0.7)'}
+                    color={isFavorite(books[0].id) ? '#ef4444' : '#9ca3af'}
                     size={20}
                     fill={isFavorite(books[0].id) ? '#ef4444' : 'none'}
                   />
@@ -212,9 +264,9 @@ export default function Home() {
               <Text style={styles.highlightBookAuthor} numberOfLines={1}>{books[0].author}</Text>
               <View style={styles.unavailableTag}>
                 {books[0].available > 0 ? (
-                  <Text style={[styles.unavailableText, { color: '#fbbf24' }]}>Available ({books[0].available})</Text>
+                  <Text style={[styles.unavailableText, { color: '#059669' }]}>Available ({books[0].available})</Text>
                 ) : (
-                  <Text style={styles.unavailableText}>Currently unavailable <ArrowRight size={12} color="#fff" /></Text>
+                  <Text style={styles.unavailableText}>Currently unavailable <ArrowRight size={12} color="#9ca3af" /></Text>
                 )}
               </View>
             </View>
@@ -354,9 +406,9 @@ export default function Home() {
           </View>
           
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.recommendedScroll}>
-            {books.slice(1, 4).map((book: any, i: number) => (
+            {books.slice(1, 4).map((book, i) => (
               <View key={book.id} style={styles.recCard}>
-                <View style={[styles.recCover, { backgroundColor: i % 2 === 0 ? '#a855f7' : '#1e3a8a' }]}>
+                <View style={[styles.recCover, { backgroundColor: i % 2 === 0 ? '#6C48C5' : '#1e1e2e' }]}>
                   <View style={styles.recTags}>
                     <View style={styles.recTypeTag}><Text style={styles.recTypeText}>{book.genre || 'Book'}</Text></View>
                     <View style={styles.forYouTag}><Star color="#fff" size={10} fill="#fff" /><Text style={styles.forYouText}> For You</Text></View>
@@ -403,9 +455,9 @@ export default function Home() {
             <Text style={styles.sectionTitle}>Trending in Your Department</Text>
           </View>
           <View style={styles.trendingList}>
-            {books.slice(4, 9).map((book: any, idx: number) => (
+            {books.slice(4, 9).map((book, idx) => (
               <View key={book.id} style={styles.trendingItem}>
-                <View style={[styles.rankCircle, { backgroundColor: idx < 3 ? '#6C48C5' : '#f3e8ff' }]}>
+                <View style={[styles.rankCircle, { backgroundColor: idx < 3 ? '#6C48C5' : '#faf9fe' }]}>
                   <Text style={[styles.rankText, { color: idx < 3 ? '#fff' : '#6C48C5' }]}>{idx + 1}</Text>
                 </View>
                 <View style={styles.trendingInfo}>
@@ -424,7 +476,8 @@ export default function Home() {
                   />
                 </TouchableOpacity>
                 <View style={styles.trendingCount}>
-                  <Text style={styles.countText}>⏱ {book.total} copies</Text>
+                  <Clock size={11} color="#9ca3af" strokeWidth={2} />
+                  <Text style={styles.countText}>{book.total} copies</Text>
                 </View>
               </View>
             ))}
@@ -463,7 +516,7 @@ export default function Home() {
                           key={a.id} 
                           style={styles.notifItem}
                         >
-                          <View style={[styles.notifIconWrapper, { backgroundColor: a.is_overdue ? '#fee2e2' : '#f3e8ff' }]}>
+                          <View style={[styles.notifIconWrapper, { backgroundColor: a.is_overdue ? '#fee2e2' : '#faf9fe' }]}>
                             {a.is_overdue ? (
                               <AlertCircle size={18} color="#ef4444" />
                             ) : (
@@ -502,7 +555,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff', paddingHorizontal: 16 },
   topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, marginBottom: 16 },
   streakContainer: { flexDirection: 'row', alignItems: 'center' },
-  streakCount: { fontSize: 18, fontWeight: 'bold', color: '#111827', marginHorizontal: 4 },
+  streakCount: { fontSize: 18, fontWeight: 'bold', color: '#1e1e2e', marginHorizontal: 4 },
   streakText: { fontSize: 14, color: '#6b7280' },
   topBarActions: { flexDirection: 'row' },
   iconBtn: { marginLeft: 16, position: 'relative' },
@@ -513,46 +566,51 @@ const styles = StyleSheet.create({
   avatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#6C48C5', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
   avatarText: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
   headerTextCont: { flex: 1 },
-  greeting: { fontSize: 20, fontWeight: 'bold', color: '#111827', marginBottom: 2 },
+  greeting: { fontSize: 20, fontWeight: 'bold', color: '#1e1e2e', marginBottom: 2 },
   subtitle: { fontSize: 13, color: '#6b7280' },
   
   statusContainer: { marginBottom: 24 },
   statusPill: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ecfdf5', alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, marginBottom: 8 },
   statusDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#10b981', marginRight: 8 },
   statusText: { color: '#059669', fontWeight: '600', fontSize: 12 },
+  dateRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   dateText: { fontSize: 13, color: '#6b7280' },
+
+  fetchErrorCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fef3f2', borderWidth: 1, borderColor: '#fecaca', borderRadius: 14, paddingVertical: 10, paddingHorizontal: 14, marginBottom: 16, gap: 8 },
+  fetchErrorText: { flex: 1, fontSize: 12.5, color: '#b91c1c', fontWeight: '500' },
+  fetchErrorRetry: { fontSize: 12.5, color: '#6C48C5', fontWeight: '700' },
 
   sectionHeader: { flexDirection: 'row', alignItems: 'center', marginTop: 8, marginBottom: 16 },
   sectionBar: { width: 4, height: 20, backgroundColor: '#6C48C5', borderRadius: 2, marginRight: 8 },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#111827', marginLeft: 8 },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#1e1e2e', marginLeft: 8 },
 
-  announcementCard: { backgroundColor: '#fcfaff', borderRadius: 16, padding: 16, flexDirection: 'row', marginBottom: 24, borderWidth: 1, borderColor: '#f3e8ff' },
+  announcementCard: { backgroundColor: '#faf9fe', borderRadius: 16, padding: 16, flexDirection: 'row', marginBottom: 24, borderWidth: 1, borderColor: '#ede9f6' },
   announcementIconBg: { width: 40, height: 40, borderRadius: 8, backgroundColor: '#6C48C5', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   announcementContent: { flex: 1 },
   announcementTitle: { fontSize: 15, fontWeight: 'bold', color: '#6C48C5', marginBottom: 6 },
   announcementBody: { fontSize: 13, color: '#6b7280', lineHeight: 18, marginBottom: 12 },
   paginationDots: { flexDirection: 'row', justifyContent: 'center' },
   dotActive: { width: 16, height: 6, borderRadius: 3, backgroundColor: '#6C48C5', marginRight: 4 },
-  dotInactive: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#d8b4fe' },
+  dotInactive: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#ede9f6' },
 
-  highlightCard: { backgroundColor: '#8b5cf6', borderRadius: 16, padding: 20, flexDirection: 'row', marginBottom: 24 },
-  highlightIconCont: { width: 80, height: 110, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+  highlightCard: { backgroundColor: '#faf9fe', borderRadius: 16, padding: 20, flexDirection: 'row', marginBottom: 24, borderWidth: 1, borderColor: '#ede9f6' },
+  highlightIconCont: { width: 80, height: 110, backgroundColor: '#6C48C5', borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
   highlightContent: { flex: 1, justifyContent: 'center' },
   featuredTag: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  featuredTagText: { color: '#fbbf24', fontSize: 12, fontWeight: 'bold', marginLeft: 4 },
-  highlightBookTitle: { color: '#fff', fontSize: 18, fontWeight: 'bold', marginBottom: 4 },
-  highlightBookAuthor: { color: '#e9d5ff', fontSize: 13, marginBottom: 12 },
-  unavailableTag: { alignSelf: 'flex-start', backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, flexDirection: 'row', alignItems: 'center' },
-  unavailableText: { color: '#fff', fontSize: 12, fontWeight: '600', marginRight: 4 },
+  featuredTagText: { color: '#b45309', fontSize: 12, fontWeight: 'bold', marginLeft: 4 },
+  highlightBookTitle: { color: '#1e1e2e', fontSize: 18, fontWeight: 'bold', marginBottom: 4 },
+  highlightBookAuthor: { color: '#7c7c8a', fontSize: 13, marginBottom: 12 },
+  unavailableTag: { alignSelf: 'flex-start', backgroundColor: '#ede9f6', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, flexDirection: 'row', alignItems: 'center' },
+  unavailableText: { color: '#9ca3af', fontSize: 12, fontWeight: '600', marginRight: 4 },
 
   borrowCard: { backgroundColor: '#fff', borderRadius: 16, padding: 16, marginBottom: 24, borderWidth: 1, borderColor: '#f3f4f6', elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, borderLeftWidth: 4, borderLeftColor: '#6C48C5' },
   borrowTop: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  borrowTitle: { fontSize: 16, fontWeight: 'bold', color: '#111827' },
+  borrowTitle: { fontSize: 16, fontWeight: 'bold', color: '#1e1e2e' },
   borrowAuthor: { fontSize: 13, color: '#6b7280', marginTop: 2 },
-  daysLeftBadge: { backgroundColor: '#f3e8ff', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, alignSelf: 'flex-start' },
+  daysLeftBadge: { backgroundColor: '#faf9fe', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, alignSelf: 'flex-start' },
   daysLeftText: { color: '#6C48C5', fontSize: 12, fontWeight: 'bold' },
-  borrowCategory: { alignSelf: 'flex-start', borderWidth: 1, borderColor: '#d8b4fe', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12, marginBottom: 12 },
-  borrowCategoryText: { color: '#a855f7', fontSize: 11 },
+  borrowCategory: { alignSelf: 'flex-start', borderWidth: 1, borderColor: '#ede9f6', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12, marginBottom: 12 },
+  borrowCategoryText: { color: '#6C48C5', fontSize: 11 },
   progressBarBg: { height: 6, backgroundColor: '#f3f4f6', borderRadius: 3, marginBottom: 8 },
   progressBarFill: { height: '100%', width: '40%', backgroundColor: '#6C48C5', borderRadius: 3 },
   borrowDates: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
@@ -563,8 +621,8 @@ const styles = StyleSheet.create({
   quickActionsContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap' },
   actionItem: { width: '23%', alignItems: 'center', backgroundColor: '#fff', paddingVertical: 16, paddingHorizontal: 8, borderRadius: 16, borderWidth: 1, borderColor: '#f3f4f6', elevation: 1 },
   actionIconBg: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#6C48C5', justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
-  actionIconBgOutline: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#f3e8ff', justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
-  actionTitle: { fontSize: 12, fontWeight: 'bold', color: '#111827', textAlign: 'center', marginBottom: 2 },
+  actionIconBgOutline: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#faf9fe', justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
+  actionTitle: { fontSize: 12, fontWeight: 'bold', color: '#1e1e2e', textAlign: 'center', marginBottom: 2 },
   actionSubtitle: { fontSize: 10, color: '#9ca3af', textAlign: 'center' },
 
   seeAllText: { color: '#6C48C5', fontSize: 14, fontWeight: '600' },
@@ -578,7 +636,7 @@ const styles = StyleSheet.create({
   forYouText: { fontSize: 10, fontWeight: 'bold', color: '#fff' },
   recAvail: { fontSize: 11, color: '#6b7280', marginBottom: 4 },
   dot: { width: 6, height: 6, borderRadius: 3, marginRight: 4 },
-  recTitle: { fontSize: 14, fontWeight: 'bold', color: '#111827', marginBottom: 2 },
+  recTitle: { fontSize: 14, fontWeight: 'bold', color: '#1e1e2e', marginBottom: 2 },
   recAuthor: { fontSize: 12, color: '#9ca3af' },
 
   trendingList: { marginBottom: 24 },
@@ -586,16 +644,16 @@ const styles = StyleSheet.create({
   rankCircle: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   rankText: { fontSize: 14, fontWeight: 'bold' },
   trendingInfo: { flex: 1 },
-  trendingTitle: { fontSize: 14, fontWeight: 'bold', color: '#111827', marginBottom: 2 },
+  trendingTitle: { fontSize: 14, fontWeight: 'bold', color: '#1e1e2e', marginBottom: 2 },
   trendingAuthor: { fontSize: 12, color: '#6b7280' },
-  trendingCount: { marginLeft: 12 },
+  trendingCount: { marginLeft: 12, flexDirection: 'row', alignItems: 'center', gap: 4 },
   countText: { fontSize: 12, color: '#9ca3af' },
 
   activeUsersScroll: { paddingLeft: 16, marginBottom: 24, marginLeft: -16 },
-  activeUserCard: { width: 100, backgroundColor: '#fcfaff', borderRadius: 16, padding: 12, marginRight: 12, alignItems: 'center', borderWidth: 1, borderColor: '#e9d5ff' },
+  activeUserCard: { width: 100, backgroundColor: '#faf9fe', borderRadius: 16, padding: 12, marginRight: 12, alignItems: 'center', borderWidth: 1, borderColor: '#ede9f6' },
   activeUserAvatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#6C48C5', justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
   activeUserAvatarText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  activeUserName: { fontSize: 12, fontWeight: 'bold', color: '#111827', textAlign: 'center', marginBottom: 2 },
+  activeUserName: { fontSize: 12, fontWeight: 'bold', color: '#1e1e2e', textAlign: 'center', marginBottom: 2 },
   activeUserDept: { fontSize: 10, color: '#6b7280', textAlign: 'center', marginBottom: 6 },
   activeUserTime: { fontSize: 10, fontWeight: 'bold', color: '#10b981', textAlign: 'center' },
   emptyStateContainer: { backgroundColor: '#f9fafb', padding: 16, borderRadius: 12, marginBottom: 24 },
@@ -603,8 +661,8 @@ const styles = StyleSheet.create({
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
   modalContent: { width: '90%', maxHeight: height * 0.8, backgroundColor: '#fff', borderRadius: 16, overflow: 'hidden' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, backgroundColor: '#fcfaff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  modalTitle: { fontSize: 16, fontWeight: 'bold', color: '#111827' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, backgroundColor: '#faf9fe', borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  modalTitle: { fontSize: 16, fontWeight: 'bold', color: '#1e1e2e' },
   markAllBtn: { flexDirection: 'row', alignItems: 'center' },
   markAllText: { fontSize: 12, color: '#6b7280', marginLeft: 4 },
   notifTabs: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#f3f4f6', paddingHorizontal: 16 },
@@ -615,18 +673,18 @@ const styles = StyleSheet.create({
   notifList: { flexShrink: 1 },
   noNotifsText: { textAlign: 'center', padding: 32, color: '#9ca3af', fontSize: 13 },
   notifItem: { flexDirection: 'row', padding: 16, borderBottomWidth: 1, borderBottomColor: '#f9fafb' },
-  notifItemUnread: { backgroundColor: '#f3e8ff' },
+  notifItemUnread: { backgroundColor: '#faf9fe' },
   notifIconWrapper: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   notifContent: { flex: 1 },
   notifTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 2 },
   notifTitle: { fontSize: 14, color: '#4b5563', flex: 1, marginRight: 8 },
-  notifTitleUnread: { fontWeight: 'bold', color: '#111827' },
+  notifTitleUnread: { fontWeight: 'bold', color: '#1e1e2e' },
   unreadDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#6C48C5', marginRight: 6 },
   notifTime: { fontSize: 11, color: '#9ca3af' },
   notifMessage: { fontSize: 12, color: '#6b7280' },
-  notifMessageUnread: { color: '#374151', fontWeight: '500' },
+  notifMessageUnread: { color: '#4b5563', fontWeight: '500' },
   notifTrigger: { fontSize: 10, color: '#9ca3af', marginTop: 4 },
-  notifFooter: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', padding: 16, backgroundColor: '#fcfaff', borderTopWidth: 1, borderTopColor: '#f3f4f6' },
+  notifFooter: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', padding: 16, backgroundColor: '#faf9fe', borderTopWidth: 1, borderTopColor: '#f3f4f6' },
   notifFooterText: { fontSize: 14, fontWeight: 'bold', color: '#6C48C5', marginLeft: 8 },
   closeModalBtn: { position: 'absolute', top: -50, right: 0, padding: 8, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20 }
 });

@@ -1,14 +1,15 @@
 import React from 'react';
-import { TouchableOpacity, Alert, Modal, TextInput, Switch } from 'react-native';
+import { TouchableOpacity, ActivityIndicator, Alert, Modal, TextInput, Switch } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import {
-  BookOpen, MapPin, Flame, Edit, Heart, Bell, Shield, HelpCircle, Info, LogOut, ChevronRight, Clock, QrCode, X, Megaphone,
+  AlertCircle, BookOpen, MapPin, Flame, Edit, GraduationCap, Heart, Bell, Mail, Shield, HelpCircle, Info, LogOut, ChevronRight, Clock, QrCode, X, Megaphone,
 } from 'lucide-react-native';
-import QRCode from 'react-native-qrcode-svg';
 import { YStack, XStack, Text, ScrollView, View, Separator } from 'tamagui';
 import api from '../../api';
 import { useFavorites } from '../../context/FavoritesContext';
+import { DynamicQrCode } from '../../components/DynamicQrCode';
 
 export default function Profile() {
   const { user, signOut, updateUser } = useAuth();
@@ -18,12 +19,19 @@ export default function Profile() {
   const [favoritesModalVisible, setFavoritesModalVisible] = React.useState(false);
   const [selectedFavBook, setSelectedFavBook] = React.useState<any | null>(null);
 
-  const handleLogout = async () => {
+  const doSignOut = async () => {
     try {
       await signOut();
     } catch (error) {
       console.error('Logout failed:', error);
     }
+  };
+
+  const handleLogout = () => {
+    Alert.alert('Log Out', 'Are you sure you want to log out?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Log Out', style: 'destructive', onPress: doSignOut },
+    ]);
   };
 
   const [createAnnouncementVisible, setCreateAnnouncementVisible] = React.useState(false);
@@ -59,13 +67,25 @@ export default function Profile() {
   const [editProfileVisible, setEditProfileVisible] = React.useState(false);
   const [programModalVisible, setProgramModalVisible] = React.useState(false);
   const [programs, setPrograms] = React.useState<any[]>([]);
+  const [programsLoading, setProgramsLoading] = React.useState(false);
+  const [programsError, setProgramsError] = React.useState(false);
+
+  const fetchPrograms = React.useCallback(() => {
+    setProgramsLoading(true);
+    setProgramsError(false);
+    api
+      .get('/settings/programs')
+      .then((res) => setPrograms(res.data))
+      .catch((err) => {
+        console.error('Failed to fetch programs', err);
+        setProgramsError(true);
+      })
+      .finally(() => setProgramsLoading(false));
+  }, []);
 
   React.useEffect(() => {
-    if (editProfileVisible && programs.length === 0) {
-      api
-        .get('/settings/programs')
-        .then((res) => setPrograms(res.data))
-        .catch((err) => console.error('Failed to fetch programs', err));
+    if (editProfileVisible && programs.length === 0 && !programsLoading) {
+      fetchPrograms();
     }
   }, [editProfileVisible]);
 
@@ -99,25 +119,26 @@ export default function Profile() {
   const [infoModal, setInfoModal] = React.useState({ visible: false, title: '', content: '' });
 
   const menuItems = [
-    { id: 1, title: 'Edit Profile', sub: 'Update your information', icon: Edit, color: '#6C48C5', bg: '#faf5ff', action: () => setEditProfileVisible(true) },
-    { id: 2, title: 'My Favorites', sub: `${favorites.length} Favorite Book${favorites.length === 1 ? '' : 's'}`, icon: Heart, color: '#ef4444', bg: '#fef2f2', action: () => setFavoritesModalVisible(true) },
-    { id: 5, title: 'Privacy Policy', sub: 'How we protect your data', icon: Shield, color: '#6C48C5', bg: '#faf5ff', action: () => setInfoModal({ visible: true, title: 'Privacy Policy', content: 'CCC LIB APP values your privacy. We collect only the necessary data to manage your library account securely. We do not sell or share your data with third parties.' }) },
-    { id: 6, title: 'Help & Support', sub: 'FAQs and contact info', icon: HelpCircle, color: '#6C48C5', bg: '#faf5ff', action: () => setInfoModal({ visible: true, title: 'Help & Support', content: 'For assistance, please contact the library administration at admin@university.edu or visit the front desk.' }) },
-    { id: 7, title: 'About', sub: 'Version 1.0.0', icon: Info, color: '#6C48C5', bg: '#faf5ff', action: () => setInfoModal({ visible: true, title: 'About', content: 'CCC LIB APP Mobile Version 1.0.0\nDeveloped by the CCC Library Team.' }) },
+    { id: 1, title: 'Edit Profile', sub: 'Update your information', icon: Edit, color: '#6C48C5', bg: '#faf9fe', action: () => setEditProfileVisible(true) },
+    { id: 2, title: 'My Favorites', sub: `${favorites.length} Favorite Book${favorites.length === 1 ? '' : 's'}`, icon: Heart, color: '#ef4444', bg: '#fef3f2', action: () => setFavoritesModalVisible(true) },
+    { id: 5, title: 'Privacy Policy', sub: 'How we protect your data', icon: Shield, color: '#6C48C5', bg: '#faf9fe', action: () => setInfoModal({ visible: true, title: 'Privacy Policy', content: 'CCC LIB APP values your privacy. We collect only the necessary data to manage your library account securely. We do not sell or share your data with third parties.' }) },
+    { id: 6, title: 'Help & Support', sub: 'FAQs and contact info', icon: HelpCircle, color: '#6C48C5', bg: '#faf9fe', action: () => setInfoModal({ visible: true, title: 'Help & Support', content: 'For assistance, please contact the library administration at admin@university.edu or visit the front desk.' }) },
+    { id: 7, title: 'About', sub: 'Version 1.0.0', icon: Info, color: '#6C48C5', bg: '#faf9fe', action: () => setInfoModal({ visible: true, title: 'About', content: 'CCC LIB APP Mobile Version 1.0.0\nDeveloped by the CCC Library Team.' }) },
     ...(user?.role === 'ADMIN'
       ? [{ id: 8, title: 'Create Announcement', sub: 'Broadcast to all users', icon: Megaphone, color: '#fff', bg: '#6C48C5', action: () => setCreateAnnouncementVisible(true) }]
       : []),
   ];
 
   return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#f4f1fa' }}>
     <ScrollView backgroundColor="#f4f1fa" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
       {/* ── Header ── */}
-      <YStack backgroundColor="#6C48C5" paddingTop={60} paddingBottom={44} borderBottomLeftRadius={32} borderBottomRightRadius={32} alignItems="center" paddingHorizontal="$4">
+      <YStack backgroundColor="#faf9fe" paddingTop="$5" paddingBottom={44} borderBottomLeftRadius={32} borderBottomRightRadius={32} borderBottomWidth={1} borderBottomColor="#ede9f6" alignItems="center" paddingHorizontal="$4">
         <YStack
           width={80}
           height={80}
           borderRadius={40}
-          backgroundColor="rgba(255,255,255,0.2)"
+          backgroundColor="#6C48C5"
           justifyContent="center"
           alignItems="center"
           marginBottom="$3"
@@ -128,25 +149,31 @@ export default function Profile() {
           </Text>
         </YStack>
 
-        <Text fontSize={22} fontWeight="800" color="white" marginBottom="$1">
+        <Text fontSize={22} fontWeight="800" color="#1e1e2e" marginBottom="$1">
           {user?.first_name || 'Juan'} {user?.last_name || 'Dela Cruz'}
         </Text>
-        <Text fontSize={13} color="#e0d4f7" marginBottom="$3">
-          ✉ {user?.email || 'user@university.edu'}
-        </Text>
-
-        <XStack alignItems="center" marginBottom="$2" gap="$2">
-          <YStack backgroundColor="rgba(255,255,255,0.2)" paddingHorizontal="$3" paddingVertical="$1" borderRadius={12}>
-            <Text color="white" fontSize={11} fontWeight="700">
-              {user?.role || 'Student'}
-            </Text>
-          </YStack>
-          <Text color="#e0d4f7" fontSize={12}>
-            🎓 {user?.program?.name || 'Computer Science'}
+        <XStack alignItems="center" gap="$1.5" marginBottom="$3">
+          <Mail color="#7c7c8a" size={13} />
+          <Text fontSize={13} color="#7c7c8a">
+            {user?.email || 'user@university.edu'}
           </Text>
         </XStack>
 
-        <Text color="#e0d4f7" fontSize={12} opacity={0.8} marginBottom="$3">
+        <XStack alignItems="center" marginBottom="$2" gap="$2">
+          <YStack backgroundColor="#ede9f6" paddingHorizontal="$3" paddingVertical="$1" borderRadius={12}>
+            <Text color="#6C48C5" fontSize={11} fontWeight="700">
+              {user?.role || 'Student'}
+            </Text>
+          </YStack>
+          <XStack alignItems="center" gap="$1">
+            <GraduationCap color="#7c7c8a" size={13} />
+            <Text color="#7c7c8a" fontSize={12}>
+              {user?.program?.name || 'Computer Science'}
+            </Text>
+          </XStack>
+        </XStack>
+
+        <Text color="#9ca3af" fontSize={12} marginBottom="$3">
           ID: {user?.student_id || 'CCC-0000'}
         </Text>
 
@@ -155,16 +182,16 @@ export default function Profile() {
           style={{
             flexDirection: 'row',
             alignItems: 'center',
-            backgroundColor: 'rgba(255,255,255,0.15)',
+            backgroundColor: 'white',
             paddingHorizontal: 18,
             paddingVertical: 9,
             borderRadius: 14,
             borderWidth: 1,
-            borderColor: 'rgba(255,255,255,0.2)',
+            borderColor: '#ede9f6',
           }}
         >
-          <QrCode color="#fff" size={16} style={{ marginRight: 7 }} />
-          <Text color="white" fontSize={13} fontWeight="700">
+          <QrCode color="#6C48C5" size={16} style={{ marginRight: 7 }} />
+          <Text color="#6C48C5" fontSize={13} fontWeight="700">
             Show ID QR
           </Text>
         </TouchableOpacity>
@@ -190,7 +217,7 @@ export default function Profile() {
               borderWidth={1}
               borderColor="#ede9f6"
             >
-              <QRCode value={user?.student_id || 'Loading...'} size={200} color="#1e1e2e" backgroundColor="transparent" />
+              <DynamicQrCode fallbackId={user?.student_id || ''} size={200} />
             </YStack>
             <Text marginTop="$3" fontSize={16} fontWeight="700" color="#6C48C5" letterSpacing={2}>
               {user?.student_id}
@@ -215,7 +242,7 @@ export default function Profile() {
         elevation={4}
       >
         <YStack flex={1} alignItems="center">
-          <YStack width={40} height={40} borderRadius={14} backgroundColor="#faf5ff" justifyContent="center" alignItems="center" marginBottom="$2">
+          <YStack width={40} height={40} borderRadius={14} backgroundColor="#faf9fe" justifyContent="center" alignItems="center" marginBottom="$2">
             <BookOpen color="#6C48C5" size={20} />
           </YStack>
           <Text fontSize={20} fontWeight="800" color="#1e1e2e" marginBottom={2}>{user?.stats?.borrowed || 0}</Text>
@@ -273,11 +300,11 @@ export default function Profile() {
                       {item.sub}
                     </Text>
                   </YStack>
-                  <ChevronRight color="#d1d5db" size={18} />
+                  <ChevronRight color="#9ca3af" size={18} />
                 </XStack>
               </TouchableOpacity>
               {idx < menuItems.length - 1 && (
-                <View marginHorizontal="$3" height={1} backgroundColor="#e5e7eb" />
+                <View marginHorizontal="$3" height={1} backgroundColor="#f3f4f6" />
               )}
             </React.Fragment>
           ))}
@@ -294,7 +321,7 @@ export default function Profile() {
             borderRadius: 16,
             borderWidth: 1,
             borderColor: '#fecaca',
-            backgroundColor: '#fef2f2',
+            backgroundColor: '#fef3f2',
           }}
         >
           <LogOut color="#ef4444" size={20} style={{ marginRight: 8 }} />
@@ -315,7 +342,7 @@ export default function Profile() {
               </TouchableOpacity>
             </XStack>
 
-            <Text fontSize={14} fontWeight="700" color="#374151" marginBottom="$1.5">Title</Text>
+            <Text fontSize={14} fontWeight="700" color="#4b5563" marginBottom="$1.5">Title</Text>
             <TextInput
               style={{ backgroundColor: '#faf9fe', borderWidth: 1, borderColor: '#ede9f6', borderRadius: 12, padding: 12, fontSize: 14, marginBottom: 16 }}
               placeholder="e.g. Library closed on holiday"
@@ -323,7 +350,7 @@ export default function Profile() {
               onChangeText={(text) => setAnnouncementForm({ ...announcementForm, title: text })}
             />
 
-            <Text fontSize={14} fontWeight="700" color="#374151" marginBottom="$1.5">Body</Text>
+            <Text fontSize={14} fontWeight="700" color="#4b5563" marginBottom="$1.5">Body</Text>
             <TextInput
               style={{ backgroundColor: '#faf9fe', borderWidth: 1, borderColor: '#ede9f6', borderRadius: 12, padding: 12, fontSize: 14, marginBottom: 16, height: 100, textAlignVertical: 'top' }}
               placeholder="Announcement details..."
@@ -333,11 +360,11 @@ export default function Profile() {
             />
 
             <XStack justifyContent="space-between" alignItems="center" marginBottom="$5">
-              <Text fontSize={14} fontWeight="700" color="#374151">Active immediately</Text>
+              <Text fontSize={14} fontWeight="700" color="#4b5563">Active immediately</Text>
               <Switch
                 value={announcementForm.is_active}
                 onValueChange={(val) => setAnnouncementForm({ ...announcementForm, is_active: val })}
-                trackColor={{ false: '#d1d5db', true: '#c4b5fd' }}
+                trackColor={{ false: '#9ca3af', true: '#6C48C5' }}
                 thumbColor={announcementForm.is_active ? '#6C48C5' : '#f4f3f4'}
               />
             </XStack>
@@ -372,7 +399,7 @@ export default function Profile() {
               </TouchableOpacity>
             </XStack>
 
-            <Text fontSize={14} fontWeight="700" color="#374151" marginBottom="$1.5">Email</Text>
+            <Text fontSize={14} fontWeight="700" color="#4b5563" marginBottom="$1.5">Email</Text>
             <TextInput
               style={{ backgroundColor: '#faf9fe', borderWidth: 1, borderColor: '#ede9f6', borderRadius: 12, padding: 12, fontSize: 14, marginBottom: 16 }}
               placeholder="New email"
@@ -382,7 +409,7 @@ export default function Profile() {
               autoCapitalize="none"
             />
 
-            <Text fontSize={14} fontWeight="700" color="#374151" marginBottom="$1.5">New Password</Text>
+            <Text fontSize={14} fontWeight="700" color="#4b5563" marginBottom="$1.5">New Password</Text>
             <TextInput
               style={{ backgroundColor: '#faf9fe', borderWidth: 1, borderColor: '#ede9f6', borderRadius: 12, padding: 12, fontSize: 14, marginBottom: 16 }}
               placeholder="Leave blank to keep current"
@@ -391,7 +418,7 @@ export default function Profile() {
               secureTextEntry
             />
 
-            <Text fontSize={14} fontWeight="700" color="#374151" marginBottom="$1.5">Course / Program</Text>
+            <Text fontSize={14} fontWeight="700" color="#4b5563" marginBottom="$1.5">Course / Program</Text>
             <TouchableOpacity
               onPress={() => setProgramModalVisible(true)}
               style={{ backgroundColor: '#faf9fe', borderWidth: 1, borderColor: '#ede9f6', borderRadius: 12, padding: 12, marginBottom: 16, justifyContent: 'center' }}
@@ -401,7 +428,7 @@ export default function Profile() {
               </Text>
             </TouchableOpacity>
 
-            <Text fontSize={14} fontWeight="700" color="#374151" marginBottom="$1.5">Year Level</Text>
+            <Text fontSize={14} fontWeight="700" color="#4b5563" marginBottom="$1.5">Year Level</Text>
             <TextInput
               style={{ backgroundColor: '#faf9fe', borderWidth: 1, borderColor: '#ede9f6', borderRadius: 12, padding: 12, fontSize: 14, marginBottom: 16 }}
               placeholder="e.g. 1st Year"
@@ -439,21 +466,41 @@ export default function Profile() {
                 <X color="#9ca3af" size={24} />
               </TouchableOpacity>
             </XStack>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {programs.map((prog) => (
-                <TouchableOpacity
-                  key={prog.id}
-                  onPress={() => {
-                    setEditProfileForm({ ...editProfileForm, program: prog.name });
-                    setProgramModalVisible(false);
-                  }}
-                  style={{ paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f0eef5' }}
-                >
-                  <Text style={{ fontSize: 16, color: '#1e1e2e', fontWeight: '500' }}>{prog.name}</Text>
-                  <Text style={{ fontSize: 13, color: '#9ca3af', marginTop: 4 }}>{prog.code}</Text>
+            {programsLoading ? (
+              <YStack alignItems="center" paddingVertical="$6">
+                <ActivityIndicator size="small" color="#6C48C5" />
+              </YStack>
+            ) : programsError ? (
+              <YStack alignItems="center" paddingVertical="$6" gap="$2">
+                <AlertCircle color="#dc2626" size={24} />
+                <Text fontSize={13} color="#b91c1c" fontWeight="500" textAlign="center">
+                  Couldn't load courses
+                </Text>
+                <TouchableOpacity onPress={fetchPrograms} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+                  <Text fontSize={12} color="#6C48C5" fontWeight="700">Tap to retry</Text>
                 </TouchableOpacity>
-              ))}
-            </ScrollView>
+              </YStack>
+            ) : programs.length === 0 ? (
+              <YStack alignItems="center" paddingVertical="$6">
+                <Text fontSize={13} color="#9ca3af">No courses available</Text>
+              </YStack>
+            ) : (
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {programs.map((prog) => (
+                  <TouchableOpacity
+                    key={prog.id}
+                    onPress={() => {
+                      setEditProfileForm({ ...editProfileForm, program: prog.name });
+                      setProgramModalVisible(false);
+                    }}
+                    style={{ paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f0eef5' }}
+                  >
+                    <Text style={{ fontSize: 16, color: '#1e1e2e', fontWeight: '500' }}>{prog.name}</Text>
+                    <Text style={{ fontSize: 13, color: '#9ca3af', marginTop: 4 }}>{prog.code}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
           </YStack>
         </YStack>
       </Modal>
@@ -489,7 +536,7 @@ export default function Profile() {
           <YStack width="100%" maxWidth={460} maxHeight="82%" backgroundColor="white" borderRadius={24} padding="$5" elevation={8}>
             <XStack justifyContent="space-between" alignItems="center" marginBottom="$4">
               <XStack alignItems="center" gap="$2.5">
-                <YStack width={40} height={40} borderRadius={14} backgroundColor="#fef2f2" justifyContent="center" alignItems="center">
+                <YStack width={40} height={40} borderRadius={14} backgroundColor="#fef3f2" justifyContent="center" alignItems="center">
                   <Heart color="#ef4444" size={20} fill="#ef4444" />
                 </YStack>
                 <YStack>
@@ -513,7 +560,7 @@ export default function Profile() {
 
             {favorites.length === 0 ? (
               <YStack alignItems="center" justifyContent="center" paddingVertical="$8">
-                <YStack width={68} height={68} borderRadius={34} backgroundColor="#fef2f2" justifyContent="center" alignItems="center" marginBottom="$3">
+                <YStack width={68} height={68} borderRadius={34} backgroundColor="#fef3f2" justifyContent="center" alignItems="center" marginBottom="$3">
                   <Heart color="#ef4444" size={32} />
                 </YStack>
                 <Text fontSize={17} fontWeight="700" color="#1e1e2e" marginBottom="$1">
@@ -558,7 +605,7 @@ export default function Profile() {
                           width={48}
                           height={48}
                           borderRadius={12}
-                          backgroundColor="#ede9fe"
+                          backgroundColor="#ede9f6"
                           justifyContent="center"
                           alignItems="center"
                           marginRight="$3"
@@ -589,7 +636,7 @@ export default function Profile() {
                           style={{
                             padding: 8,
                             borderRadius: 10,
-                            backgroundColor: '#fef2f2',
+                            backgroundColor: '#fef3f2',
                           }}
                         >
                           <Heart color="#ef4444" size={18} fill="#ef4444" />
@@ -643,11 +690,11 @@ export default function Profile() {
                 ) : null}
                 <XStack justifyContent="space-between">
                   <Text fontSize={13} color="#7c7c8a">Condition</Text>
-                  <Text fontSize={13} fontWeight="600" color={selectedFavBook?.condition === 'POOR' ? '#ef4444' : '#22c55e'}>{selectedFavBook?.condition || 'GOOD'}</Text>
+                  <Text fontSize={13} fontWeight="600" color={selectedFavBook?.condition === 'POOR' ? '#ef4444' : '#10b981'}>{selectedFavBook?.condition || 'GOOD'}</Text>
                 </XStack>
                 <XStack justifyContent="space-between">
                   <Text fontSize={13} color="#7c7c8a">Availability</Text>
-                  <Text fontSize={13} fontWeight="600" color={selectedFavBook?.available > 0 ? '#22c55e' : '#ef4444'}>
+                  <Text fontSize={13} fontWeight="600" color={selectedFavBook?.available > 0 ? '#10b981' : '#ef4444'}>
                     {selectedFavBook?.available ?? 'N/A'} {selectedFavBook?.total ? `/ ${selectedFavBook.total}` : ''}
                   </Text>
                 </XStack>
@@ -681,12 +728,12 @@ export default function Profile() {
                 }}
                 style={{
                   flex: 1,
-                  backgroundColor: '#fef2f2',
+                  backgroundColor: '#fef3f2',
                   paddingVertical: 12,
                   borderRadius: 12,
                   alignItems: 'center',
                   borderWidth: 1,
-                  borderColor: '#fee2e2',
+                  borderColor: '#fecaca',
                 }}
               >
                 <Text color="#ef4444" fontSize={13} fontWeight="700">Remove</Text>
@@ -712,5 +759,6 @@ export default function Profile() {
         </View>
       </Modal>
     </ScrollView>
+    </SafeAreaView>
   );
 }

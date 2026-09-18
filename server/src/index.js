@@ -24,8 +24,18 @@ const app = express();
 // Trust reverse proxy (Render) to correctly parse X-Forwarded-For headers
 app.set('trust proxy', 1);
 
+// Dev servers (Vite, Metro/Expo web) pick whatever port is free, so allow any localhost port
+// rather than hardcoding one — native/Electron requests carry no Origin header and are unaffected.
+const localDevOriginPattern = /^(https?:\/\/(localhost|127\.0\.0\.1):\d+|exp:\/\/127\.0\.0\.1:\d+)$/;
+
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://127.0.0.1:5173', 'exp://127.0.0.1:8081', 'http://localhost:8081', 'http://127.0.0.1:8081'],
+  origin: (origin, callback) => {
+    if (!origin || localDevOriginPattern.test(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
 }));

@@ -3,25 +3,7 @@ import { useRouter, useSegments } from 'expo-router';
 import { DeviceEventEmitter } from 'react-native';
 import { getItem, setItem, removeItem } from '../utils/Storage';
 import api from '../api';
-
-interface User {
-  id: number;
-  student_id: string;
-  first_name: string;
-  last_name: string;
-  email: string;
-  role: string;
-  department: string;
-  qr_code?: string;
-  program?: { name: string; code?: string };
-  year_level?: string;
-  created_at?: string;
-  stats?: {
-    borrowed: number;
-    visits: number;
-    streak: number;
-  };
-}
+import type { User } from '../types/api';
 
 interface AuthContextType {
   user: User | null;

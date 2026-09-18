@@ -1,0 +1,140 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-18T15:53:58Z",
+  "title": "Design System: LibLog Mobile (CCC LIB APP)",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Muted Lavender",
+        "canonical": "#6C48C5",
+        "tonalRamp": ["#22183c", "#382664", "#4c338b", "#6141b2", "#7e5ecc", "#a28bda", "#c5b7e8", "#e9e4f6"]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#1e1e2e",
+        "tonalRamp": ["#0f0e17", "#13121d", "#181724", "#1c1c2b", "#393947", "#70707a", "#a7a7ad", "#dddde0"]
+      },
+      "slate-muted": {
+        "role": "neutral",
+        "displayName": "Slate Muted",
+        "canonical": "#9ca3af",
+        "tonalRamp": ["#2e2f37", "#4e5059", "#6d717c", "#8c929e", "#a8aeb9", "#c0c5cc", "#d8dbe0", "#f0f1f3"]
+      },
+      "hairline": { "role": "neutral", "displayName": "Hairline", "canonical": "#f3f4f6" },
+      "lavender-mist": { "role": "neutral", "displayName": "Lavender Mist", "canonical": "#faf9fe" },
+      "lavender-tint": { "role": "neutral", "displayName": "Lavender Tint", "canonical": "#f4f1fa" },
+      "lavender-border": { "role": "neutral", "displayName": "Lavender Border", "canonical": "#ede9f6" },
+      "lavender-border-alt": { "role": "neutral", "displayName": "Lavender Border Alt", "canonical": "#f0eef5" },
+      "white": { "role": "neutral", "displayName": "White", "canonical": "#ffffff" },
+      "success": {
+        "role": "status",
+        "displayName": "Success Green",
+        "canonical": "#10b981",
+        "tonalRamp": ["#0c342c", "#0d5a44", "#0e805c", "#0fa675", "#2dc290", "#67d2af", "#a1e4ce", "#dbf4ec"]
+      },
+      "danger": {
+        "role": "status",
+        "displayName": "Danger Red",
+        "canonical": "#ef4444",
+        "tonalRamp": ["#43171c", "#742428", "#a53133", "#d63e3e", "#f15b5b", "#f58888", "#f9b6b6", "#fde3e3"]
+      },
+      "amber": { "role": "status", "displayName": "Amber", "canonical": "#fbbf24" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Screen-level hero moments, e.g. auth screen titles." },
+      "headline": { "displayName": "Headline", "purpose": "Section/page headers." },
+      "title": { "displayName": "Title", "purpose": "Card and list-item titles, profile name." },
+      "body": { "displayName": "Body", "purpose": "Primary reading text, descriptions." },
+      "label": { "displayName": "Label", "purpose": "Captions, badges, timestamps, the QR refresh countdown." }
+    },
+    "shadows": [
+      { "name": "card-ambient", "value": "0 1px 8px rgba(0,0,0,0.05)", "purpose": "Default card lift, paired with a hairline border." },
+      { "name": "tab-bar-top", "value": "0 -2px 4px rgba(0,0,0,0.05)", "purpose": "Separates the tab bar from content below." },
+      { "name": "brand-glow", "value": "0 2px 5px rgba(108,72,197,0.3)", "purpose": "Reserved for the QR fab, the app's signature action." },
+      { "name": "success-glow", "value": "0 4px 28px rgba(16,185,129,0.35)", "purpose": "Scan-success confirmation only." }
+    ],
+    "motion": [],
+    "breakpoints": []
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Solid lavender action button, used for the primary action on a screen.",
+      "html": "<button class=\"ds-btn-primary\">Borrow Book</button>",
+      "css": ".ds-btn-primary { background: #6C48C5; color: #ffffff; padding: 18px 24px; border-radius: 16px; border: none; font-weight: 700; font-size: 15px; transition: opacity 0.15s; } .ds-btn-primary:hover { opacity: 0.92; } .ds-btn-primary:focus-visible { outline: 2px solid #6C48C5; outline-offset: 2px; } .ds-btn-primary:disabled { opacity: 0.7; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card-default",
+      "description": "Default white card with hairline border and ambient shadow.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-title\">Due in 2 days</div><div class=\"ds-card-body\">The Design of Everyday Things</div></div>",
+      "css": ".ds-card { background: #ffffff; border: 1px solid #f3f4f6; border-radius: 16px; padding: 16px; box-shadow: 0 1px 8px rgba(0,0,0,0.05); } .ds-card-title { color: #1e1e2e; font-weight: 600; font-size: 18px; margin-bottom: 4px; } .ds-card-body { color: #7c7c8a; font-size: 14px; font-weight: 500; }"
+    },
+    {
+      "name": "Borrow Reminder Card",
+      "kind": "card",
+      "refersTo": "card-default",
+      "description": "Signature accent card with a left-border stripe for time-sensitive items.",
+      "html": "<div class=\"ds-card ds-card-accent\"><div class=\"ds-card-title\">Due in 2 days</div><div class=\"ds-card-body\">The Design of Everyday Things</div></div>",
+      "css": ".ds-card-accent { border-left: 4px solid #6C48C5; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input-default",
+      "description": "Tinted lavender-mist text field with a soft border.",
+      "html": "<input class=\"ds-input\" placeholder=\"Search catalog\" />",
+      "css": ".ds-input { background: #faf9fe; border: 1px solid #ede9f6; border-radius: 16px; height: 48px; padding: 14px 16px; color: #1e1e2e; font-size: 14px; font-weight: 500; } .ds-input::placeholder { color: #9ca3af; } .ds-input:focus-visible { outline: 2px solid #6C48C5; outline-offset: 1px; }"
+    },
+    {
+      "name": "Tab Bar",
+      "kind": "nav",
+      "refersTo": "tab-bar",
+      "description": "Bottom navigation with a raised circular QR fab as the primary action.",
+      "html": "<nav class=\"ds-tabbar\"><button class=\"ds-tab ds-tab-active\">Home</button><button class=\"ds-tab\">Search</button><button class=\"ds-tab-fab\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\"><rect x=\"3\" y=\"3\" width=\"7\" height=\"7\" stroke=\"#fff\" stroke-width=\"2\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"7\" stroke=\"#fff\" stroke-width=\"2\"/><rect x=\"3\" y=\"14\" width=\"7\" height=\"7\" stroke=\"#fff\" stroke-width=\"2\"/></svg></button><button class=\"ds-tab\">Borrowed</button><button class=\"ds-tab\">Profile</button></nav>",
+      "css": ".ds-tabbar { display: flex; align-items: center; justify-content: space-around; background: #ffffff; border-top: 1px solid #f3f4f6; box-shadow: 0 -2px 4px rgba(0,0,0,0.05); padding: 10px 0; position: relative; } .ds-tab { background: none; border: none; color: #9ca3af; font-size: 12px; font-weight: 500; } .ds-tab-active { color: #6C48C5; } .ds-tab-active::after { content: ''; display: block; width: 4px; height: 4px; border-radius: 9999px; background: #6C48C5; margin: 4px auto 0; } .ds-tab-fab { width: 56px; height: 56px; border-radius: 9999px; background: #6C48C5; border: 3px solid #ffffff; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(108,72,197,0.3); margin-top: -28px; }"
+    },
+    {
+      "name": "QR Code Display",
+      "kind": "custom",
+      "refersTo": "qr-display",
+      "description": "The app's signature component: an auto-refreshing QR code with a countdown caption, kept undecorated for maximum scannability.",
+      "html": "<div class=\"ds-qr\"><div class=\"ds-qr-code\">[ QR CODE ]</div><div class=\"ds-qr-caption\">Refreshes in 24s</div></div>",
+      "css": ".ds-qr { display: flex; flex-direction: column; align-items: center; gap: 8px; } .ds-qr-code { color: #1e1e2e; } .ds-qr-caption { color: #9ca3af; font-size: 12px; font-weight: 500; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Reading Room",
+    "overview": "LibLog Mobile is the student and faculty companion for a college library — a calmer counterpart to the desktop librarian station. The system reads as a quiet reading room rather than a generic productivity tool: white space dominates, a single muted lavender accent does the pointing, and nothing on screen competes for attention with the actual task (present a QR code, check a due date, find a book). Character is Muted Lavender / soft & calm — the purple is a gentle signal, not a shout — and components are clean and quietly precise: soft palette, but tight, deliberate spacing and edges rather than looseness.\n\nThis is the current shipped system, formalized as-is; no visual direction has been rejected. Elevation is trending toward flatter over time even though the present build still leans on soft ambient shadows for a few key moments.",
+    "keyCharacteristics": [
+      "One accent color (muted lavender #6C48C5) carries all brand and interactive meaning; everything else is neutral or functional status color.",
+      "White cards on a near-white canvas, separated by soft 1px hairlines rather than heavy borders.",
+      "System typeface throughout (no custom font loaded) — hierarchy comes from size and weight, not typeface changes.",
+      "Icons are line-style (lucide-react-native) everywhere; no filled/duotone icon sets mixed in.",
+      "The QR code is the app's signature interaction — a dedicated circular fab tab, brand-colored glow, and a live-refreshing code component."
+    ],
+    "rules": [
+      { "name": "The One Accent Rule", "body": "Muted Lavender is the only color allowed to mean \"this is interactive/brand.\" Status colors mean their status and nothing else; they never substitute for the primary action color.", "section": "colors" },
+      { "name": "The Weight-Not-Face Rule", "body": "Never introduce a second typeface for emphasis; step weight and size instead.", "section": "typography" },
+      { "name": "The Earned-Glow Rule", "body": "Colored ambient shadows (brand or success) are reserved for the QR fab and the scan-success moment. Everything else gets the plain neutral card shadow or, preferably, no shadow at all.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep Muted Lavender (#6C48C5) as the only color that means \"interactive/brand\" — one accent, used deliberately.",
+      "Do use rounded corners everywhere (12–16px for most components); no sharp corners.",
+      "Do pair card shadows with a hairline border rather than shadow alone.",
+      "Do keep the QR code display undecorated and maximally legible — it's the app's core job.",
+      "Do use SafeAreaView/safe-area insets on every new screen, closing the inconsistency in the current build."
+    ],
+    "donts": [
+      "Don't introduce a second accent color for \"extra emphasis\" — dim or lighten the existing lavender instead.",
+      "Don't spend the brand-glow or success-glow shadow treatment on anything but the QR fab and scan-success respectively.",
+      "Don't load a second typeface; carry hierarchy with size and weight on the system face.",
+      "Don't use the search-filter category colors (blue/orange/violet/etc.) outside of category tagging — they're functional, not brand."
+    ]
+  }
+}

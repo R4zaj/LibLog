@@ -10,3 +10,12 @@ yarn-error.log
 brain/
 desktop-release/
 desktop/release/
+
+# AI agent tooling/config, not app code
+.agents/
+.claude/
+.codex/
+Archon/
+skills-lock.json
+.impeccable/config.local.json
+mobile/.impeccable/hook.cache.json

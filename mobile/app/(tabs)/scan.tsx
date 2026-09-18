@@ -1,51 +1,60 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { Animated, Vibration, StyleSheet } from 'react-native';
-import QRCode from 'react-native-qrcode-svg';
+import { Animated, TouchableOpacity, Vibration, StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { useFocusEffect } from 'expo-router';
+import { AlertCircle, Check, Clock, LogIn, LogOut } from 'lucide-react-native';
 import { YStack, XStack, Text, ScrollView, Separator, View } from 'tamagui';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api';
+import { DynamicQrCode } from '../../components/DynamicQrCode';
+
+// A log within this window of "now" is treated as the result of a scan the
+// student just made — even on the very first poll after opening the screen,
+// e.g. when they scan at the door and then open the app to confirm it worked.
+const FRESH_LOG_WINDOW_MS = 15000;
 
 export default function ScanScreen() {
   const { user } = useAuth();
   const [history, setHistory] = useState<any[]>([]);
+  const [historyError, setHistoryError] = useState(false);
   const [showCheckmark, setShowCheckmark] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const lastSeenLogId = useRef<number | null>(null);
 
+  const fetchHistory = useCallback(async () => {
+    try {
+      const res = await api.get('/attendance/my-history');
+      if (res.data && Array.isArray(res.data)) {
+        if (res.data.length > 0) {
+          const latestLog = res.data[0];
+          const logTime = new Date(latestLog.logged_at).getTime();
+          const now = Date.now();
+          const isFreshLog = now - logTime < FRESH_LOG_WINDOW_MS;
+
+          // No "have we seen a log before" guard here on purpose: a student
+          // who scans first and opens the app second should still see the
+          // checkmark on this, their very first poll.
+          if (isFreshLog && lastSeenLogId.current !== latestLog.id) {
+            triggerCheckmark();
+          }
+          lastSeenLogId.current = latestLog.id;
+        }
+        setHistory(res.data);
+        setHistoryError(false);
+      }
+    } catch (e) {
+      console.error('Failed to fetch history', e);
+      setHistoryError(true);
+    }
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
-      let interval: ReturnType<typeof setInterval>;
-
-      const fetchHistory = async () => {
-        try {
-          const res = await api.get('/attendance/my-history');
-          if (res.data && Array.isArray(res.data)) {
-            if (res.data.length > 0) {
-              const latestLog = res.data[0];
-              const logTime = new Date(latestLog.logged_at).getTime();
-              const now = new Date().getTime();
-
-              if (now - logTime < 5000 && lastSeenLogId.current !== latestLog.id) {
-                if (lastSeenLogId.current !== null) {
-                  triggerCheckmark();
-                }
-              }
-              lastSeenLogId.current = latestLog.id;
-            }
-            setHistory(res.data);
-          }
-        } catch (e) {
-          console.error('Failed to fetch history', e);
-        }
-      };
-
       fetchHistory();
-      interval = setInterval(fetchHistory, 10000);
-
+      const interval = setInterval(fetchHistory, 10000);
       return () => clearInterval(interval);
-    }, [])
+    }, [fetchHistory])
   );
 
   const triggerCheckmark = () => {
@@ -70,13 +79,13 @@ export default function ScanScreen() {
   };
 
   return (
-    <YStack flex={1} backgroundColor="#f4f1fa">
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#f4f1fa' }}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        <YStack alignItems="center" paddingHorizontal="$5" paddingTop={56} paddingBottom="$8">
+        <YStack alignItems="center" paddingHorizontal="$5" paddingTop="$5" paddingBottom="$8">
 
           {/* ── Header ── */}
           <Text
-            fontSize={26}
+            fontSize={24}
             fontWeight="800"
             color="#1e1e2e"
             marginBottom="$1"
@@ -85,6 +94,7 @@ export default function ScanScreen() {
           </Text>
           <Text
             fontSize={14}
+            fontWeight="500"
             color="#7c7c8a"
             textAlign="center"
             lineHeight={20}
@@ -93,6 +103,38 @@ export default function ScanScreen() {
           >
             Present this QR code at the library scanner
           </Text>
+
+          {/* ── Fetch error banner ── */}
+          {historyError && (
+            <XStack
+              alignItems="center"
+              backgroundColor="#fef3f2"
+              borderWidth={1}
+              borderColor="#fecaca"
+              borderRadius={14}
+              paddingVertical="$2.5"
+              paddingHorizontal="$3.5"
+              marginBottom="$4"
+              width="100%"
+              maxWidth={320}
+              gap="$2"
+            >
+              <AlertCircle color="#dc2626" size={16} />
+              <Text flex={1} fontSize={12} color="#b91c1c" fontWeight="500">
+                {history.length > 0
+                  ? "Couldn't refresh — showing your last known status"
+                  : "Couldn't load your scan history"}
+              </Text>
+              <TouchableOpacity
+                onPress={fetchHistory}
+                hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+              >
+                <Text fontSize={12} color="#6C48C5" fontWeight="700">
+                  Retry
+                </Text>
+              </TouchableOpacity>
+            </XStack>
+          )}
 
           {/* ── QR Card ── */}
           <YStack
@@ -119,29 +161,14 @@ export default function ScanScreen() {
               opacity={0.6}
             />
 
-            {/* QR Code */}
-            <YStack
-              backgroundColor="#faf9fe"
-              borderRadius={20}
-              padding="$4"
-              alignItems="center"
-              justifyContent="center"
-              borderWidth={1}
-              borderColor="#ede9f6"
-            >
-              {user?.student_id ? (
-                <QRCode
-                  value={user.student_id}
-                  size={200}
-                  color="#1e1e2e"
-                  backgroundColor="transparent"
-                />
-              ) : (
-                <YStack width={200} height={200} alignItems="center" justifyContent="center">
-                  <Text color="#9ca3af" fontSize={14}>Loading QR...</Text>
-                </YStack>
-              )}
-            </YStack>
+            {/* QR Code — sits directly on the outer card; no inner tray */}
+            {user?.student_id ? (
+              <DynamicQrCode fallbackId={user.student_id} size={200} />
+            ) : (
+              <YStack width={200} height={200} alignItems="center" justifyContent="center">
+                <Text color="#9ca3af" fontSize={14}>Loading QR...</Text>
+              </YStack>
+            )}
 
             {/* Student info */}
             <YStack alignItems="center" marginTop="$4" gap="$1">
@@ -162,7 +189,7 @@ export default function ScanScreen() {
           {/* ── History Section ── */}
           <YStack width="100%" marginTop="$2">
             <XStack alignItems="center" justifyContent="space-between" marginBottom="$3">
-              <Text fontSize={17} fontWeight="700" color="#1e1e2e">
+              <Text fontSize={18} fontWeight="600" color="#1e1e2e">
                 Recent Scans
               </Text>
               {history.length > 0 && (
@@ -182,11 +209,13 @@ export default function ScanScreen() {
                 borderWidth={1}
                 borderColor="#f0eef5"
               >
-                <Text fontSize={32} marginBottom="$2">📋</Text>
+                <YStack marginBottom="$2">
+                  <Clock color="#9ca3af" size={32} strokeWidth={1.5} />
+                </YStack>
                 <Text color="#9ca3af" fontSize={14} fontWeight="500">
                   No recent scans found
                 </Text>
-                <Text color="#c4c4cc" fontSize={12} marginTop="$1">
+                <Text color="#c4c4cc" fontSize={12} fontWeight="500" marginTop="$1">
                   Your scan history will appear here
                 </Text>
               </YStack>
@@ -225,22 +254,24 @@ export default function ScanScreen() {
                       justifyContent="center"
                       marginRight="$3"
                     >
-                      <Text fontSize={20}>
-                        {isCheckIn ? '📥' : '📤'}
-                      </Text>
+                      {isCheckIn ? (
+                        <LogIn color="#059669" size={20} strokeWidth={2} />
+                      ) : (
+                        <LogOut color="#dc2626" size={20} strokeWidth={2} />
+                      )}
                     </YStack>
 
                     {/* Details */}
                     <YStack flex={1}>
                       <Text
-                        fontSize={15}
+                        fontSize={18}
                         fontWeight="600"
                         color="#1e1e2e"
                         marginBottom={2}
                       >
                         {isCheckIn ? 'Checked In' : 'Checked Out'}
                       </Text>
-                      <Text fontSize={12} color="#9ca3af" fontWeight="400">
+                      <Text fontSize={12} color="#9ca3af" fontWeight="500">
                         {dateString}
                       </Text>
                     </YStack>
@@ -253,7 +284,7 @@ export default function ScanScreen() {
                       borderRadius={10}
                     >
                       <Text
-                        fontSize={13}
+                        fontSize={12}
                         fontWeight="600"
                         color={isCheckIn ? '#059669' : '#dc2626'}
                       >
@@ -286,7 +317,7 @@ export default function ScanScreen() {
                 width={100}
                 height={100}
                 borderRadius={50}
-                backgroundColor="white"
+                backgroundColor="#10b981"
                 alignItems="center"
                 justifyContent="center"
                 shadowColor="#10b981"
@@ -295,9 +326,7 @@ export default function ScanScreen() {
                 shadowRadius={28}
                 elevation={12}
               >
-                <Text color="#10b981" fontSize={52} fontWeight="800">
-                  ✓
-                </Text>
+                <Check color="#FFFFFF" size={48} strokeWidth={3} />
               </YStack>
               <Text
                 color="white"
@@ -314,7 +343,7 @@ export default function ScanScreen() {
           </BlurView>
         </Animated.View>
       )}
-    </YStack>
+    </SafeAreaView>
   );
 }
 

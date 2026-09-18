@@ -1,50 +1,193 @@
 import React, { useState, useCallback } from 'react';
-import { TouchableOpacity, ActivityIndicator } from 'react-native';
-import { Book, Clock, RotateCcw, AlertCircle } from 'lucide-react-native';
-import { YStack, XStack, Text, ScrollView, View } from 'tamagui';
+import { TouchableOpacity, ActivityIndicator, FlatList, ListRenderItem } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { AlertCircle, Book, ChevronRight, Clock, Info } from 'lucide-react-native';
+import { YStack, XStack, Text, View } from 'tamagui';
 import { useAuth } from '../../context/AuthContext';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import api from '../../api';
+import type { BorrowRecordWithBook } from '../../types/api';
 
 export default function Borrowed() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('active');
-  const [borrows, setBorrows] = useState<any[]>([]);
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState<'active' | 'history'>('active');
+  const [borrows, setBorrows] = useState<BorrowRecordWithBook[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [fetchError, setFetchError] = useState(false);
+
+  const fetchBorrows = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const res = await api.get<BorrowRecordWithBook[]>(`/borrowing/user/${user?.id}/history`);
+      setBorrows(res.data || []);
+      setFetchError(false);
+    } catch (e) {
+      console.error('Failed to fetch borrows', e);
+      setFetchError(true);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user?.id]);
 
   useFocusEffect(
     useCallback(() => {
       if (user) {
         fetchBorrows();
       }
-    }, [user])
+    }, [user, fetchBorrows])
   );
 
-  const fetchBorrows = async () => {
-    try {
-      setIsLoading(true);
-      const res = await api.get(`/borrowing/user/${user?.id}/history`);
-      setBorrows(res.data || []);
-    } catch (e) {
-      console.log('Failed to fetch borrows', e);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const now = new Date();
+  // Same daysLeft formula index.tsx's dashboard preview uses (Math.ceil, negative once
+  // overdue) — this screen previously used a different cutoff and could disagree with the
+  // dashboard about whether the same record was "Due Today" or "Overdue".
+  const daysLeftFor = (dueDate: string) =>
+    Math.ceil((new Date(dueDate).getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
   const activeBorrows = borrows.filter((b) => b.status === 'BORROWED' || b.status === 'OVERDUE');
   const historyBorrows = borrows.filter((b) => b.status === 'RETURNED');
   const overdueCount = activeBorrows.filter(
-    (b) => b.status === 'OVERDUE' || (b.due_date && new Date(b.due_date).getTime() <= now.getTime())
+    (b) => b.status === 'OVERDUE' || (b.due_date && daysLeftFor(b.due_date) < 0)
   ).length;
 
   const currentList = activeTab === 'active' ? activeBorrows : historyBorrows;
 
+  const renderItem: ListRenderItem<BorrowRecordWithBook> = ({ item: record }) => {
+    const isReturned = record.status === 'RETURNED';
+    const daysLeft = daysLeftFor(record.due_date);
+    const isOverdue = !isReturned && (record.status === 'OVERDUE' || daysLeft < 0);
+    const isDueSoon = !isReturned && !isOverdue && (daysLeft === 0 || daysLeft === 1);
+    const dueDateStr = new Date(record.due_date).toLocaleDateString();
+    const borrowDateStr = new Date(record.borrow_date).toLocaleDateString();
+
+    return (
+      <YStack
+        backgroundColor={isOverdue ? '#fef2f2' : 'white'}
+        borderRadius={20}
+        padding="$4"
+        marginBottom="$3"
+        borderWidth={isOverdue ? 1.5 : 1}
+        borderColor={isOverdue ? '#fca5a5' : '#f0eef5'}
+        borderLeftWidth={4}
+        borderLeftColor={isOverdue ? '#ef4444' : isReturned ? '#10b981' : '#6C48C5'}
+      >
+        {/* Book Info */}
+        <XStack marginBottom="$3">
+          <YStack
+            width={52}
+            height={68}
+            backgroundColor={isOverdue ? '#ef4444' : '#faf9fe'}
+            borderRadius={10}
+            justifyContent="center"
+            alignItems="center"
+            marginRight="$3"
+          >
+            <Book color={isOverdue ? '#fff' : '#6C48C5'} size={22} opacity={isOverdue ? 0.95 : 0.8} />
+          </YStack>
+          <YStack flex={1}>
+            <Text fontSize={18} fontWeight="600" color={isOverdue ? '#991b1b' : '#1e1e2e'} marginBottom={3}>
+              {record.book?.title}
+            </Text>
+            <Text fontSize={14} fontWeight="500" color={isOverdue ? '#b91c1c' : '#7c7c8a'} marginBottom="$2">
+              {record.book?.author?.name || 'Unknown Author'}
+            </Text>
+            <Text fontSize={12} fontWeight="500" color="#7c7c8a">
+              Borrowed: {borrowDateStr}  ·  <Text fontSize={12} color={isOverdue ? '#dc2626' : '#7c7c8a'} fontWeight={isOverdue ? '700' : '500'}>Due: {dueDateStr}</Text>
+            </Text>
+          </YStack>
+        </XStack>
+
+        {/* Footer */}
+        <XStack
+          justifyContent="space-between"
+          alignItems="center"
+          paddingTop="$3"
+          borderTopWidth={1}
+          borderTopColor={isOverdue ? '#fee2e2' : '#f0eef5'}
+        >
+          {isReturned ? (
+            <XStack
+              alignItems="center"
+              backgroundColor="#ecfdf5"
+              paddingHorizontal="$3"
+              paddingVertical="$1.5"
+              borderRadius={10}
+            >
+              <Clock color="#10b981" size={12} style={{ marginRight: 5 }} />
+              <Text color="#10b981" fontWeight="700" fontSize={12}>
+                Returned
+              </Text>
+            </XStack>
+          ) : isOverdue ? (
+            <XStack
+              alignItems="center"
+              backgroundColor="#fee2e2"
+              paddingHorizontal="$3"
+              paddingVertical="$1.5"
+              borderRadius={10}
+              borderWidth={1}
+              borderColor="#fca5a5"
+            >
+              <AlertCircle color="#dc2626" size={13} style={{ marginRight: 5 }} />
+              <Text color="#dc2626" fontWeight="700" fontSize={12}>
+                Overdue by {Math.abs(daysLeft)} day{Math.abs(daysLeft) !== 1 ? 's' : ''}
+              </Text>
+            </XStack>
+          ) : isDueSoon ? (
+            <XStack
+              alignItems="center"
+              backgroundColor="#fffbeb"
+              paddingHorizontal="$3"
+              paddingVertical="$1.5"
+              borderRadius={10}
+              borderWidth={1}
+              borderColor="#fde68a"
+            >
+              <Clock color="#b45309" size={12} style={{ marginRight: 5 }} />
+              <Text color="#b45309" fontWeight="700" fontSize={12}>
+                {daysLeft === 0 ? 'Due Today' : 'Due Tomorrow'}
+              </Text>
+            </XStack>
+          ) : (
+            <XStack
+              alignItems="center"
+              backgroundColor="#ecfdf5"
+              paddingHorizontal="$3"
+              paddingVertical="$1.5"
+              borderRadius={10}
+            >
+              <Clock color="#10b981" size={12} style={{ marginRight: 5 }} />
+              <Text color="#10b981" fontWeight="700" fontSize={12}>
+                {daysLeft} days left
+              </Text>
+            </XStack>
+          )}
+
+          {!isReturned && (
+            <TouchableOpacity
+              onPress={() => router.push('/scan')}
+              hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="Return at the library — open your scan code"
+              style={{ flexDirection: 'row', alignItems: 'center', minHeight: 32 }}
+            >
+              <Info color="#9ca3af" size={13} style={{ marginRight: 5 }} />
+              <Text color="#9ca3af" fontWeight="500" fontSize={12}>
+                Return at the library
+              </Text>
+              <ChevronRight color="#9ca3af" size={13} style={{ marginLeft: 2 }} />
+            </TouchableOpacity>
+          )}
+        </XStack>
+      </YStack>
+    );
+  };
+
   return (
-    <YStack flex={1} backgroundColor="#f4f1fa">
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#f4f1fa' }}>
       {/* Header */}
-      <YStack paddingTop={52} paddingHorizontal="$5" paddingBottom="$4" backgroundColor="white">
+      <YStack paddingTop="$4" paddingHorizontal="$5" paddingBottom="$4" backgroundColor="white">
         <Text fontSize={24} fontWeight="800" color="#1e1e2e" marginBottom="$3">
           Borrowing
         </Text>
@@ -63,11 +206,7 @@ export default function Borrowed() {
               borderColor: activeTab === 'active' ? '#6C48C5' : '#ede9f6',
             }}
           >
-            <Text
-              color={activeTab === 'active' ? 'white' : '#6C48C5'}
-              fontWeight="700"
-              fontSize={14}
-            >
+            <Text color={activeTab === 'active' ? 'white' : '#6C48C5'} fontWeight="700" fontSize={14}>
               Active ({activeBorrows.length})
             </Text>
           </TouchableOpacity>
@@ -83,21 +222,23 @@ export default function Borrowed() {
               borderColor: activeTab === 'history' ? '#6C48C5' : '#ede9f6',
             }}
           >
-            <Text
-              color={activeTab === 'history' ? 'white' : '#6C48C5'}
-              fontWeight="700"
-              fontSize={14}
-            >
+            <Text color={activeTab === 'history' ? 'white' : '#6C48C5'} fontWeight="700" fontSize={14}>
               History ({historyBorrows.length})
             </Text>
           </TouchableOpacity>
         </XStack>
       </YStack>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <YStack paddingHorizontal="$5" paddingTop="$4" paddingBottom="$8">
-          {/* Summary */}
-          <XStack marginBottom="$4" gap="$4" flexWrap="wrap">
+      <FlatList
+        data={currentList}
+        keyExtractor={(item) => String(item.id)}
+        renderItem={renderItem}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 32 }}
+        onRefresh={fetchBorrows}
+        refreshing={isLoading && borrows.length > 0}
+        ListHeaderComponent={
+          <XStack marginBottom={16} gap={16} flexWrap="wrap">
             <XStack alignItems="center">
               <View width={8} height={8} borderRadius={4} backgroundColor="#6C48C5" marginRight="$2" />
               <Text color="#7c7c8a" fontSize={13} fontWeight="600">
@@ -113,16 +254,43 @@ export default function Borrowed() {
               </XStack>
             )}
             <XStack alignItems="center">
-              <View width={8} height={8} borderRadius={4} backgroundColor="#22c55e" marginRight="$2" />
+              <View width={8} height={8} borderRadius={4} backgroundColor="#10b981" marginRight="$2" />
               <Text color="#7c7c8a" fontSize={13} fontWeight="600">
                 {historyBorrows.length} Returned
               </Text>
             </XStack>
           </XStack>
-
-          {isLoading ? (
+        }
+        ListEmptyComponent={
+          isLoading ? (
             <ActivityIndicator size="large" color="#6C48C5" style={{ marginTop: 40 }} />
-          ) : currentList.length === 0 ? (
+          ) : fetchError ? (
+            <YStack
+              backgroundColor="#fef3f2"
+              borderRadius={16}
+              padding="$6"
+              alignItems="center"
+              justifyContent="center"
+              borderWidth={1}
+              borderColor="#fecaca"
+              marginTop="$4"
+              gap="$2"
+            >
+              <AlertCircle color="#dc2626" size={28} />
+              <Text color="#b91c1c" fontSize={14} fontWeight="500" textAlign="center">
+                Couldn't load your borrows
+              </Text>
+              <TouchableOpacity
+                onPress={fetchBorrows}
+                hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}
+                style={{ paddingVertical: 12, paddingHorizontal: 8 }}
+              >
+                <Text fontSize={12} color="#6C48C5" fontWeight="700">
+                  Tap to retry
+                </Text>
+              </TouchableOpacity>
+            </YStack>
+          ) : (
             <YStack
               backgroundColor="white"
               borderRadius={16}
@@ -133,7 +301,7 @@ export default function Borrowed() {
               borderColor="#f0eef5"
               marginTop="$4"
             >
-              <Text fontSize={36} marginBottom="$3">📚</Text>
+              <Book color="#9ca3af" size={36} strokeWidth={1.5} style={{ marginBottom: 12 }} />
               <Text color="#9ca3af" fontSize={15} fontWeight="600">
                 {activeTab === 'active' ? 'No active borrows' : 'No return history'}
               </Text>
@@ -143,149 +311,9 @@ export default function Borrowed() {
                   : 'Your returned books will appear here'}
               </Text>
             </YStack>
-          ) : (
-            currentList.map((record: any, index: number) => {
-              const itemDueDate = new Date(record.due_date);
-              const isReturned = record.status === 'RETURNED';
-              // Check if book is due or overdue
-              const isDue = !isReturned && (record.status === 'OVERDUE' || itemDueDate.getTime() <= now.getTime());
-              const dueDateStr = itemDueDate.toLocaleDateString();
-              const borrowDateStr = new Date(record.borrow_date).toLocaleDateString();
-
-              // Days calculations
-              const diffMs = now.getTime() - itemDueDate.getTime();
-              const daysOverdue = Math.max(1, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
-              const daysLeft = Math.max(0, Math.ceil((itemDueDate.getTime() - now.getTime()) / (1000 * 3600 * 24)));
-
-              return (
-                <YStack
-                  key={index}
-                  backgroundColor={isDue ? '#fef2f2' : 'white'}
-                  borderRadius={20}
-                  padding="$4"
-                  marginBottom="$3"
-                  borderWidth={isDue ? 1.5 : 1}
-                  borderColor={isDue ? '#fca5a5' : '#f0eef5'}
-                  borderLeftWidth={4}
-                  borderLeftColor={isDue ? '#ef4444' : isReturned ? '#22c55e' : '#6C48C5'}
-                >
-                  {/* Book Info */}
-                  <XStack marginBottom="$3">
-                    <YStack
-                      width={52}
-                      height={68}
-                      backgroundColor={isDue ? '#ef4444' : '#1e3a8a'}
-                      borderRadius={10}
-                      justifyContent="center"
-                      alignItems="center"
-                      marginRight="$3"
-                    >
-                      <Book color="#fff" size={22} opacity={isDue ? 0.95 : 0.5} />
-                    </YStack>
-                    <YStack flex={1}>
-                      <Text fontSize={15} fontWeight="700" color={isDue ? '#991b1b' : '#1e1e2e'} marginBottom={3}>
-                        {record.book?.title}
-                      </Text>
-                      <Text fontSize={13} color={isDue ? '#b91c1c' : '#7c7c8a'} marginBottom="$2">
-                        {record.book?.author?.name || 'Unknown Author'}
-                      </Text>
-                      <Text fontSize={11} color="#7c7c8a">
-                        Borrowed: {borrowDateStr}  ·  <Text fontSize={11} color={isDue ? '#dc2626' : '#7c7c8a'} fontWeight={isDue ? '700' : '400'}>Due: {dueDateStr}</Text>
-                      </Text>
-                    </YStack>
-                  </XStack>
-
-                  {/* Footer */}
-                  <XStack
-                    justifyContent="space-between"
-                    alignItems="center"
-                    paddingTop="$3"
-                    borderTopWidth={1}
-                    borderTopColor={isDue ? '#fee2e2' : '#f0eef5'}
-                  >
-                    {isReturned ? (
-                      <XStack
-                        alignItems="center"
-                        backgroundColor="#ecfdf5"
-                        paddingHorizontal="$3"
-                        paddingVertical="$1.5"
-                        borderRadius={10}
-                      >
-                        <Clock color="#059669" size={12} style={{ marginRight: 5 }} />
-                        <Text color="#059669" fontWeight="700" fontSize={12}>
-                          Returned
-                        </Text>
-                      </XStack>
-                    ) : isDue ? (
-                      <XStack
-                        alignItems="center"
-                        backgroundColor="#fee2e2"
-                        paddingHorizontal="$3"
-                        paddingVertical="$1.5"
-                        borderRadius={10}
-                        borderWidth={1}
-                        borderColor="#fca5a5"
-                      >
-                        <AlertCircle
-                          color="#dc2626"
-                          size={13}
-                          style={{ marginRight: 5 }}
-                        />
-                        <Text
-                          color="#dc2626"
-                          fontWeight="700"
-                          fontSize={12}
-                        >
-                          Due For -{daysOverdue} days
-                        </Text>
-                      </XStack>
-                    ) : (
-                      <XStack
-                        alignItems="center"
-                        backgroundColor="#ecfdf5"
-                        paddingHorizontal="$3"
-                        paddingVertical="$1.5"
-                        borderRadius={10}
-                      >
-                        <Clock
-                          color="#059669"
-                          size={12}
-                          style={{ marginRight: 5 }}
-                        />
-                        <Text
-                          color="#059669"
-                          fontWeight="700"
-                          fontSize={12}
-                        >
-                          {daysLeft} days left
-                        </Text>
-                      </XStack>
-                    )}
-
-                    {!isReturned && (
-                      <TouchableOpacity
-                        style={{
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          paddingVertical: 6,
-                          paddingHorizontal: 10,
-                          borderRadius: 8,
-                          backgroundColor: isDue ? '#fee2e2' : 'transparent',
-                        }}
-                      >
-                        <RotateCcw color={isDue ? '#dc2626' : '#6C48C5'} size={14} style={{ marginRight: 5 }} />
-                        <Text color={isDue ? '#dc2626' : '#6C48C5'} fontWeight="700" fontSize={13}>
-                          Return
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                  </XStack>
-                </YStack>
-              );
-            })
-          )}
-        </YStack>
-      </ScrollView>
-    </YStack>
+          )
+        }
+      />
+    </SafeAreaView>
   );
 }
