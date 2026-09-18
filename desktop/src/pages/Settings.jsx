@@ -305,8 +305,7 @@ export default function Settings() {
 
   return (
     <div className="flex flex-col h-full animate-fade-in">
-      {/* Top Header */}
-      <header className="h-16 flex items-center justify-between px-8 bg-white dark:bg-transparent border-b border-gray-200 dark:border-dark-border shrink-0">
+      <header className="h-16 flex items-center justify-between px-8 bg-white dark:bg-transparent border-b border-gray-200 dark:border-dark-border shrink-0 relative z-30">
         <div className="flex items-center gap-3">
           <div className="p-1.5 border border-gray-200 dark:border-dark-border rounded text-gray-500 dark:text-slate-400">
             <SettingsIcon size={18} />

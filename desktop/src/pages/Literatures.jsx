@@ -821,8 +821,7 @@ export default function Literatures() {
         onChange={handleImportFile} 
       />
 
-      {/* Top Header */}
-      <header className={`h-16 flex items-center justify-between px-8 bg-white dark:bg-dark-card border-b border-gray-200 dark:border-dark-border shrink-0 ${activeTab === 'QR of Literatures' ? 'print:hidden' : ''}`}>
+      <header className={`h-16 flex items-center justify-between px-8 bg-white dark:bg-dark-card border-b border-gray-200 dark:border-dark-border shrink-0 relative z-30 ${activeTab === 'QR of Literatures' ? 'print:hidden' : ''}`}>
         <div className="flex items-center gap-3">
           <div className="p-1.5 border border-gray-200 dark:border-dark-border rounded text-gray-500 dark:text-slate-400">
             <BookCopy size={18} />

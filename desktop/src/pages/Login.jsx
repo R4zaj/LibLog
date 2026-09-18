@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, Eye, EyeOff, Key, Info } from 'lucide-react';
+import { Eye, EyeOff, Key, Info } from 'lucide-react';
 import { setSession } from '../auth';
 import backdropLight from '../assets/backdrop-light.png';
 
