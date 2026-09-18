@@ -41,6 +41,7 @@ export default function Dashboard() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const { isDarkMode, toggleDarkMode } = useTheme();
   const [profileOpen, setProfileOpen] = useState(false);
+  const containerRef = useRef(null);
 
   // Full Log Modal State
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
@@ -91,6 +92,22 @@ export default function Dashboard() {
     };
   }, []);
 
+  useEffect(() => {
+    if (containerRef.current) {
+      containerRef.current.scrollTop = 0;
+    }
+    const t1 = setTimeout(() => {
+      if (containerRef.current) containerRef.current.scrollTop = 0;
+    }, 100);
+    const t2 = setTimeout(() => {
+      if (containerRef.current) containerRef.current.scrollTop = 0;
+    }, 500);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [data]);
+
   const handleLogout = () => {
     clearSession();
     navigate('/login', { replace: true });
@@ -104,7 +121,7 @@ export default function Dashboard() {
   return (
     <div className="flex flex-col h-full animate-fade-in">
       {/* Top Header */}
-      <header className="h-16 flex items-center justify-between px-8 bg-white dark:bg-dark-card border-b border-gray-200 dark:border-dark-border shrink-0">
+      <header className="h-16 flex items-center justify-between px-8 bg-white/85 dark:bg-dark-card/85 backdrop-blur-md border-b border-gray-200/80 dark:border-dark-border/80 shrink-0">
         <div className="flex items-center gap-3">
           <div className="p-1.5 border border-gray-200 dark:border-dark-border rounded text-gray-500 dark:text-slate-400">
             <LayoutDashboard size={18} />
@@ -125,7 +142,13 @@ export default function Dashboard() {
             <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-slate-400 font-medium">
               <div className="w-2 h-2 rounded-full bg-primary-600"></div> Open
             </div>
-            <button onClick={toggleDarkMode} className="text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:text-slate-300 relative p-1 rounded-full hover:bg-gray-100 dark:hover:bg-dark-hover transition-colors">
+            <button 
+              id="theme-toggle-btn"
+              onClick={toggleDarkMode} 
+              aria-label="Toggle dark mode"
+              title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              className="text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:text-slate-300 relative p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-dark-hover transition-colors"
+            >
               {isDarkMode ? <Moon size={18} /> : <Sun size={18} />}
             </button>
             <NotificationDropdown />
@@ -153,22 +176,29 @@ export default function Dashboard() {
       </header>
 
       {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto p-8 flex flex-col gap-6 max-w-7xl mx-auto w-full">
+      <div 
+        ref={containerRef} 
+        style={{ overflowAnchor: 'none' }}
+        className="flex-1 overflow-y-auto w-full"
+      >
+        <div className="p-8 flex flex-col gap-6 max-w-7xl mx-auto w-full">
 
         {/* Welcome Banner */}
-        <div className="bg-gradient-to-b from-purple-500 to-purple-900 rounded-2xl p-8 text-white flex justify-between items-center shadow-md">
+        <div className="bg-gradient-to-b from-purple-500 to-purple-900 rounded-2xl p-8 text-white flex justify-between items-center shadow-lg border border-purple-400/20">
 
           <div className="flex flex-col">
             <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-full bg-purple-950 flex items-center justify-center font-bold text-xs text-white">CCC</div>
-              <span className="text-white text-sm">Good Evening</span>
+              <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center bg-purple-950 border border-purple-400/30 shadow-xs">
+                <img src="/CCC_icon.jpg" alt="CCC" className="w-full h-full object-cover" />
+              </div>
+              <span className="text-white text-sm font-medium">Good Evening</span>
             </div>
             <h2 className="text-3xl font-bold mb-1 tracking-tight">Welcome to CCC LIB APP</h2>
             <p className="text-purple-200/80 text-sm">Your library management dashboard — everything at a glance.</p>
           </div>
 
           <div className="flex gap-4">
-            <div className="flex items-center gap-3 bg-white/10 dark:bg-dark-card/10 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-3">
+            <div className="flex items-center gap-3 bg-white/10 dark:bg-dark-card/20 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-3 shadow-xs">
               <Calendar size={20} className="text-white" />
               <div className="flex flex-col">
                 <span className="text-sm font-semibold text-white">
@@ -179,14 +209,14 @@ export default function Dashboard() {
                 </span>
               </div>
             </div>
-            <div className="flex items-center gap-3 bg-white/10 dark:bg-dark-card/10 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-3">
+            <div className="flex items-center gap-3 bg-white/10 dark:bg-dark-card/20 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-3 shadow-xs">
               <Clock size={20} className="text-white" />
               <div className="flex flex-col">
                 <span className="text-sm font-semibold text-white">07:00 — 21:00</span>
                 <span className="text-xs text-white/80">Library Hours</span>
               </div>
             </div>
-            <div className="flex items-center gap-3 bg-white/10 dark:bg-dark-card/10 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-3">
+            <div className="flex items-center gap-3 bg-white/10 dark:bg-dark-card/20 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-3 shadow-xs">
               <Calendar size={20} className="text-white" />
               <div className="flex flex-col">
                 <span className="text-sm font-semibold text-white">132 days</span>
@@ -562,6 +592,7 @@ export default function Dashboard() {
           <ArrowRightLeft size={10} className="animate-spin-slow" />
         </div>
 
+        </div>
       </div>
 
       {/* Full Log Modal */}

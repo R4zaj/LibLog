@@ -21,6 +21,9 @@ import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { useNetwork } from './contexts/NetworkContext';
 import { clearSession, getDisplayName, getInitials, getRoleLabel } from './auth';
+import { useTheme } from './components/ThemeContext';
+import backdropLight from './assets/backdrop-light.png';
+import backdropDark from './assets/backdrop-dark.png';
 
 const NavItem = ({ to, icon: Icon, label, badge, subItems }) => {
   const location = useLocation();
@@ -101,6 +104,7 @@ const NavItem = ({ to, icon: Icon, label, badge, subItems }) => {
 
 export default function MainLayout() {
   const navigate = useNavigate();
+  const { isDarkMode } = useTheme();
   const [stats, setStats] = useState({ inside: 0, borrowed: 0, overdue: 0, capacity: 40 });
 
   useEffect(() => {
@@ -150,8 +154,8 @@ export default function MainLayout() {
       <aside className="w-64 bg-sidebar-bg dark:bg-dark-sidebar border-r border-gray-200 dark:border-dark-border flex flex-col shadow-sm z-10 shrink-0 print:hidden">
         {/* Logo Area */}
         <div className="h-16 flex items-center px-6 border-b border-gray-200 dark:border-dark-border gap-3">
-          <div className="rounded-md shadow-sm overflow-hidden flex items-center justify-center w-8 h-8">
-            <img src="/CCC_icon.jpg" alt="Logo" className="w-full h-full object-cover" />
+          <div className="rounded-lg shadow-xs overflow-hidden flex items-center justify-center w-9 h-9 bg-white border border-purple-100 dark:border-purple-900/40 p-0.5">
+            <img src="/CCC_icon.jpg" alt="Logo" className="w-full h-full object-contain" />
           </div>
           <div className="flex flex-col">
             <span className="font-bold text-lg text-primary-900 dark:text-primary-300 leading-tight">CCC LIB APP</span>
@@ -251,9 +255,18 @@ export default function MainLayout() {
         </div>
       </aside>
 
-      {/* Main Content Wrapper */}
-      <main className="flex-1 flex flex-col overflow-hidden bg-gray-50/50 dark:bg-dark-bg">
-        <Outlet />
+      {/* Main Content Wrapper with dynamic backdrop */}
+      <main 
+        className="flex-1 flex flex-col overflow-hidden bg-cover bg-center bg-no-repeat transition-all duration-300 relative"
+        style={{
+          backgroundImage: `url(${isDarkMode ? backdropDark : backdropLight})`
+        }}
+      >
+        {/* Subtle ambient overlay matching theme */}
+        <div className="absolute inset-0 bg-white/30 dark:bg-black/45 backdrop-blur-[1px] pointer-events-none" />
+        <div className="relative z-10 flex-1 flex flex-col overflow-hidden">
+          <Outlet />
+        </div>
       </main>
     </div>
     </BorrowingProvider>

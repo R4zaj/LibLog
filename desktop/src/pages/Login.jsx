@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BookOpen, Eye, EyeOff, Key, Info } from 'lucide-react';
 import { setSession } from '../auth';
+import backdropLight from '../assets/backdrop-light.png';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -35,19 +36,24 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-center bg-gradient-to-b from-[#f8f5fd] to-[#f4ebfa] font-sans">
+    <div 
+      className="min-h-screen w-full flex flex-col items-center justify-center font-sans relative bg-cover bg-center bg-no-repeat overflow-x-hidden p-4"
+      style={{ backgroundImage: `url(${backdropLight})` }}
+    >
+      {/* Ambient backdrop overlay for crisp contrast */}
+      <div className="absolute inset-0 bg-white/30 backdrop-blur-[2px] pointer-events-none" />
       
       {/* Branding */}
-      <div className="flex flex-col items-center mb-8">
-        <div className="w-16 h-16 flex items-center justify-center shadow-sm mb-3 rounded-2xl overflow-hidden">
-          <img src="/CCC_icon.jpg" alt="Logo" className="w-full h-full object-cover" />
+      <div className="flex flex-col items-center mb-8 relative z-10">
+        <div className="w-16 h-16 flex items-center justify-center shadow-lg mb-3 rounded-2xl overflow-hidden bg-white border border-[#EAE3F2]">
+          <img src="/CCC_icon.jpg" alt="Logo" className="w-full h-full object-contain p-1" />
         </div>
-        <h1 className="text-2xl font-bold text-[#1A1A1A] mb-1">CCC LIB APP</h1>
-        <p className="text-xs text-[#666666] font-medium tracking-wide">Library Logbook Management System</p>
+        <h1 className="text-2xl font-bold text-[#1A1A1A] mb-1 drop-shadow-sm">CCC LIB APP</h1>
+        <p className="text-xs text-[#555555] font-semibold tracking-wide">Library Logbook Management System</p>
       </div>
 
       {/* Main Card */}
-      <div className="w-[420px] bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-[#EAE3F2] overflow-hidden">
+      <div className="w-[420px] max-w-full bg-white/95 backdrop-blur-md rounded-2xl shadow-[0_12px_40px_rgba(75,34,110,0.12)] border border-[#EAE3F2] overflow-hidden relative z-10">
         
         <div className="p-10 flex flex-col items-center">
           <h2 className="text-[22px] font-bold text-[#1A1A1A] mb-1">Welcome back</h2>
@@ -143,8 +149,10 @@ export default function Login() {
       </div>
 
       {/* Footer */}
-      <div className="mt-8">
-        <p className="text-[10px] text-[#999999]">CCC LIB APP v2.0 — Library Management System</p>
+      <div className="mt-8 relative z-10">
+        <p className="text-[11px] font-medium text-[#4B226E]/90 bg-white/70 backdrop-blur-sm px-3.5 py-1 rounded-full border border-purple-200/60 shadow-xs">
+          CCC LIB APP v2.0 — Library Management System
+        </p>
       </div>
 
     </div>
