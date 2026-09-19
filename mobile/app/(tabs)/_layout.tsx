@@ -1,10 +1,11 @@
 import { Tabs, usePathname } from 'expo-router';
 import React, { useRef, useEffect, useState } from 'react';
 import { View, Platform, Text, Animated, TouchableWithoutFeedback, TouchableOpacity } from 'react-native';
-import { Home, Search, QrCode, BookCopy, User } from 'lucide-react-native';
+import { Home, Search, QrCode, BookCopy, User, History } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { XStack, YStack } from 'tamagui';
 
 interface TabButtonProps {
   children: React.ReactNode;
@@ -41,7 +42,7 @@ const TabButton = (props: TabButtonProps) => {
       onLongPress={props.onLongPress ?? undefined}
       accessibilityState={props.accessibilityState}
     >
-      <Animated.View style={[props.style, { transform: [{ scale }] }]}>
+      <Animated.View style={{ ...props.style, transform: [{ scale }] }}>
         {props.children}
       </Animated.View>
     </TouchableWithoutFeedback>
@@ -53,36 +54,37 @@ export const TabBarVisibilityContext = React.createContext({
 });
 
 function CustomTabBar({ state, descriptors, navigation, translateY }: any) {
-  const dockRoutes = state.routes.filter((r: any) => r.name !== 'scan');
+  const dockRoutes = state.routes.filter((r: any) => r.name !== 'scan' && r.name !== 'profile');
   const qrRoute = state.routes.find((r: any) => r.name === 'scan');
   const insets = useSafeAreaInsets();
 
   return (
-    <Animated.View style={{
-      position: 'absolute',
-      bottom: Math.max(insets.bottom, 16),
-      left: 16,
-      right: 16,
-      flexDirection: 'row',
-      alignItems: 'center',
-      transform: [{ translateY }],
-      zIndex: 100
-    }}>
-      <View style={{
-        flex: 1,
-        flexDirection: 'row',
-        backgroundColor: '#ffffff',
-        borderRadius: 30,
-        borderWidth: 1,
-        borderColor: '#ede9f6',
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        elevation: 8,
-        shadowColor: '#000000',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.08,
-        shadowRadius: 16,
-      }}>
+    <Animated.View style={{ transform: [{ translateY }], zIndex: 100, position: 'absolute', bottom: 0, left: 0, right: 0 }} pointerEvents="box-none">
+      <XStack
+        position="absolute"
+        bottom={insets.bottom > 0 ? insets.bottom + 8 : 16}
+        left={16}
+        right={16}
+        alignItems="center"
+        justifyContent="space-between"
+        zIndex={100}
+        pointerEvents="box-none"
+      >
+        <XStack
+        flex={1}
+        marginRight={12}
+        backgroundColor="#ffffff"
+        borderRadius={30}
+        borderWidth={1}
+        borderColor="#ede9f6"
+        paddingHorizontal={8}
+        paddingVertical={10}
+        elevation={8}
+        shadowColor="#000000"
+        shadowOffset={{ width: 0, height: 8 }}
+        shadowOpacity={0.08}
+        shadowRadius={16}
+      >
         {dockRoutes.map((route: any) => {
           const { options } = descriptors[route.key];
           const isFocused = state.index === state.routes.findIndex((r: any) => r.key === route.key);
@@ -100,23 +102,21 @@ function CustomTabBar({ state, descriptors, navigation, translateY }: any) {
           };
 
           return (
-            <TabButton key={route.key} onPress={onPress} style={{ flex: 1 }}>
+            <TabButton key={route.key} onPress={onPress} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 48 }}>
               {options.tabBarIcon && options.tabBarIcon({ color, focused: isFocused, size: 24 })}
               {options.tabBarLabel && options.tabBarLabel({ color, focused: isFocused })}
             </TabButton>
           );
         })}
-      </View>
-
-      <View style={{ width: 12 }} />
+      </XStack>
 
       {qrRoute && (
         <TouchableOpacity 
           onPress={() => navigation.navigate(qrRoute.name)}
           activeOpacity={0.8}
           style={{
-            width: 54, 
-            height: 54, 
+            width: 56, 
+            height: 56, 
             borderRadius: 20, 
             backgroundColor: '#6C48C5',
             justifyContent: 'center',
@@ -128,9 +128,10 @@ function CustomTabBar({ state, descriptors, navigation, translateY }: any) {
             shadowRadius: 8,
           }}
         >
-          <QrCode color="#ffffff" size={24} />
+          <QrCode color="#ffffff" size={26} />
         </TouchableOpacity>
       )}
+      </XStack>
     </Animated.View>
   );
 }
@@ -143,11 +144,10 @@ export default function TabLayout() {
   const translateY = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.spring(translateY, {
-      toValue: tabBarVisible ? 0 : 150,
+    Animated.timing(translateY, {
+      toValue: tabBarVisible ? 0 : 120,
       useNativeDriver: true,
-      tension: 50,
-      friction: 8,
+      duration: 200,
     }).start();
   }, [tabBarVisible]);
 
@@ -186,15 +186,17 @@ export default function TabLayout() {
         options={{
           title: 'Home',
           tabBarLabel: ({ focused, color }) => (
-            <View style={{ alignItems: 'center', marginBottom: 4 }}>
-              <Text style={{ color, fontSize: 10, fontWeight: '600' }}>Home</Text>
-              {focused && <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: '#6C48C5', marginTop: 4, position: 'absolute', bottom: -8 }} />}
-            </View>
+            <YStack alignItems="center">
+              <Text style={{ color, fontSize: 11, fontWeight: focused ? '700' : '500', marginTop: 3 }}>Home</Text>
+              <YStack alignItems="center" height={6} justifyContent="center" marginTop={2}>
+                {focused ? <YStack backgroundColor="#6C48C5" borderRadius={2} height={4} width={4}/> : null}
+              </YStack>
+            </YStack>
           ),
-          tabBarIcon: ({ color }) => (
-            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-              <Home color={color} size={24} />
-            </View>
+          tabBarIcon: ({ color, focused }) => (
+            <YStack alignItems="center" height={26} justifyContent="center" width={26}>
+              <Home color={color} size={22} strokeWidth={focused ? 2.2 : 2} />
+            </YStack>
           ),
         }}
       />
@@ -204,12 +206,18 @@ export default function TabLayout() {
           title: 'Search',
           tabBarButton: (props) => <TabButton {...props} />,
           tabBarLabel: ({ focused, color }) => (
-            <View style={{ alignItems: 'center', marginBottom: 8 }}>
-              <Text style={{ color, fontSize: 10, fontWeight: '600' }}>Search</Text>
-              {focused && <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: '#6C48C5', position: 'absolute', bottom: -8 }} />}
-            </View>
+            <YStack alignItems="center">
+              <Text style={{ color, fontSize: 11, fontWeight: focused ? '700' : '500', marginTop: 3 }}>Search</Text>
+              <YStack alignItems="center" height={6} justifyContent="center" marginTop={2}>
+                {focused ? <YStack backgroundColor="#6C48C5" borderRadius={2} height={4} width={4}/> : null}
+              </YStack>
+            </YStack>
           ),
-          tabBarIcon: ({ color }) => <Search color={color} size={24} />,
+          tabBarIcon: ({ color, focused }) => (
+            <YStack alignItems="center" height={26} justifyContent="center" width={26}>
+              <Search color={color} size={22} strokeWidth={focused ? 2.2 : 2} />
+            </YStack>
+          ),
         }}
       />
       <Tabs.Screen
@@ -218,40 +226,7 @@ export default function TabLayout() {
           title: 'QR',
           tabBarLabel: () => null,
           tabBarIcon: () => null,
-          tabBarButton: (props) => (
-            <TabButton {...props}>
-              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-                <View style={{
-                  position: 'absolute',
-                  top: Platform.OS === 'ios' ? -25 : -35,
-                  width: 56,
-                  height: 56,
-                  borderRadius: 28,
-                  backgroundColor: '#6C48C5',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  shadowColor: '#6C48C5',
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.25,
-                  shadowRadius: 8,
-                  elevation: 5,
-                  borderWidth: 3,
-                  borderColor: '#ffffff',
-                }}>
-                  <QrCode color="#ffffff" size={24} />
-                </View>
-                <Text style={{ 
-                  color: props.accessibilityState?.selected ? '#6C48C5' : '#9ca3af', 
-                  fontSize: 10, 
-                  fontWeight: '600',
-                  position: 'absolute',
-                  bottom: Platform.OS === 'ios' ? -5 : 4
-                }}>
-                  QR
-                </Text>
-              </View>
-            </TabButton>
-          ),
+          tabBarButton: () => null,
         }}
       />
       <Tabs.Screen
@@ -260,14 +235,16 @@ export default function TabLayout() {
           title: 'Borrowed',
           tabBarButton: (props) => <TabButton {...props} />,
           tabBarLabel: ({ focused, color }) => (
-            <View style={{ alignItems: 'center', marginBottom: 8 }}>
-              <Text style={{ color, fontSize: 10, fontWeight: '600' }}>Borrowed</Text>
-              {focused && <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: '#6C48C5', position: 'absolute', bottom: -8 }} />}
-            </View>
+            <YStack alignItems="center">
+              <Text style={{ color, fontSize: 11, fontWeight: focused ? '700' : '500', marginTop: 3 }}>Borrowed</Text>
+              <YStack alignItems="center" height={6} justifyContent="center" marginTop={2}>
+                {focused ? <YStack backgroundColor="#6C48C5" borderRadius={2} height={4} width={4}/> : null}
+              </YStack>
+            </YStack>
           ),
-          tabBarIcon: ({ color }) => (
-            <View>
-              <BookCopy color={color} size={24} />
+          tabBarIcon: ({ color, focused }) => (
+            <YStack alignItems="center" height={26} justifyContent="center" width={26}>
+              <BookCopy color={color} size={22} strokeWidth={focused ? 2.2 : 2} />
               {borrowCount > 0 && (
                 <View style={{
                   position: 'absolute',
@@ -283,7 +260,27 @@ export default function TabLayout() {
                   <Text style={{ color: '#fff', fontSize: 8, fontWeight: 'bold' }}>{borrowCount}</Text>
                 </View>
               )}
-            </View>
+            </YStack>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="history"
+        options={{
+          title: 'History',
+          tabBarButton: (props) => <TabButton {...props} />,
+          tabBarLabel: ({ focused, color }) => (
+            <YStack alignItems="center">
+              <Text style={{ color, fontSize: 11, fontWeight: focused ? '700' : '500', marginTop: 3 }}>History</Text>
+              <YStack alignItems="center" height={6} justifyContent="center" marginTop={2}>
+                {focused ? <YStack backgroundColor="#6C48C5" borderRadius={2} height={4} width={4}/> : null}
+              </YStack>
+            </YStack>
+          ),
+          tabBarIcon: ({ color, focused }) => (
+            <YStack alignItems="center" height={26} justifyContent="center" width={26}>
+              <History color={color} size={22} strokeWidth={focused ? 2.2 : 2} />
+            </YStack>
           ),
         }}
       />
@@ -291,14 +288,7 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: 'Profile',
-          tabBarButton: (props) => <TabButton {...props} />,
-          tabBarLabel: ({ focused, color }) => (
-            <View style={{ alignItems: 'center', marginBottom: 8 }}>
-              <Text style={{ color, fontSize: 10, fontWeight: '600' }}>Profile</Text>
-              {focused && <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: '#6C48C5', position: 'absolute', bottom: -8 }} />}
-            </View>
-          ),
-          tabBarIcon: ({ color }) => <User color={color} size={24} />,
+          href: null,
         }}
       />
     </Tabs>

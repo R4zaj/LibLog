@@ -1,11 +1,11 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Image } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Image, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { CheckSquare, Square, Eye, EyeOff } from 'lucide-react-native';
+import { Check, Eye, EyeOff, User, Lock } from 'lucide-react-native';
 
 export default function SignIn() {
   const router = useRouter();
@@ -16,6 +16,7 @@ export default function SignIn() {
   const [error, setError] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -39,8 +40,12 @@ export default function SignIn() {
 
   const handleLogin = async () => {
     setError('');
+    setIsSubmitting(true);
     try {
-      const res = await api.post('/auth/login', { student_id: studentId, password });
+      const [res] = await Promise.all([
+        api.post('/auth/login', { student_id: studentId, password }),
+        new Promise(res => setTimeout(res, 700))
+      ]);
       
       if (rememberMe) {
         await AsyncStorage.setItem('@remembered_id', studentId);
@@ -53,113 +58,156 @@ export default function SignIn() {
       }
     } catch (e: any) {
       setError(e.response?.data?.error || 'Failed to sign in');
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <LinearGradient
-        colors={['#f3f4f6', '#e5e7eb']}
-        style={StyleSheet.absoluteFill}
-      />
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1, zIndex: 1 }}
+        style={{ flex: 1 }}
       >
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <View style={styles.headerContainer}>
-          <Image source={require('../../assets/images/CCC_icon.png')} style={{ width: 90, height: 90, marginBottom: 16 }} resizeMode="contain" />
-          <Text style={styles.title}>Welcome Back!</Text>
-          <Text style={styles.subtitle}>Sign in to your account</Text>
-        </View>
-
-        <View style={styles.formContainer}>
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-          <Text style={styles.label}>Email or Library ID</Text>
-          <TextInput
-            style={styles.input}
-            value={studentId}
-            onChangeText={setStudentId}
-            autoCapitalize="none"
-          />
-
-          <Text style={styles.label}>Password</Text>
-          <View style={{ position: 'relative', marginBottom: 20 }}>
-            <TextInput
-              style={[styles.input, { marginBottom: 0, paddingRight: 50 }]}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
-              textContentType="password"
-            />
-            <TouchableOpacity 
-              style={{ position: 'absolute', right: 16, top: 16 }}
-              onPress={() => setShowPassword(!showPassword)}
-            >
-              {showPassword ? <EyeOff color="#9ca3af" size={20} /> : <Eye color="#9ca3af" size={20} />}
-            </TouchableOpacity>
+        <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
+          <View style={styles.headerContainer}>
+            <View style={styles.heroAnchor}>
+              <Image 
+                source={require('../../assets/images/CCC_icon.png')} 
+                style={{ width: 64, height: 64, borderRadius: 16 }} 
+                resizeMode="contain"
+              />
+            </View>
+            <Text style={styles.title}>Welcome Back!</Text>
+            <Text style={styles.subtitle}>Sign in to your account</Text>
           </View>
 
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <View style={styles.formContainer}>
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+            <Text style={styles.label}>Email or Library ID</Text>
+            <View style={styles.inputContainer}>
+              <User color="#9ca3af" size={18} style={{ marginRight: 10 }} />
+              <TextInput
+                style={styles.input}
+                value={studentId}
+                onChangeText={setStudentId}
+                autoCapitalize="none"
+                placeholder="ID or Email"
+                placeholderTextColor="#9ca3af"
+              />
+            </View>
+
+            <Text style={styles.label}>Password</Text>
+            <View style={styles.inputContainer}>
+              <Lock color="#9ca3af" size={18} style={{ marginRight: 10 }} />
+              <TextInput
+                style={styles.input}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+                textContentType="password"
+                placeholder="Password"
+                placeholderTextColor="#9ca3af"
+              />
+              <TouchableOpacity 
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                onPress={() => setShowPassword(!showPassword)}
+                style={{ padding: 4 }}
+              >
+                {showPassword ? <EyeOff color="#9ca3af" size={20} /> : <Eye color="#9ca3af" size={20} />}
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.auxiliaryRow}>
+              <TouchableOpacity 
+                style={styles.rememberMeContainer}
+                onPress={() => setRememberMe(!rememberMe)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
+                  {rememberMe && <Check size={13} color="#ffffff" strokeWidth={3} />}
+                </View>
+                <Text style={styles.rememberMeText}>Remember Me</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                onPress={() => router.push('/(auth)/forgot-password')}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                style={{ minHeight: 48, justifyContent: 'center' }}
+              >
+                <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+              </TouchableOpacity>
+            </View>
+
             <TouchableOpacity 
-              style={{ flexDirection: 'row', alignItems: 'center' }}
-              onPress={() => setRememberMe(!rememberMe)}
-              activeOpacity={0.7}
+              style={[styles.button, isSubmitting && styles.buttonDisabled]} 
+              onPress={handleLogin}
+              disabled={isSubmitting}
             >
-              {rememberMe ? (
-                <CheckSquare color="#6C48C5" size={20} />
+              {isSubmitting ? (
+                <ActivityIndicator size="small" color="#ffffff" />
               ) : (
-                <Square color="#9ca3af" size={20} />
+                <Text style={styles.buttonText}>Sign In</Text>
               )}
-              <Text style={{ marginLeft: 8, color: '#374151', fontSize: 14 }}>Remember Me</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => router.push('/(auth)/forgot-password')}>
-              <Text style={{ color: '#6C48C5', fontSize: 14, fontWeight: '600' }}>Forgot Password?</Text>
-            </TouchableOpacity>
+            <View style={styles.signUpLink}>
+              <Text style={styles.signUpText}>Don't have an account? </Text>
+              <TouchableOpacity 
+                onPress={() => router.push('/(auth)/sign-up')}
+                style={{ minHeight: 48, justifyContent: 'center' }}
+              >
+                <Text style={styles.signUpTextBold}>Sign Up</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-
-          <TouchableOpacity style={styles.button} onPress={handleLogin}>
-            <Text style={styles.buttonText}>Sign In</Text>
-          </TouchableOpacity>
-
-          <View style={[styles.signUpLink, { flexDirection: 'row', justifyContent: 'center' }]}>
-            <Text style={styles.signUpText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => router.push('/(auth)/sign-up')}>
-              <Text style={[styles.signUpText, styles.signUpTextBold]}>Sign Up</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
       </KeyboardAvoidingView>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: '#faf9fe',
   },
   scrollContainer: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: 24,
+    paddingHorizontal: 24,
+    paddingVertical: 32,
   },
   headerContainer: {
     marginBottom: 40,
     alignItems: 'center',
   },
+  heroAnchor: {
+    width: 76,
+    height: 76,
+    borderRadius: 20,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#ede9f6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000000',
+    shadowOpacity: 0.04,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 10,
+    elevation: 2,
+    marginBottom: 24,
+  },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#1f2937',
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#1e1e2e',
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#6b7280',
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#7c7c8a',
   },
   formContainer: {
     width: '100%',
@@ -168,44 +216,102 @@ const styles = StyleSheet.create({
     color: '#ef4444',
     marginBottom: 16,
     textAlign: 'center',
+    fontWeight: '500',
   },
   label: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
+    color: '#4b5563',
+    marginBottom: 6,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#ede9f6',
+    paddingHorizontal: 14,
+    marginBottom: 20,
   },
   input: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    marginBottom: 20,
-    backgroundColor: '#f9fafb',
-    color: '#111827',
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#1e1e2e',
+    height: '100%',
+  },
+  auxiliaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  rememberMeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 48,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: '#ede9f6',
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: '#6C48C5',
+    borderColor: '#6C48C5',
+  },
+  rememberMeText: {
+    marginLeft: 10,
+    color: '#4b5563',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  forgotPasswordText: {
+    color: '#6C48C5',
+    fontSize: 13,
+    fontWeight: '600',
   },
   button: {
+    height: 52,
+    borderRadius: 16,
     backgroundColor: '#6C48C5',
-    padding: 16,
-    borderRadius: 12,
+    justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#6C48C5',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  buttonDisabled: {
+    opacity: 0.85,
   },
   buttonText: {
-    color: '#fff',
+    color: '#ffffff',
     fontSize: 16,
     fontWeight: 'bold',
   },
   signUpLink: {
-    marginTop: 24,
+    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
+    marginTop: 24,
   },
   signUpText: {
-    color: '#6b7280',
-    fontSize: 15,
+    color: '#7c7c8a',
+    fontSize: 14,
+    fontWeight: '500',
   },
   signUpTextBold: {
     color: '#6C48C5',
-    fontWeight: 'bold',
+    fontWeight: '700',
+    fontSize: 14,
   },
 });

@@ -1,5 +1,5 @@
 import React from 'react';
-import { TouchableOpacity, ActivityIndicator, Alert, Modal, TextInput, Switch } from 'react-native';
+import { TouchableOpacity, ActivityIndicator, Alert, Modal, TextInput, Switch, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
@@ -18,6 +18,7 @@ export default function Profile() {
   const [qrVisible, setQrVisible] = React.useState(false);
   const [favoritesModalVisible, setFavoritesModalVisible] = React.useState(false);
   const [selectedFavBook, setSelectedFavBook] = React.useState<any | null>(null);
+  const [logoutModalVisible, setLogoutModalVisible] = React.useState(false);
 
   const doSignOut = async () => {
     try {
@@ -28,10 +29,7 @@ export default function Profile() {
   };
 
   const handleLogout = () => {
-    Alert.alert('Log Out', 'Are you sure you want to log out?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Log Out', style: 'destructive', onPress: doSignOut },
-    ]);
+    setLogoutModalVisible(true);
   };
 
   const [createAnnouncementVisible, setCreateAnnouncementVisible] = React.useState(false);
@@ -329,6 +327,50 @@ export default function Profile() {
           </Text>
         </TouchableOpacity>
       </YStack>
+
+      {/* ── Log Out Confirmation Modal ── */}
+      <Modal animationType="fade" transparent visible={logoutModalVisible} onRequestClose={() => setLogoutModalVisible(false)}>
+        <YStack flex={1} backgroundColor="rgba(0,0,0,0.6)" justifyContent="center" alignItems="center">
+          <YStack width="80%" backgroundColor="white" borderRadius={24} padding="$5" alignItems="center">
+            <YStack backgroundColor="#fef3f2" padding="$3" borderRadius={20} marginBottom="$3">
+              <LogOut color="#ef4444" size={28} />
+            </YStack>
+            <Text fontSize={20} fontWeight="800" color="#1e1e2e" marginBottom="$2">Log Out</Text>
+            <Text fontSize={15} color="#4b5563" textAlign="center" marginBottom="$5">
+              Are you sure you want to log out of your account?
+            </Text>
+            <XStack gap={12} width="100%">
+              <TouchableOpacity
+                onPress={() => setLogoutModalVisible(false)}
+                style={{
+                  flex: 1,
+                  backgroundColor: '#f3f4f6',
+                  paddingVertical: 12,
+                  borderRadius: 16,
+                  alignItems: 'center'
+                }}
+              >
+                <Text color="#4b5563" fontWeight="700" fontSize={15}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  setLogoutModalVisible(false);
+                  doSignOut();
+                }}
+                style={{
+                  flex: 1,
+                  backgroundColor: '#ef4444',
+                  paddingVertical: 12,
+                  borderRadius: 16,
+                  alignItems: 'center'
+                }}
+              >
+                <Text color="#ffffff" fontWeight="700" fontSize={15}>Log Out</Text>
+              </TouchableOpacity>
+            </XStack>
+          </YStack>
+        </YStack>
+      </Modal>
 
       {/* ── Create Announcement Modal ── */}
       <Modal animationType="slide" transparent visible={createAnnouncementVisible} onRequestClose={() => setCreateAnnouncementVisible(false)}>

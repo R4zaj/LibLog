@@ -4,6 +4,9 @@ Dev progress notes for LibLog. Newest entries at the top.
 Format: YYYY-MM-DD - what happened / what's next
 
 ## 2026-09-19
+- Implemented dynamic bottom dock visibility across all mobile tab screens (dock hides on scroll down and reveals on scroll up using `Animated.timing` for smoother transitions).
+- Replaced the Profile tab in the bottom dock with a new History feed (`history.tsx`). Created an activity feed UI with segmented pill filtering (All, Attendance, Borrows, Penalties) merging data from attendance and borrowing API endpoints. Profile is now accessed via the top right corner avatar in the Dashboard.
+- Made the "Due Soon" cards on the Dashboard (`index.tsx`) interactive, routing to `/borrowed` on press, with a trailing `ScanLine` action routing to `/scan`. Implemented clear urgency pills ("Overdue by X days" in red, "Due in X days" in amber).
 - Impeccable design pass on mobile (init -> document -> critique/fix loop per screen), all uncommitted:
   - Context: ran /impeccable init (product interview) and /impeccable document (scan mode) to establish PRODUCT.md and mobile/DESIGN.md + mobile/.impeccable/design.json as the durable product/design record - college library app, unreleased, "CCC LIB APP" branding kept as-is, Android as the primary native reference platform, single accent #6C48C5 ("The Reading Room" / One Accent Rule), 5-role type scale.
   - Ran paired design-review + detector critiques (dual-agent) against all 5 mobile tab screens, then fixed the findings and re-critiqued to confirm the score moved:

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { TouchableOpacity, ActivityIndicator, FlatList, ListRenderItem } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AlertCircle, Book, ChevronRight, Clock, Info } from 'lucide-react-native';
@@ -6,6 +6,7 @@ import { YStack, XStack, Text, View } from 'tamagui';
 import { useAuth } from '../../context/AuthContext';
 import { useFocusEffect, useRouter } from 'expo-router';
 import api from '../../api';
+import { TabBarVisibilityContext } from './_layout';
 import type { BorrowRecordWithBook } from '../../types/api';
 
 export default function Borrowed() {
@@ -16,6 +17,9 @@ export default function Borrowed() {
   const [isLoading, setIsLoading] = useState(false);
   const [fetchError, setFetchError] = useState(false);
   const insets = useSafeAreaInsets();
+  
+  const { setTabBarVisible } = React.useContext(TabBarVisibilityContext);
+  const lastOffsetY = useRef(0);
 
   const fetchBorrows = useCallback(async () => {
     try {
@@ -230,6 +234,18 @@ export default function Borrowed() {
         renderItem={renderItem}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: insets.bottom + 98 }}
+        onScroll={(e) => {
+          const offsetY = e.nativeEvent.contentOffset.y;
+          if (offsetY <= 0) {
+            setTabBarVisible(true);
+          } else if (offsetY > lastOffsetY.current + 10) {
+            setTabBarVisible(false);
+          } else if (offsetY < lastOffsetY.current - 10) {
+            setTabBarVisible(true);
+          }
+          lastOffsetY.current = offsetY;
+        }}
+        scrollEventThrottle={16}
         onRefresh={fetchBorrows}
         refreshing={isLoading && borrows.length > 0}
         ListHeaderComponent={

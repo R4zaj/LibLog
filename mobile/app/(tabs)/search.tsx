@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { TextInput, TouchableOpacity, Dimensions, FlatList, ListRenderItem } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AlertCircle, ArrowUpRight, Search as SearchIcon, BookOpen, Clock, X, Heart } from 'lucide-react-native';
@@ -7,6 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../../api';
 import { useFavorites } from '../../context/FavoritesContext';
 import { BookDetailModal } from '../../components/BookDetailModal';
+import { TabBarVisibilityContext } from './_layout';
 import type { LiteratureBook } from '../../types/api';
 
 const { width } = Dimensions.get('window');
@@ -43,6 +44,9 @@ export default function Search() {
   const [recentItems, setRecentItems] = useState<CatalogBook[]>([]);
   const [selectedBook, setSelectedBook] = useState<CatalogBook | null>(null);
   const insets = useSafeAreaInsets();
+  
+  const { setTabBarVisible } = React.useContext(TabBarVisibilityContext);
+  const lastOffsetY = useRef(0);
 
   const fetchBooks = useCallback(async () => {
     setLoading(true);
@@ -273,6 +277,18 @@ export default function Search() {
         renderItem={renderCatalogItem}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: insets.bottom + 98 }}
+        onScroll={(e) => {
+          const offsetY = e.nativeEvent.contentOffset.y;
+          if (offsetY <= 0) {
+            setTabBarVisible(true);
+          } else if (offsetY > lastOffsetY.current + 10) {
+            setTabBarVisible(false);
+          } else if (offsetY < lastOffsetY.current - 10) {
+            setTabBarVisible(true);
+          }
+          lastOffsetY.current = offsetY;
+        }}
+        scrollEventThrottle={16}
         ListHeaderComponent={
           <YStack>
             {/* Popular Tags */}

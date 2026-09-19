@@ -330,31 +330,45 @@ export default function Home() {
                 let statusColor = '#10b981';
                 let statusText = 'Available';
                 
-                if (daysLeft < 0) {
+                if (daysLeft <= 0) {
                   statusBg = '#fef2f2';
                   statusColor = '#ef4444';
-                  statusText = 'Overdue';
-                } else if (daysLeft <= 1) {
+                  statusText = `Overdue by ${Math.abs(daysLeft)} day${Math.abs(daysLeft) !== 1 ? 's' : ''}`;
+                } else if (daysLeft <= 2) {
                   statusBg = '#fef3c7';
                   statusColor = '#b45309';
-                  statusText = daysLeft === 0 ? 'Today' : 'Tomorrow';
+                  statusText = `Due in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}`;
                 } else {
-                  statusText = `${daysLeft} days`;
+                  statusText = `${daysLeft} days left`;
                 }
 
                 return (
-                  <View key={borrow.id} style={[styles.borrowRow, idx !== 0 && { borderTopWidth: 1, borderTopColor: '#f3f4f6' }]}>
+                  <TouchableOpacity 
+                    key={borrow.id} 
+                    style={[styles.borrowRow, idx !== 0 && { borderTopWidth: 1, borderTopColor: '#f3f4f6' }, { minHeight: 48 }]}
+                    activeOpacity={0.8}
+                    onPress={() => router.push('/borrowed')}
+                  >
                     <View style={styles.borrowRowIcon}>
                       <BookOpen color="#6C48C5" size={16} />
                     </View>
                     <View style={styles.borrowRowContent}>
                       <Text style={styles.borrowRowTitle} numberOfLines={1}>{borrow.book?.title || 'Unknown Book'}</Text>
-                      <Text style={styles.borrowRowDate}>{new Date(borrow.due_date).toLocaleDateString()}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                        <View style={[styles.borrowStatusPill, { backgroundColor: statusBg, marginRight: 8 }]}>
+                          <Text style={[styles.borrowStatusText, { color: statusColor, fontWeight: '700' }]}>{statusText}</Text>
+                        </View>
+                        <Text style={styles.borrowRowDate}>{new Date(borrow.due_date).toLocaleDateString()}</Text>
+                      </View>
                     </View>
-                    <View style={[styles.borrowStatusPill, { backgroundColor: statusBg }]}>
-                      <Text style={[styles.borrowStatusText, { color: statusColor }]}>{statusText}</Text>
-                    </View>
-                  </View>
+                    <TouchableOpacity 
+                      style={{ padding: 8, justifyContent: 'center', alignItems: 'center' }}
+                      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                      onPress={() => router.push('/scan')}
+                    >
+                      <ScanLine color="#9ca3af" size={20} />
+                    </TouchableOpacity>
+                  </TouchableOpacity>
                 );
               })}
             </View>
