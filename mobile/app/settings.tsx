@@ -18,7 +18,7 @@ export default function SettingsScreen() {
         toValue: 1,
         duration: 1000,
         easing: Easing.linear,
-        useNativeDriver: true,
+        useNativeDriver: false,
       })
     ).start();
 
@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#1e1e2e',
   },
   scrollContent: {
@@ -144,23 +144,26 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: '#ffffff',
-    borderRadius: 24,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: '#ede9f6',
     padding: 16,
     marginBottom: 16,
+    boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.05)',
+    elevation: 2,
   },
   privacyCard: {
     backgroundColor: '#faf9fe',
   },
   cardTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '600',
     color: '#1e1e2e',
     marginBottom: 4,
   },
   cardSubtitle: {
-    fontSize: 13,
+    fontSize: 12,
+    fontWeight: '500',
     color: '#7c7c8a',
     marginBottom: 16,
   },
@@ -173,7 +176,8 @@ const styles = StyleSheet.create({
   },
   pillBtn: {
     flex: 1,
-    paddingVertical: 10,
+    height: 48,
+    justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 12,
   },
@@ -182,7 +186,7 @@ const styles = StyleSheet.create({
   },
   pillText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '500',
     color: '#7c7c8a',
   },
   pillTextActive: {

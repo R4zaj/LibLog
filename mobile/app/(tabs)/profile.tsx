@@ -128,7 +128,7 @@ export default function Profile() {
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f4f1fa' }}>
     <ScrollView backgroundColor="#f4f1fa" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
       {/* ── Header ── */}
-      <YStack backgroundColor="#ffffff" borderRadius={24} padding={20} borderWidth={1} borderColor="#ede9f6" alignItems="center" marginHorizontal="$5" marginTop="$5" marginBottom="$4">
+      <YStack backgroundColor="#ffffff" borderRadius={16} padding={20} borderWidth={1} borderColor="#ede9f6" alignItems="center" marginHorizontal="$5" marginTop="$5" marginBottom="$4" style={{ boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.05)' }} elevation={2}>
         <YStack
           width={80}
           height={80}
@@ -183,6 +183,7 @@ export default function Profile() {
             borderRadius: 14,
             borderWidth: 1,
             borderColor: '#ede9f6',
+            minHeight: 48,
           }}
         >
           <QrCode color="#6C48C5" size={16} style={{ marginRight: 7 }} />
@@ -195,11 +196,11 @@ export default function Profile() {
       {/* ── QR Modal ── */}
       <Modal animationType="fade" transparent visible={qrVisible} onRequestClose={() => setQrVisible(false)}>
         <YStack flex={1} backgroundColor="rgba(0,0,0,0.6)" justifyContent="center" alignItems="center">
-          <YStack width="85%" backgroundColor="white" borderRadius={24} padding="$5" alignItems="center">
-            <TouchableOpacity onPress={() => setQrVisible(false)} style={{ position: 'absolute', top: 16, right: 16, padding: 8 }}>
+          <YStack width="85%" backgroundColor="white" borderRadius={16} padding="$5" alignItems="center">
+            <TouchableOpacity onPress={() => setQrVisible(false)} style={{ position: 'absolute', top: 16, right: 16, padding: 8, minHeight: 48, minWidth: 48, justifyContent: 'center', alignItems: 'center' }}>
               <X color="#7c7c8a" size={24} />
             </TouchableOpacity>
-            <Text fontSize={20} fontWeight="800" color="#1e1e2e" marginBottom="$1">
+            <Text fontSize={24} fontWeight="800" color="#1e1e2e" marginBottom="$1">
               Your Library ID
             </Text>
             <Text fontSize={13} color="#7c7c8a" marginBottom="$5" textAlign="center">
@@ -225,14 +226,11 @@ export default function Profile() {
       <XStack
         backgroundColor="white"
         marginHorizontal="$5"
-        borderRadius={24}
+        borderRadius={16}
         paddingVertical="$4"
         borderWidth={1}
         borderColor="#ede9f6"
-        shadowColor="#000"
-        shadowOffset={{ width: 0, height: 4 }}
-        shadowOpacity={0.03}
-        shadowRadius={12}
+        style={{ boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.05)' }}
         elevation={2}
       >
         <YStack flex={1} alignItems="center">
@@ -278,7 +276,7 @@ export default function Profile() {
         </XStack>
 
         {/* Menu */}
-        <YStack backgroundColor="white" borderRadius={24} padding={12} marginBottom="$5" borderWidth={1} borderColor="#ede9f6">
+        <YStack backgroundColor="white" borderRadius={16} padding={12} marginBottom="$5" borderWidth={1} borderColor="#ede9f6" style={{ boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.05)' }} elevation={2}>
           {menuItems.map((item, idx) => (
             <React.Fragment key={item.id}>
               <TouchableOpacity onPress={item.action} style={{ minHeight: 48, justifyContent: 'center' }}>
@@ -316,6 +314,7 @@ export default function Profile() {
             borderWidth: 1,
             borderColor: '#fecaca',
             backgroundColor: '#fef3f2',
+            minHeight: 48,
           }}
         >
           <LogOut color="#ef4444" size={20} style={{ marginRight: 8 }} />
@@ -328,11 +327,11 @@ export default function Profile() {
       {/* ── Log Out Confirmation Modal ── */}
       <Modal animationType="fade" transparent visible={logoutModalVisible} onRequestClose={() => setLogoutModalVisible(false)}>
         <YStack flex={1} backgroundColor="rgba(0,0,0,0.6)" justifyContent="center" alignItems="center">
-          <YStack width="80%" backgroundColor="white" borderRadius={24} padding="$5" alignItems="center">
+          <YStack width="80%" backgroundColor="white" borderRadius={16} padding="$5" alignItems="center">
             <YStack backgroundColor="#fef3f2" padding="$3" borderRadius={20} marginBottom="$3">
               <LogOut color="#ef4444" size={28} />
             </YStack>
-            <Text fontSize={20} fontWeight="800" color="#1e1e2e" marginBottom="$2">Log Out</Text>
+            <Text fontSize={24} fontWeight="800" color="#1e1e2e" marginBottom="$2">Log Out</Text>
             <Text fontSize={15} color="#4b5563" textAlign="center" marginBottom="$5">
               Are you sure you want to log out of your account?
             </Text>
@@ -344,7 +343,9 @@ export default function Profile() {
                   backgroundColor: '#f3f4f6',
                   paddingVertical: 12,
                   borderRadius: 16,
-                  alignItems: 'center'
+                  alignItems: 'center',
+                  minHeight: 48,
+                  justifyContent: 'center',
                 }}
               >
                 <Text color="#4b5563" fontWeight="700" fontSize={15}>Cancel</Text>
@@ -359,7 +360,9 @@ export default function Profile() {
                   backgroundColor: '#ef4444',
                   paddingVertical: 12,
                   borderRadius: 16,
-                  alignItems: 'center'
+                  alignItems: 'center',
+                  minHeight: 48,
+                  justifyContent: 'center',
                 }}
               >
                 <Text color="#ffffff" fontWeight="700" fontSize={15}>Log Out</Text>
@@ -372,10 +375,10 @@ export default function Profile() {
       {/* ── Create Announcement Modal ── */}
       <Modal animationType="slide" transparent visible={createAnnouncementVisible} onRequestClose={() => setCreateAnnouncementVisible(false)}>
         <YStack flex={1} backgroundColor="rgba(0,0,0,0.6)" justifyContent="center" alignItems="center">
-          <YStack width="85%" backgroundColor="white" borderRadius={24} padding="$5">
+          <YStack width="85%" backgroundColor="white" borderRadius={16} padding="$5">
             <XStack justifyContent="space-between" alignItems="center" marginBottom="$4">
-              <Text fontSize={20} fontWeight="800" color="#1e1e2e">Create Announcement</Text>
-              <TouchableOpacity onPress={() => setCreateAnnouncementVisible(false)}>
+              <Text fontSize={24} fontWeight="800" color="#1e1e2e">Create Announcement</Text>
+              <TouchableOpacity onPress={() => setCreateAnnouncementVisible(false)} style={{ minHeight: 48, minWidth: 48, justifyContent: 'center', alignItems: 'center', marginRight: -12, marginTop: -12 }}>
                 <X color="#9ca3af" size={24} />
               </TouchableOpacity>
             </XStack>
@@ -416,6 +419,8 @@ export default function Profile() {
                 borderRadius: 14,
                 alignItems: 'center',
                 opacity: isSubmitting ? 0.7 : 1,
+                minHeight: 48,
+                justifyContent: 'center',
               }}
             >
               <Text color="white" fontSize={16} fontWeight="700">
@@ -427,12 +432,12 @@ export default function Profile() {
       </Modal>
 
       {/* ── Edit Profile Modal ── */}
-      <Modal animationType="fade" transparent visible={editProfileVisible} onRequestClose={() => setEditProfileVisible(false)}>
-        <YStack flex={1} backgroundColor="rgba(0,0,0,0.6)" justifyContent="center" alignItems="center">
-          <YStack width="85%" backgroundColor="white" borderRadius={24} padding="$5">
-            <XStack justifyContent="space-between" alignItems="center" marginBottom="$4">
-              <Text fontSize={20} fontWeight="800" color="#1e1e2e">Edit Profile</Text>
-              <TouchableOpacity onPress={() => setEditProfileVisible(false)}>
+      <Modal animationType="slide" transparent visible={editProfileVisible} onRequestClose={() => setEditProfileVisible(false)}>
+        <YStack flex={1} backgroundColor="rgba(0,0,0,0.6)" justifyContent="flex-end">
+          <YStack backgroundColor="white" borderTopLeftRadius={16} borderTopRightRadius={16} padding="$5" paddingTop="$6" paddingBottom={Platform.OS === 'ios' ? 40 : 20} maxHeight="85%">
+            <XStack justifyContent="space-between" alignItems="center" marginBottom="$5">
+              <Text fontSize={24} fontWeight="800" color="#1e1e2e">Edit Profile</Text>
+              <TouchableOpacity onPress={() => setEditProfileVisible(false)} style={{ minHeight: 48, minWidth: 48, justifyContent: 'center', alignItems: 'center', marginRight: -12, marginTop: -12 }}>
                 <X color="#9ca3af" size={24} />
               </TouchableOpacity>
             </XStack>
@@ -459,7 +464,7 @@ export default function Profile() {
             <Text fontSize={14} fontWeight="700" color="#4b5563" marginBottom="$1.5">Course / Program</Text>
             <TouchableOpacity
               onPress={() => setProgramModalVisible(true)}
-              style={{ backgroundColor: '#faf9fe', borderWidth: 1, borderColor: '#ede9f6', borderRadius: 12, padding: 12, marginBottom: 16, justifyContent: 'center' }}
+              style={{ backgroundColor: '#faf9fe', borderWidth: 1, borderColor: '#ede9f6', borderRadius: 12, padding: 12, marginBottom: 16, justifyContent: 'center', minHeight: 48 }}
             >
               <Text style={{ color: editProfileForm.program ? '#1e1e2e' : '#9ca3af', fontSize: 14 }}>
                 {editProfileForm.program || 'Select a course'}
@@ -484,6 +489,8 @@ export default function Profile() {
                 alignItems: 'center',
                 opacity: isEditingProfile ? 0.7 : 1,
                 marginTop: 4,
+                minHeight: 48,
+                justifyContent: 'center',
               }}
             >
               <Text color="white" fontSize={16} fontWeight="700">
@@ -497,10 +504,10 @@ export default function Profile() {
       {/* ── Program Selection Modal ── */}
       <Modal animationType="fade" transparent visible={programModalVisible} onRequestClose={() => setProgramModalVisible(false)}>
         <YStack flex={1} backgroundColor="rgba(0,0,0,0.6)" justifyContent="center" alignItems="center">
-          <YStack width="85%" maxHeight="70%" backgroundColor="white" borderRadius={24} padding="$5">
-            <XStack justifyContent="space-between" alignItems="center" marginBottom="$3">
-              <Text fontSize={20} fontWeight="800" color="#1e1e2e">Select Course</Text>
-              <TouchableOpacity onPress={() => setProgramModalVisible(false)}>
+          <YStack width="85%" maxHeight="80%" backgroundColor="white" borderRadius={16} padding="$5">
+            <XStack justifyContent="space-between" alignItems="center" marginBottom="$4">
+              <Text fontSize={24} fontWeight="800" color="#1e1e2e">Select Program</Text>
+              <TouchableOpacity onPress={() => setProgramModalVisible(false)} style={{ minHeight: 48, minWidth: 48, justifyContent: 'center', alignItems: 'center', marginRight: -12, marginTop: -12 }}>
                 <X color="#9ca3af" size={24} />
               </TouchableOpacity>
             </XStack>
@@ -531,7 +538,7 @@ export default function Profile() {
                       setEditProfileForm({ ...editProfileForm, program: prog.name });
                       setProgramModalVisible(false);
                     }}
-                    style={{ paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f0eef5' }}
+                    style={{ paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f0eef5', minHeight: 48, justifyContent: 'center' }}
                   >
                     <Text style={{ fontSize: 16, color: '#1e1e2e', fontWeight: '500' }}>{prog.name}</Text>
                     <Text style={{ fontSize: 13, color: '#9ca3af', marginTop: 4 }}>{prog.code}</Text>
@@ -549,7 +556,7 @@ export default function Profile() {
           <YStack width="85%" backgroundColor="white" borderRadius={24} padding="$5">
             <XStack justifyContent="space-between" alignItems="center" marginBottom="$3">
               <Text fontSize={20} fontWeight="800" color="#1e1e2e">{infoModal.title}</Text>
-              <TouchableOpacity onPress={() => setInfoModal({ ...infoModal, visible: false })}>
+              <TouchableOpacity onPress={() => setInfoModal({ ...infoModal, visible: false })} style={{ minHeight: 48, minWidth: 48, justifyContent: 'center', alignItems: 'center' }}>
                 <X color="#9ca3af" size={24} />
               </TouchableOpacity>
             </XStack>
@@ -570,31 +577,24 @@ export default function Profile() {
           setFavoritesModalVisible(false);
         }}
       >
-        <YStack flex={1} backgroundColor="rgba(0,0,0,0.6)" justifyContent="center" alignItems="center" padding="$4">
-          <YStack width="100%" maxWidth={460} maxHeight="82%" backgroundColor="white" borderRadius={24} padding="$5" elevation={8}>
-            <XStack justifyContent="space-between" alignItems="center" marginBottom="$4">
-              <XStack alignItems="center" gap="$2.5">
-                <YStack width={40} height={40} borderRadius={14} backgroundColor="#fef3f2" justifyContent="center" alignItems="center">
-                  <Heart color="#ef4444" size={20} fill="#ef4444" />
-                </YStack>
-                <YStack>
-                  <Text fontSize={20} fontWeight="800" color="#1e1e2e">Favorite Books</Text>
-                  <Text fontSize={12} color="#7c7c8a">
-                    {favorites.length} {favorites.length === 1 ? 'book' : 'books'} saved in collection
-                  </Text>
-                </YStack>
-              </XStack>
+        <YStack flex={1} backgroundColor="rgba(0,0,0,0.6)" justifyContent="flex-end">
+          <YStack backgroundColor="#f4f1fa" borderTopLeftRadius={16} borderTopRightRadius={16} padding="$5" paddingTop="$6" paddingBottom={Platform.OS === 'ios' ? 40 : 20} maxHeight="90%">
+            <XStack justifyContent="space-between" alignItems="center" marginBottom="$5">
+              <Text fontSize={24} fontWeight="800" color="#1e1e2e">My Favorites</Text>
               <TouchableOpacity
                 onPress={() => {
                   setSelectedFavBook(null);
                   setFavoritesModalVisible(false);
                 }}
+                style={{ minHeight: 48, minWidth: 48, justifyContent: 'center', alignItems: 'center', marginRight: -12, marginTop: -12 }}
               >
-                <View backgroundColor="#f4f1fa" padding="$2" borderRadius={12}>
-                  <X color="#6C48C5" size={20} />
-                </View>
+                <X color="#6C48C5" size={24} />
               </TouchableOpacity>
             </XStack>
+
+            <Text fontSize={12} color="#7c7c8a" marginBottom="$4">
+              {favorites.length} {favorites.length === 1 ? 'book' : 'books'} saved in collection
+            </Text>
 
             {favorites.length === 0 ? (
               <YStack alignItems="center" justifyContent="center" paddingVertical="$8">
@@ -614,9 +614,12 @@ export default function Profile() {
                   }}
                   style={{
                     backgroundColor: '#6C48C5',
-                    paddingHorizontal: 20,
-                    paddingVertical: 10,
+                    paddingVertical: 12,
+                    paddingHorizontal: 24,
                     borderRadius: 12,
+                    minHeight: 48,
+                    justifyContent: 'center',
+                    alignItems: 'center',
                   }}
                 >
                   <Text color="white" fontSize={14} fontWeight="700">Explore Catalog</Text>
@@ -634,10 +637,14 @@ export default function Profile() {
                       <XStack
                         backgroundColor="#faf9fe"
                         borderRadius={16}
-                        padding="$3"
-                        alignItems="center"
+                        padding={12}
+                        marginBottom="$3"
                         borderWidth={1}
-                        borderColor="#f0eef5"
+                        borderColor="#ede9f6"
+                        style={{ boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.05)' }}
+                        elevation={2}
+                        flexDirection="row"
+                        alignItems="center"
                       >
                         <YStack
                           width={48}
@@ -670,9 +677,12 @@ export default function Profile() {
                         </YStack>
                         <TouchableOpacity
                           onPress={() => removeFavorite(book.id)}
-                          hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                           style={{
-                            padding: 8,
+                            minHeight: 48,
+                            minWidth: 48,
+                            justifyContent: 'center',
+                            alignItems: 'center',
                             borderRadius: 10,
                             backgroundColor: '#fef3f2',
                           }}
@@ -707,7 +717,7 @@ export default function Profile() {
                   By {selectedFavBook?.author}
                 </Text>
               </YStack>
-              <TouchableOpacity onPress={() => setSelectedFavBook(null)}>
+              <TouchableOpacity onPress={() => setSelectedFavBook(null)} style={{ minHeight: 48, minWidth: 48, justifyContent: 'center', alignItems: 'center' }}>
                 <View backgroundColor="#f4f1fa" padding="$2" borderRadius={12}>
                   <X color="#6C48C5" size={20} />
                 </View>
@@ -768,10 +778,12 @@ export default function Profile() {
                   flex: 1,
                   backgroundColor: '#fef3f2',
                   paddingVertical: 12,
-                  borderRadius: 12,
+                  borderRadius: 16,
                   alignItems: 'center',
                   borderWidth: 1,
                   borderColor: '#fecaca',
+                  minHeight: 48,
+                  justifyContent: 'center',
                 }}
               >
                 <Text color="#ef4444" fontSize={13} fontWeight="700">Remove</Text>
@@ -786,8 +798,10 @@ export default function Profile() {
                   flex: 1,
                   backgroundColor: '#6C48C5',
                   paddingVertical: 12,
-                  borderRadius: 12,
+                  borderRadius: 16,
                   alignItems: 'center',
+                  minHeight: 48,
+                  justifyContent: 'center',
                 }}
               >
                 <Text color="white" fontSize={13} fontWeight="700">Find in Catalog</Text>

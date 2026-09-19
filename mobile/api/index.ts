@@ -3,7 +3,7 @@ import Constants from 'expo-constants';
 import { DeviceEventEmitter } from 'react-native';
 import { getItem } from '../utils/Storage';
 
-const FALLBACK_API_URL = 'https://liblog-backend.onrender.com/api';
+const FALLBACK_API_URL = 'http://localhost:5000/api';
 const API_URL =
   (Constants.expoConfig?.extra as { apiUrl?: string } | undefined)?.apiUrl ?? FALLBACK_API_URL;
 

@@ -26,8 +26,8 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   title: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 24,
+    fontWeight: '800',
   },
   link: {
     marginTop: 15,
@@ -35,6 +35,7 @@ const styles = StyleSheet.create({
   },
   linkText: {
     fontSize: 14,
-    color: '#2e78b7',
+    fontWeight: '500',
+    color: '#6C48C5',
   },
 });

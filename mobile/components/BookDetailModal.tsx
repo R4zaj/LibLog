@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Modal, TouchableOpacity, StyleSheet, TouchableWithoutFeedback, ScrollView } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { Heart, X, MapPin, CheckCircle2, BookOpen, QrCode } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LiteratureBook } from '../types/api';
@@ -30,9 +30,9 @@ export function BookDetailModal({
       animationType="fade"
       onRequestClose={onClose}
     >
-      <TouchableWithoutFeedback onPress={onClose}>
+      <Pressable onPress={onClose}>
         <View style={[styles.overlay, { paddingTop: insets.top + 16 }]}>
-          <TouchableWithoutFeedback>
+          <Pressable>
             <View style={styles.card}>
               
               {/* Cover Placeholder Hero Well */}
@@ -132,9 +132,9 @@ export function BookDetailModal({
               </ScrollView>
               
             </View>
-          </TouchableWithoutFeedback>
+          </Pressable>
         </View>
-      </TouchableWithoutFeedback>
+      </Pressable>
     </Modal>
   );
 }
@@ -158,10 +158,7 @@ const styles = StyleSheet.create({
     borderColor: '#ede9f6',
     padding: 20,
     elevation: 6,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.06,
-    shadowRadius: 20,
+    boxShadow: '0px 8px 20px rgba(0, 0, 0, 0.06)',
   },
   coverWell: {
     width: '100%',
@@ -216,10 +213,7 @@ const styles = StyleSheet.create({
     borderColor: '#ede9f6',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.05)',
     elevation: 2,
   },
   titleBlock: {
@@ -307,10 +301,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.05)',
     elevation: 2,
   },
   footerActionText: {

@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '600',
     color: '#1e1e2e',
   },
   scrollContent: {
@@ -80,11 +80,13 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: '#ffffff',
-    borderRadius: 24,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: '#ede9f6',
     padding: 20,
     marginBottom: 16,
+    boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.05)',
+    elevation: 2,
   },
   iconContainer: {
     width: 48,
@@ -97,7 +99,7 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '600',
     color: '#1e1e2e',
     marginBottom: 8,
   },

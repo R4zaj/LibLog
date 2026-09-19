@@ -65,13 +65,13 @@ export default function ScanScreen() {
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 300,
-        useNativeDriver: true,
+        useNativeDriver: false,
       }),
       Animated.delay(2000),
       Animated.timing(fadeAnim, {
         toValue: 0,
         duration: 500,
-        useNativeDriver: true,
+        useNativeDriver: false,
       }),
     ]).start(() => {
       setShowCheckmark(false);
@@ -128,6 +128,7 @@ export default function ScanScreen() {
               <TouchableOpacity
                 onPress={fetchHistory}
                 hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+                style={{ minHeight: 48, justifyContent: 'center' }}
               >
                 <Text fontSize={12} color="#6C48C5" fontWeight="700">
                   Retry
@@ -139,15 +140,12 @@ export default function ScanScreen() {
           {/* ── QR Card ── */}
           <YStack
             backgroundColor="white"
-            borderRadius={24}
+            borderRadius={16}
             padding={24}
             alignItems="center"
             borderWidth={1}
             borderColor="#ede9f6"
-            shadowColor="#000"
-            shadowOffset={{ width: 0, height: 4 }}
-            shadowOpacity={0.03}
-            shadowRadius={12}
+            style={{ boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.05)' }}
             elevation={2}
             marginBottom="$5"
             width="100%"
@@ -245,6 +243,8 @@ export default function ScanScreen() {
                     marginBottom="$2.5"
                     borderWidth={1}
                     borderColor="#f0eef5"
+                    style={{ boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.05)' }}
+                    elevation={2}
                   >
                     {/* Icon */}
                     <YStack
@@ -322,10 +322,7 @@ export default function ScanScreen() {
                 backgroundColor="#10b981"
                 alignItems="center"
                 justifyContent="center"
-                shadowColor="#10b981"
-                shadowOffset={{ width: 0, height: 12 }}
-                shadowOpacity={0.35}
-                shadowRadius={28}
+                style={{ boxShadow: '0px 12px 28px rgba(16, 185, 129, 0.35)' }}
                 elevation={12}
               >
                 <Check color="#FFFFFF" size={48} strokeWidth={3} />

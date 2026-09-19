@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '800',
     color: '#1e1e2e',
   },
@@ -215,13 +215,15 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     marginRight: 8,
+    minHeight: 48,
+    justifyContent: 'center',
   },
   filterChipActive: {
     backgroundColor: '#6C48C5',
   },
   filterText: {
     color: '#6C48C5',
-    fontWeight: '600',
+    fontWeight: '500',
     fontSize: 14,
   },
   filterTextActive: {
@@ -244,15 +246,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ffffff',
-    borderRadius: 20,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: '#ede9f6',
-    shadowColor: '#000000',
-    shadowOpacity: 0.03,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 10,
+    boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.05)',
     elevation: 2,
   },
   iconContainer: {
@@ -269,18 +268,19 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   cardTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '600',
     color: '#1e1e2e',
     marginBottom: 4,
   },
   cardSubtitle: {
     fontSize: 14,
+    fontWeight: '500',
     color: '#7c7c8a',
   },
   dateText: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '500',
     color: '#9ca3af',
   },
 });

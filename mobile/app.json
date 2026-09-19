@@ -45,7 +45,7 @@
     },
     "extra": {
       "router": {},
-      "apiUrl": "https://liblog-backend.onrender.com/api",
+      "apiUrl": "http://localhost:5000/api",
       "eas": {
         "projectId": "92d35e67-0082-4ab3-abb9-5a740b392852"
       }

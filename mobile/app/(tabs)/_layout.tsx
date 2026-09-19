@@ -1,6 +1,6 @@
 import { Tabs, usePathname } from 'expo-router';
 import React, { useRef, useEffect, useState } from 'react';
-import { View, Platform, Text, Animated, TouchableWithoutFeedback, TouchableOpacity } from 'react-native';
+import { View, Platform, Text, Animated, Pressable, TouchableOpacity } from 'react-native';
 import { Home, Search, QrCode, BookCopy, User, History } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api';
@@ -21,7 +21,7 @@ const TabButton = (props: TabButtonProps) => {
   const handlePressIn = () => {
     Animated.spring(scale, {
       toValue: 0.85,
-      useNativeDriver: true,
+      useNativeDriver: false,
     }).start();
   };
 
@@ -30,22 +30,23 @@ const TabButton = (props: TabButtonProps) => {
       toValue: 1,
       friction: 3,
       tension: 40,
-      useNativeDriver: true,
+      useNativeDriver: false,
     }).start();
   };
 
   return (
-    <TouchableWithoutFeedback
+    <Pressable
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       onPress={props.onPress ?? undefined}
       onLongPress={props.onLongPress ?? undefined}
       accessibilityState={props.accessibilityState}
+      style={{ flex: 1 }}
     >
       <Animated.View style={{ ...props.style, transform: [{ scale }] }}>
         {props.children}
       </Animated.View>
-    </TouchableWithoutFeedback>
+    </Pressable>
   );
 };
 
@@ -80,10 +81,7 @@ function CustomTabBar({ state, descriptors, navigation, translateY }: any) {
         paddingHorizontal={8}
         paddingVertical={10}
         elevation={8}
-        shadowColor="#000000"
-        shadowOffset={{ width: 0, height: 8 }}
-        shadowOpacity={0.08}
-        shadowRadius={16}
+        style={{ boxShadow: '0px 8px 16px rgba(0, 0, 0, 0.08)' }}
       >
         {dockRoutes.map((route: any) => {
           const { options } = descriptors[route.key];
@@ -102,7 +100,7 @@ function CustomTabBar({ state, descriptors, navigation, translateY }: any) {
           };
 
           return (
-            <TabButton key={route.key} onPress={onPress} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 48 }}>
+            <TabButton key={route.key} onPress={onPress} style={{ flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 48 }}>
               {options.tabBarIcon && options.tabBarIcon({ color, focused: isFocused, size: 24 })}
               {options.tabBarLabel && options.tabBarLabel({ color, focused: isFocused })}
             </TabButton>
@@ -122,10 +120,7 @@ function CustomTabBar({ state, descriptors, navigation, translateY }: any) {
             justifyContent: 'center',
             alignItems: 'center',
             elevation: 5,
-            shadowColor: '#6C48C5',
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.25,
-            shadowRadius: 8,
+            boxShadow: '0px 4px 8px rgba(108, 72, 197, 0.25)',
           }}
         >
           <QrCode color="#ffffff" size={26} />
@@ -146,7 +141,7 @@ export default function TabLayout() {
   useEffect(() => {
     Animated.timing(translateY, {
       toValue: tabBarVisible ? 0 : 120,
-      useNativeDriver: true,
+      useNativeDriver: false,
       duration: 200,
     }).start();
   }, [tabBarVisible]);
@@ -187,7 +182,7 @@ export default function TabLayout() {
           title: 'Home',
           tabBarLabel: ({ focused, color }) => (
             <YStack alignItems="center">
-              <Text style={{ color, fontSize: 11, fontWeight: focused ? '700' : '500', marginTop: 3 }}>Home</Text>
+              <Text style={{ color, fontSize: 11, fontWeight: focused ? '700' : '500', marginTop: 3, textAlign: 'center' }}>Home</Text>
               <YStack alignItems="center" height={6} justifyContent="center" marginTop={2}>
                 {focused ? <YStack backgroundColor="#6C48C5" borderRadius={2} height={4} width={4}/> : null}
               </YStack>
@@ -207,7 +202,7 @@ export default function TabLayout() {
           tabBarButton: (props) => <TabButton {...props} />,
           tabBarLabel: ({ focused, color }) => (
             <YStack alignItems="center">
-              <Text style={{ color, fontSize: 11, fontWeight: focused ? '700' : '500', marginTop: 3 }}>Search</Text>
+              <Text style={{ color, fontSize: 11, fontWeight: focused ? '700' : '500', marginTop: 3, textAlign: 'center' }}>Search</Text>
               <YStack alignItems="center" height={6} justifyContent="center" marginTop={2}>
                 {focused ? <YStack backgroundColor="#6C48C5" borderRadius={2} height={4} width={4}/> : null}
               </YStack>
@@ -236,7 +231,7 @@ export default function TabLayout() {
           tabBarButton: (props) => <TabButton {...props} />,
           tabBarLabel: ({ focused, color }) => (
             <YStack alignItems="center">
-              <Text style={{ color, fontSize: 11, fontWeight: focused ? '700' : '500', marginTop: 3 }}>Borrowed</Text>
+              <Text style={{ color, fontSize: 11, fontWeight: focused ? '700' : '500', marginTop: 3, textAlign: 'center' }}>Borrowed</Text>
               <YStack alignItems="center" height={6} justifyContent="center" marginTop={2}>
                 {focused ? <YStack backgroundColor="#6C48C5" borderRadius={2} height={4} width={4}/> : null}
               </YStack>
@@ -249,7 +244,7 @@ export default function TabLayout() {
                 <View style={{
                   position: 'absolute',
                   top: -4,
-                  right: -6,
+                  right: -8,
                   backgroundColor: '#ef4444',
                   width: 14,
                   height: 14,
@@ -271,7 +266,7 @@ export default function TabLayout() {
           tabBarButton: (props) => <TabButton {...props} />,
           tabBarLabel: ({ focused, color }) => (
             <YStack alignItems="center">
-              <Text style={{ color, fontSize: 11, fontWeight: focused ? '700' : '500', marginTop: 3 }}>History</Text>
+              <Text style={{ color, fontSize: 11, fontWeight: focused ? '700' : '500', marginTop: 3, textAlign: 'center' }}>History</Text>
               <YStack alignItems="center" height={6} justifyContent="center" marginTop={2}>
                 {focused ? <YStack backgroundColor="#6C48C5" borderRadius={2} height={4} width={4}/> : null}
               </YStack>

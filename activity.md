@@ -3,6 +3,15 @@
 Dev progress notes for LibLog. Newest entries at the top.
 Format: YYYY-MM-DD - what happened / what's next
 
+## 2026-09-20
+- Fixed `ERR_QUIC_PROTOCOL_ERROR` sign-in failures by ensuring local development environment defaults to localhost API instead of the production backend (updated `mobile/app.json` and `mobile/api/index.ts`).
+- Fixed a layout bug in the custom bottom tab bar (`mobile/app/(tabs)/_layout.tsx`) where labels were collapsing horizontally instead of wrapping under icons.
+- Conducted a UX & Visual Character Overhaul for `mobile/app/(tabs)/search.tsx` and `mobile/app/(tabs)/borrowed.tsx` per `DESIGN.md`:
+  - Consolidated Search filter UI into a unified scrolling chip row.
+  - Rebuilt card architectures across both screens with a consistent pure white surface, soft shadows, and a 3:4 aspect ratio for book covers.
+  - Implemented conversational headers in Borrowed Log for a more humanized summary of active / overdue loans.
+  - Docked a full-width actionable instruction banner with a QR code to the bottom of active borrow cards.
+
 ## 2026-09-19
 - Implemented dynamic bottom dock visibility across all mobile tab screens (dock hides on scroll down and reveals on scroll up using `Animated.timing` for smoother transitions).
 - Replaced the Profile tab in the bottom dock with a new History feed (`history.tsx`). Created an activity feed UI with segmented pill filtering (All, Attendance, Borrows, Penalties) merging data from attendance and borrowing API endpoints. Profile is now accessed via the top right corner avatar in the Dashboard.

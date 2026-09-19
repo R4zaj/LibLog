@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, TouchableWithoutFeedback, Dimensions, Alert, Modal, Animated, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Pressable, Dimensions, Alert, Modal, Animated, ActivityIndicator } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
@@ -107,7 +107,7 @@ export default function Home() {
           Animated.timing(fadeAnim, {
             toValue: 1,
             duration: 600,
-            useNativeDriver: true,
+            useNativeDriver: false,
           }).start();
         }
         return false;
@@ -534,9 +534,9 @@ export default function Home() {
         visible={notificationsOpen}
         onRequestClose={() => setNotificationsOpen(false)}
       >
-        <TouchableWithoutFeedback onPress={() => setNotificationsOpen(false)}>
+        <Pressable onPress={() => setNotificationsOpen(false)}>
           <View style={styles.modalOverlay}>
-            <TouchableWithoutFeedback>
+            <Pressable>
               <View style={styles.modalContent}>
                 
                 {/* Header */}
@@ -581,9 +581,9 @@ export default function Home() {
                   <X size={20} color="#fff" />
                 </TouchableOpacity>
               </View>
-            </TouchableWithoutFeedback>
+            </Pressable>
           </View>
-        </TouchableWithoutFeedback>
+        </Pressable>
       </Modal>
 
     </SafeAreaView>
@@ -604,46 +604,46 @@ const styles = StyleSheet.create({
   overlineDate: { fontSize: 12, fontWeight: '700', color: '#7c7c8a', letterSpacing: 1, marginBottom: 4 },
   greetingTitle: { fontSize: 24, fontWeight: '800', color: '#1e1e2e' },
   
-  assistantCard: { flexDirection: 'row', backgroundColor: '#ffffff', borderRadius: 24, padding: 16, marginBottom: 24, borderWidth: 1, borderColor: '#ede9f6', elevation: 2, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, alignItems: 'center' },
-  assistantIconTray: { width: 44, height: 44, borderRadius: 16, backgroundColor: '#f4f1fa', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+  assistantCard: { flexDirection: 'row', backgroundColor: '#ffffff', borderRadius: 16, padding: 16, marginBottom: 24, borderWidth: 1, borderColor: '#ede9f6', elevation: 2, boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.05)', alignItems: 'center' },
+  assistantIconTray: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#f4f1fa', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
   assistantContent: { flex: 1 },
-  assistantOverline: { fontSize: 11, fontWeight: '700', color: '#6C48C5', marginBottom: 2 },
+  assistantOverline: { fontSize: 12, fontWeight: '500', color: '#6C48C5', marginBottom: 2 },
   assistantBody: { fontSize: 14, fontWeight: '500', color: '#4b5563', lineHeight: 20 },
 
   gridContainer: { flexDirection: 'row', gap: 12, marginBottom: 24 },
-  gridCard: { flex: 1, backgroundColor: '#ffffff', borderRadius: 24, padding: 16, borderWidth: 1, borderColor: '#ede9f6', elevation: 2, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, justifyContent: 'space-between', minHeight: 140 },
-  gridEyebrow: { fontSize: 11, fontWeight: '700', color: '#7c7c8a', marginBottom: 16 },
+  gridCard: { flex: 1, backgroundColor: '#ffffff', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#ede9f6', elevation: 2, boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.05)', justifyContent: 'space-between', minHeight: 140 },
+  gridEyebrow: { fontSize: 12, fontWeight: '500', color: '#7c7c8a', marginBottom: 16 },
   chartContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 60, marginTop: 'auto' },
   chartCol: { alignItems: 'center', gap: 4 },
   chartBarBg: { height: 50, justifyContent: 'flex-end' },
   chartBarFill: { width: 6, borderRadius: 4 },
   chartLabel: { fontSize: 9, color: '#9ca3af', fontWeight: '600' },
   
-  gridCardTitle: { fontSize: 16, fontWeight: '600', color: '#1e1e2e', marginBottom: 8 },
+  gridCardTitle: { fontSize: 18, fontWeight: '600', color: '#1e1e2e', marginBottom: 8 },
   penaltyValueCont: { flexDirection: 'row', alignItems: 'flex-start' },
   currencySymbol: { fontSize: 14, fontWeight: '700', color: '#9ca3af', marginTop: 2, marginRight: 2 },
-  penaltyValue: { fontSize: 22, fontWeight: '800', color: '#1e1e2e' },
-  segmentedPill: { flexDirection: 'row', backgroundColor: '#f4f1fa', borderRadius: 9999, padding: 3, marginTop: 16 },
+  penaltyValue: { fontSize: 24, fontWeight: '800', color: '#1e1e2e' },
+  segmentedPill: { flexDirection: 'row', backgroundColor: '#f4f1fa', borderRadius: 9999, padding: 3, marginTop: 16, minHeight: 48 },
   segmentTab: { flex: 1, alignItems: 'center', paddingVertical: 4, borderRadius: 9999 },
   segmentTabActive: { backgroundColor: '#6C48C5' },
   segmentTabText: { fontSize: 11, fontWeight: '600', color: '#7c7c8a' },
   segmentTabTextActive: { color: '#ffffff' },
 
   borrowsSection: { marginBottom: 32 },
-  borrowsCard: { backgroundColor: '#ffffff', borderRadius: 24, padding: 16, borderWidth: 1, borderColor: '#ede9f6', elevation: 2, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
+  borrowsCard: { backgroundColor: '#ffffff', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#ede9f6', elevation: 2, boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.05)' },
   borrowsHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
   borrowsIconTray: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#faf9fe', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   borrowsHeaderContent: { flex: 1 },
   borrowsTitle: { fontSize: 18, fontWeight: '600', color: '#1e1e2e' },
-  borrowsSubtitle: { fontSize: 13, color: '#7c7c8a' },
+  borrowsSubtitle: { fontSize: 12, color: '#7c7c8a', fontWeight: '500' },
   borrowsList: { gap: 0 },
   borrowRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12 },
   borrowRowIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#f4f1fa', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   borrowRowContent: { flex: 1, marginRight: 8 },
-  borrowRowTitle: { fontSize: 14, fontWeight: '600', color: '#1e1e2e', marginBottom: 2 },
+  borrowRowTitle: { fontSize: 14, fontWeight: '500', color: '#1e1e2e', marginBottom: 2 },
   borrowRowDate: { fontSize: 12, color: '#7c7c8a' },
   borrowStatusPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 9999 },
-  borrowStatusText: { fontSize: 11, fontWeight: '700' },
+  borrowStatusText: { fontSize: 12, fontWeight: '500' },
   borrowsEmpty: { paddingVertical: 24, alignItems: 'center' },
   borrowsEmptyText: { fontSize: 14, color: '#9ca3af' },
 
@@ -657,7 +657,7 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', alignItems: 'center', marginTop: 8, marginBottom: 16 },
   sectionTitle: { fontSize: 18, fontWeight: '600', color: '#1e1e2e' },
 
-  highlightCard: { backgroundColor: '#faf9fe', borderRadius: 16, padding: 20, flexDirection: 'row', marginBottom: 24, borderWidth: 1, borderColor: '#ede9f6' },
+  highlightCard: { backgroundColor: '#faf9fe', borderRadius: 16, padding: 20, flexDirection: 'row', marginBottom: 24, borderWidth: 1, borderColor: '#ede9f6', elevation: 2, boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.05)' },
   highlightIconCont: { width: 80, height: 110, backgroundColor: '#6C48C5', borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
   highlightContent: { flex: 1, justifyContent: 'center' },
   featuredTag: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
@@ -669,19 +669,19 @@ const styles = StyleSheet.create({
 
   seeAllText: { color: '#6C48C5', fontSize: 14, fontWeight: '600' },
   recommendedScroll: { marginBottom: 24, marginLeft: -16, paddingLeft: 16 },
-  recCard: { width: 180, marginRight: 16, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#ede9f6', borderRadius: 24, padding: 12, elevation: 2, shadowColor: '#000000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.03, shadowRadius: 10 },
-  recCover: { height: 190, backgroundColor: '#faf9fe', borderWidth: 1, borderColor: '#ede9f6', borderRadius: 16, justifyContent: 'center', alignItems: 'center', position: 'relative' },
+  recCard: { width: 180, marginRight: 16, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#ede9f6', borderRadius: 16, padding: 12, elevation: 2, boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.05)' },
+  recCover: { height: 190, backgroundColor: '#faf9fe', borderWidth: 1, borderColor: '#ede9f6', borderRadius: 12, justifyContent: 'center', alignItems: 'center', position: 'relative' },
   recTypeTag: { position: 'absolute', top: 10, left: 10, backgroundColor: '#ffffff', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 9999 },
-  recTypeText: { fontSize: 10, fontWeight: '700', color: '#6C48C5' },
-  recFavBtn: { position: 'absolute', bottom: 10, right: 10, width: 36, height: 36, borderRadius: 18, backgroundColor: '#ffffff', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 2, justifyContent: 'center', alignItems: 'center', zIndex: 2 },
+  recTypeText: { fontSize: 12, fontWeight: '500', color: '#6C48C5' },
+  recFavBtn: { position: 'absolute', bottom: 10, right: 10, width: 36, height: 36, borderRadius: 18, backgroundColor: '#ffffff', boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.05)', elevation: 2, justifyContent: 'center', alignItems: 'center', zIndex: 2 },
   recAvailRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6, marginBottom: 4 },
   dot: { width: 6, height: 6, borderRadius: 3, marginRight: 4 },
-  recAvailText: { fontSize: 12, fontWeight: '600' },
-  recTitle: { fontSize: 16, fontWeight: '700', color: '#1e1e2e', lineHeight: 20, marginBottom: 2 },
-  recAuthor: { fontSize: 13, fontWeight: '500', color: '#7c7c8a' },
+  recAvailText: { fontSize: 12, fontWeight: '500' },
+  recTitle: { fontSize: 18, fontWeight: '600', color: '#1e1e2e', lineHeight: 22, marginBottom: 2 },
+  recAuthor: { fontSize: 14, fontWeight: '500', color: '#7c7c8a' },
 
   trendingList: { marginBottom: 24 },
-  trendingItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 16, borderRadius: 16, marginBottom: 8, borderWidth: 1, borderColor: '#f3f4f6' },
+  trendingItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 16, borderRadius: 16, marginBottom: 8, borderWidth: 1, borderColor: '#f3f4f6', elevation: 2, boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.05)' },
   rankCircle: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   rankText: { fontSize: 14, fontWeight: 'bold' },
   trendingInfo: { flex: 1 },
@@ -693,7 +693,7 @@ const styles = StyleSheet.create({
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
   modalContent: { width: '90%', maxHeight: height * 0.8, backgroundColor: '#fff', borderRadius: 16, overflow: 'hidden' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, backgroundColor: '#faf9fe', borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  modalTitle: { fontSize: 16, fontWeight: 'bold', color: '#1e1e2e' },
+  modalTitle: { fontSize: 18, fontWeight: '600', color: '#1e1e2e' },
   markAllBtn: { flexDirection: 'row', alignItems: 'center' },
   markAllText: { fontSize: 12, color: '#6b7280', marginLeft: 4 },
   notifTabs: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#f3f4f6', paddingHorizontal: 16 },
@@ -708,8 +708,8 @@ const styles = StyleSheet.create({
   notifIconWrapper: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   notifContent: { flex: 1 },
   notifTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 2 },
-  notifTitle: { fontSize: 14, color: '#4b5563', flex: 1, marginRight: 8 },
-  notifTitleUnread: { fontWeight: 'bold', color: '#1e1e2e' },
+  notifTitle: { fontSize: 14, fontWeight: '500', color: '#4b5563', flex: 1, marginRight: 8 },
+  notifTitleUnread: { fontWeight: '600', color: '#1e1e2e' },
   unreadDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#6C48C5', marginRight: 6 },
   notifTime: { fontSize: 11, color: '#9ca3af' },
   notifMessage: { fontSize: 12, color: '#6b7280' },

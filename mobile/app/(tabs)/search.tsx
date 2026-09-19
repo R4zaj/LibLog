@@ -143,30 +143,29 @@ export default function Search() {
       <XStack
         alignItems="center"
         backgroundColor="#ffffff"
-        borderRadius={24}
+        borderRadius={16}
         padding={16}
         borderWidth={1}
         borderColor="#ede9f6"
-        shadowColor="#000"
-        shadowOffset={{ width: 0, height: 4 }}
-        shadowOpacity={0.03}
-        shadowRadius={12}
+        style={{ boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.05)' }}
         elevation={2}
       >
         <YStack
-          width={56}
-          height={56}
-          borderRadius={14}
+          width={72}
+          height={96}
+          borderRadius={12}
+          borderWidth={1}
+          borderColor="#ede9f6"
           justifyContent="center"
           alignItems="center"
           marginRight="$3"
           backgroundColor="#faf9fe"
         >
-          <BookOpen color="#6C48C5" size={24} opacity={0.8} />
+          <BookOpen color="#6C48C5" size={24} />
         </YStack>
         <YStack flex={1}>
           <XStack justifyContent="space-between" alignItems="flex-start">
-            <Text fontSize={18} fontWeight="600" color="#1e1e2e" marginBottom={3} flex={1} marginRight="$2">
+            <Text fontSize={18} fontWeight="600" color="#1e1e2e" marginBottom={3} flex={1} marginRight="$2" numberOfLines={2}>
               {item.title}
             </Text>
             <TouchableOpacity
@@ -174,7 +173,7 @@ export default function Search() {
                 e.stopPropagation?.();
                 toggleFavorite(item);
               }}
-              hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               accessibilityRole="button"
               accessibilityLabel={isFavorite(item.id) ? 'Remove from favorites' : 'Add to favorites'}
               style={{ padding: 3, minHeight: 48, minWidth: 48, justifyContent: 'center', alignItems: 'flex-end', marginTop: -12, marginRight: -12 }}
@@ -186,26 +185,18 @@ export default function Search() {
               />
             </TouchableOpacity>
           </XStack>
-          <Text fontSize={14} fontWeight="500" color="#7c7c8a" marginBottom="$2">
+          <Text fontSize={14} fontWeight="500" color="#4b5563" marginBottom="$2" numberOfLines={1}>
             {item.author}
           </Text>
-          <XStack alignItems="center" flexWrap="wrap" gap="$1.5">
-            {item.tags?.slice(0, 2).map((tag: string, idx: number) => (
-              <YStack
-                key={idx}
-                backgroundColor="#f4f1fa"
-                paddingHorizontal="$2"
-                paddingVertical={3}
-                borderRadius={8}
-              >
-                <Text fontSize={12} color="#7c7c8a" fontWeight="500">
-                  {tag}
-                </Text>
-              </YStack>
-            ))}
-            <XStack alignItems="center" marginLeft="auto" backgroundColor={item.available > 0 ? '#ecfdf5' : '#fef2f2'} paddingHorizontal="$2" paddingVertical={4} borderRadius={9999}>
-              <Text fontSize={11} fontWeight="700" color={item.available > 0 ? '#10b981' : '#ef4444'}>
-                {item.avail}
+          <XStack alignItems="center" flexWrap="wrap" gap={8}>
+            <Text fontSize={12} fontWeight="500" color="#7c7c8a">
+              {item.tags?.slice(0, 2).join(', ')}
+            </Text>
+            <Text fontSize={12} color="#d1d5db">•</Text>
+            <XStack alignItems="center" gap={4}>
+              <View width={6} height={6} borderRadius={3} backgroundColor={item.available > 0 ? '#10b981' : '#ef4444'} />
+              <Text fontSize={12} fontWeight="500" color="#7c7c8a">
+                {item.available > 0 ? `${item.available} of ${item.total} Available` : 'Out'}
               </Text>
             </XStack>
           </XStack>
@@ -291,49 +282,18 @@ export default function Search() {
         scrollEventThrottle={16}
         ListHeaderComponent={
           <YStack>
-            {/* Popular Tags */}
-            <YStack paddingHorizontal="$5" marginTop="$4" marginBottom="$4">
-              <XStack alignItems="center" marginBottom="$3">
-                <ArrowUpRight color="#6C48C5" size={16} strokeWidth={2.5} style={{ marginRight: 4 }} />
-                <Text fontSize={11} fontWeight="700" color="#7c7c8a" letterSpacing={1}>
-                  POPULAR
-                </Text>
-              </XStack>
-              <XStack flexWrap="wrap" gap="$2">
-                {popularSearches.map((tag, idx) => (
-                  <TouchableOpacity
-                    key={idx}
-                    onPress={() => setSearchQuery(tag)}
-                    style={{
-                      backgroundColor: '#faf9fe',
-                      paddingHorizontal: 14,
-                      minHeight: 48,
-                      justifyContent: 'center',
-                      borderRadius: 12,
-                      borderWidth: 1,
-                      borderColor: '#ede9f6',
-                    }}
-                  >
-                    <Text color="#6C48C5" fontSize={13} fontWeight="500">
-                      {tag}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </XStack>
-            </YStack>
-
-            {/* Filter Tabs */}
+            {/* Unified Filter System */}
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: 20, paddingRight: 16 }}
-              style={{ marginBottom: 20 }}
+              contentContainerStyle={{ paddingHorizontal: 20, gap: 8 }}
+              style={{ marginBottom: 20, marginTop: 16 }}
             >
               {tabs.map((tab, idx) => {
                 const isActive = activeTab === tab;
                 return (
                   <TouchableOpacity
-                    key={idx}
+                    key={`tab-${idx}`}
                     onPress={() => setActiveTab(tab)}
                     style={{
                       flexDirection: 'row',
@@ -341,9 +301,8 @@ export default function Search() {
                       justifyContent: 'center',
                       backgroundColor: isActive ? '#6C48C5' : '#faf9fe',
                       paddingHorizontal: 16,
-                      minHeight: 48,
+                      minHeight: 36,
                       borderRadius: 9999,
-                      marginRight: 8,
                       borderWidth: 1,
                       borderColor: isActive ? '#6C48C5' : '#ede9f6',
                     }}
@@ -351,12 +310,31 @@ export default function Search() {
                     {(tab === 'All' || tab === 'Books' || tab === 'Research') && (
                       <BookOpen color={isActive ? '#fff' : '#7c7c8a'} size={14} style={{ marginRight: 6 }} />
                     )}
-                    <Text color={isActive ? 'white' : '#4b5563'} fontSize={14} fontWeight={isActive ? '700' : '500'}>
+                    <Text color={isActive ? 'white' : '#4b5563'} fontSize={14} fontWeight={isActive ? '600' : '500'}>
                       {tab}
                     </Text>
                   </TouchableOpacity>
                 );
               })}
+              {popularSearches.map((tag, idx) => (
+                <TouchableOpacity
+                  key={`tag-${idx}`}
+                  onPress={() => setSearchQuery(tag)}
+                  style={{
+                    backgroundColor: '#faf9fe',
+                    paddingHorizontal: 16,
+                    minHeight: 36,
+                    justifyContent: 'center',
+                    borderRadius: 9999,
+                    borderWidth: 1,
+                    borderColor: '#ede9f6',
+                  }}
+                >
+                  <Text color="#6C48C5" fontSize={14} fontWeight="500">
+                    {tag}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </ScrollView>
 
             {/* Recently Viewed */}
@@ -364,7 +342,7 @@ export default function Search() {
               <YStack paddingHorizontal="$5" marginBottom="$5">
                 <XStack alignItems="center" marginBottom="$3">
                   <Clock color="#6C48C5" size={16} />
-                  <Text fontSize={16} fontWeight="700" color="#1e1e2e" marginLeft="$2">
+                  <Text fontSize={18} fontWeight="600" color="#1e1e2e" marginLeft="$2">
                     Recently Viewed
                   </Text>
                 </XStack>
@@ -421,11 +399,15 @@ export default function Search() {
                             backgroundColor: 'rgba(255,255,255,0.9)',
                             padding: 5,
                             borderRadius: 10,
+                            minHeight: 48,
+                            minWidth: 48,
+                            justifyContent: 'center',
+                            alignItems: 'center',
                           }}
                         >
                           <Heart
                             color={isFavorite(item.id) ? '#ef4444' : '#9ca3af'}
-                            size={13}
+                            size={18}
                             fill={isFavorite(item.id) ? '#ef4444' : 'none'}
                           />
                         </TouchableOpacity>

@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { TouchableOpacity, ActivityIndicator, FlatList, ListRenderItem } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AlertCircle, Book, ChevronRight, Clock, Info } from 'lucide-react-native';
+import { AlertCircle, Book, ChevronRight, Clock, Info, QrCode } from 'lucide-react-native';
 import { YStack, XStack, Text, View } from 'tamagui';
 import { useAuth } from '../../context/AuthContext';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -68,121 +68,114 @@ export default function Borrowed() {
 
     return (
       <YStack
-        backgroundColor={isOverdue ? '#fef2f2' : 'white'}
+        backgroundColor="white"
         borderRadius={24}
-        padding={16}
         marginBottom={12}
         borderWidth={1}
-        borderColor={isOverdue ? '#fca5a5' : '#ede9f6'}
+        borderColor="#ede9f6"
+        style={{ boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.03)' }}
+        elevation={2}
       >
         {/* Book Info */}
-        <XStack marginBottom="$3">
+        <XStack padding={16} marginBottom={!isReturned ? 0 : "$2"}>
           <YStack
-            width={52}
-            height={68}
-            backgroundColor={isOverdue ? '#ef4444' : '#faf9fe'}
-            borderRadius={10}
+            width={64}
+            height={84}
+            backgroundColor="#faf9fe"
+            borderRadius={12}
             justifyContent="center"
             alignItems="center"
             marginRight="$3"
           >
-            <Book color={isOverdue ? '#fff' : '#6C48C5'} size={22} opacity={isOverdue ? 0.95 : 0.8} />
+            <Book color={isOverdue ? '#ef4444' : '#6C48C5'} size={22} opacity={isOverdue ? 0.95 : 0.8} />
           </YStack>
-          <YStack flex={1}>
-            <Text fontSize={18} fontWeight="600" color={isOverdue ? '#991b1b' : '#1e1e2e'} marginBottom={3}>
+          <YStack flex={1} justifyContent="center">
+            <Text fontSize={18} fontWeight="600" color="#1e1e2e" marginBottom={3} numberOfLines={2}>
               {record.book?.title}
             </Text>
-            <Text fontSize={14} fontWeight="500" color={isOverdue ? '#b91c1c' : '#7c7c8a'} marginBottom="$2">
+            <Text fontSize={14} fontWeight="500" color="#4b5563" marginBottom="$2" numberOfLines={1}>
               {record.book?.author?.name || 'Unknown Author'}
             </Text>
-            <Text fontSize={12} fontWeight="500" color="#7c7c8a">
-              Borrowed: {borrowDateStr}  ·  <Text fontSize={12} color={isOverdue ? '#dc2626' : '#7c7c8a'} fontWeight={isOverdue ? '700' : '500'}>Due: {dueDateStr}</Text>
+            <Text fontSize={12} fontWeight="500" color="#7c7c8a" marginBottom="$2">
+              Borrowed: {borrowDateStr}
             </Text>
+            
+            <XStack>
+              {isReturned ? (
+                <XStack
+                  alignItems="center"
+                  backgroundColor="#ecfdf5"
+                  paddingHorizontal="$3"
+                  paddingVertical="$1.5"
+                  borderRadius={10}
+                >
+                  <Text color="#10b981" fontWeight="700" fontSize={12}>
+                    Returned
+                  </Text>
+                </XStack>
+              ) : isOverdue ? (
+                <XStack
+                  alignItems="center"
+                  backgroundColor="#fef2f2"
+                  paddingHorizontal="$3"
+                  paddingVertical="$1.5"
+                  borderRadius={10}
+                >
+                  <Text color="#ef4444" fontWeight="700" fontSize={12}>
+                    Overdue by {Math.abs(daysLeft)} day{Math.abs(daysLeft) !== 1 ? 's' : ''}
+                  </Text>
+                </XStack>
+              ) : isDueSoon ? (
+                <XStack
+                  alignItems="center"
+                  backgroundColor="#fffbeb"
+                  paddingHorizontal="$3"
+                  paddingVertical="$1.5"
+                  borderRadius={10}
+                >
+                  <Text color="#fbbf24" fontWeight="700" fontSize={12}>
+                    Due in {daysLeft} day{daysLeft !== 1 ? 's' : ''}
+                  </Text>
+                </XStack>
+              ) : (
+                <XStack
+                  alignItems="center"
+                  backgroundColor="#ecfdf5"
+                  paddingHorizontal="$3"
+                  paddingVertical="$1.5"
+                  borderRadius={10}
+                >
+                  <Text color="#10b981" fontWeight="700" fontSize={12}>
+                    Due in {daysLeft} days
+                  </Text>
+                </XStack>
+              )}
+            </XStack>
           </YStack>
         </XStack>
 
-        {/* Footer */}
-        <XStack
-          justifyContent="space-between"
-          alignItems="center"
-          paddingTop="$3"
-          borderTopWidth={1}
-          borderTopColor={isOverdue ? '#fee2e2' : '#f0eef5'}
-        >
-          {isReturned ? (
-            <XStack
-              alignItems="center"
-              backgroundColor="#ecfdf5"
-              paddingHorizontal="$3"
-              paddingVertical="$1.5"
-              borderRadius={10}
-            >
-              <Clock color="#10b981" size={12} style={{ marginRight: 5 }} />
-              <Text color="#10b981" fontWeight="700" fontSize={12}>
-                Returned
-              </Text>
-            </XStack>
-          ) : isOverdue ? (
-            <XStack
-              alignItems="center"
-              backgroundColor="#fee2e2"
-              paddingHorizontal="$3"
-              paddingVertical="$1.5"
-              borderRadius={10}
-              borderWidth={1}
-              borderColor="#fca5a5"
-            >
-              <AlertCircle color="#dc2626" size={13} style={{ marginRight: 5 }} />
-              <Text color="#dc2626" fontWeight="700" fontSize={12}>
-                Overdue by {Math.abs(daysLeft)} day{Math.abs(daysLeft) !== 1 ? 's' : ''}
-              </Text>
-            </XStack>
-          ) : isDueSoon ? (
-            <XStack
-              alignItems="center"
-              backgroundColor="#fffbeb"
-              paddingHorizontal="$3"
-              paddingVertical="$1.5"
-              borderRadius={10}
-              borderWidth={1}
-              borderColor="#fde68a"
-            >
-              <Clock color="#b45309" size={12} style={{ marginRight: 5 }} />
-              <Text color="#b45309" fontWeight="700" fontSize={12}>
-                {daysLeft === 0 ? 'Due Today' : 'Due Tomorrow'}
-              </Text>
-            </XStack>
-          ) : (
-            <XStack
-              alignItems="center"
-              backgroundColor="#ecfdf5"
-              paddingHorizontal="$3"
-              paddingVertical="$1.5"
-              borderRadius={10}
-            >
-              <Clock color="#10b981" size={12} style={{ marginRight: 5 }} />
-              <Text color="#10b981" fontWeight="700" fontSize={12}>
-                {daysLeft} days left
-              </Text>
-            </XStack>
-          )}
-
-          {!isReturned && (
-            <TouchableOpacity
-              onPress={() => router.push('/scan')}
-              hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
-              accessibilityRole="button"
-              accessibilityLabel="Return at the library — open your scan code"
-              style={{ flexDirection: 'row', alignItems: 'center', minHeight: 48 }}
-            >
-              <Info color="#9ca3af" size={13} style={{ marginRight: 5 }} />
-              <Text color="#9ca3af" fontWeight="500" fontSize={12}>
-                Return at the library
-              </Text>
-              <ChevronRight color="#9ca3af" size={13} style={{ marginLeft: 2 }} />
-            </TouchableOpacity>
-          )}
-        </XStack>
+        {!isReturned && (
+          <TouchableOpacity
+            onPress={() => router.push('/scan')}
+            style={{
+              backgroundColor: '#f4f1fa',
+              borderTopWidth: 1,
+              borderColor: '#ede9f6',
+              paddingVertical: 12,
+              paddingHorizontal: 16,
+              borderBottomLeftRadius: 24,
+              borderBottomRightRadius: 24,
+              flexDirection: 'row',
+              alignItems: 'center',
+              minHeight: 48,
+            }}
+          >
+            <QrCode color="#6C48C5" size={16} style={{ marginRight: 8 }} />
+            <Text color="#6C48C5" fontSize={12} fontWeight="500">
+              Present your QR code at the desk to return.
+            </Text>
+          </TouchableOpacity>
+        )}
       </YStack>
     );
   };
@@ -192,7 +185,9 @@ export default function Borrowed() {
       {/* Header */}
       <YStack paddingTop="$4" paddingHorizontal="$5" paddingBottom="$4" backgroundColor="white">
         <Text fontSize={24} fontWeight="800" color="#1e1e2e" marginBottom="$3">
-          Borrowing
+          {activeBorrows.length === 0 
+            ? "You have no active borrows." 
+            : `You have ${activeBorrows.length} active borrow${activeBorrows.length === 1 ? '' : 's'}.${overdueCount > 0 ? ` ${overdueCount} need${overdueCount === 1 ? 's' : ''} your attention.` : ''}`}
         </Text>
 
         {/* Tab Switcher */}
@@ -207,7 +202,7 @@ export default function Borrowed() {
               backgroundColor: activeTab === 'active' ? '#6C48C5' : 'transparent',
             }}
           >
-            <Text color={activeTab === 'active' ? 'white' : '#7c7c8a'} fontWeight="700" fontSize={14}>
+            <Text color={activeTab === 'active' ? 'white' : '#7c7c8a'} fontWeight={activeTab === 'active' ? '700' : '500'} fontSize={13}>
               Active ({activeBorrows.length})
             </Text>
           </TouchableOpacity>
@@ -221,7 +216,7 @@ export default function Borrowed() {
               backgroundColor: activeTab === 'history' ? '#6C48C5' : 'transparent',
             }}
           >
-            <Text color={activeTab === 'history' ? 'white' : '#7c7c8a'} fontWeight="700" fontSize={14}>
+            <Text color={activeTab === 'history' ? 'white' : '#7c7c8a'} fontWeight={activeTab === 'history' ? '700' : '500'} fontSize={13}>
               History ({historyBorrows.length})
             </Text>
           </TouchableOpacity>
@@ -248,30 +243,7 @@ export default function Borrowed() {
         scrollEventThrottle={16}
         onRefresh={fetchBorrows}
         refreshing={isLoading && borrows.length > 0}
-        ListHeaderComponent={
-          <XStack marginBottom={16} gap={8} flexWrap="wrap">
-            <XStack alignItems="center" backgroundColor="#faf9fe" paddingHorizontal={12} paddingVertical={6} borderRadius={9999} borderWidth={1} borderColor="#ede9f6">
-              <View width={8} height={8} borderRadius={4} backgroundColor="#6C48C5" marginRight="$2" />
-              <Text color="#4b5563" fontSize={13} fontWeight="600">
-                {activeBorrows.length} Active
-              </Text>
-            </XStack>
-            {overdueCount > 0 && (
-              <XStack alignItems="center" backgroundColor="#fef2f2" paddingHorizontal={12} paddingVertical={6} borderRadius={9999} borderWidth={1} borderColor="#fca5a5">
-                <View width={8} height={8} borderRadius={4} backgroundColor="#ef4444" marginRight="$2" />
-                <Text color="#b91c1c" fontSize={13} fontWeight="700">
-                  {overdueCount} Due
-                </Text>
-              </XStack>
-            )}
-            <XStack alignItems="center" backgroundColor="#ecfdf5" paddingHorizontal={12} paddingVertical={6} borderRadius={9999} borderWidth={1} borderColor="#6ee7b7">
-              <View width={8} height={8} borderRadius={4} backgroundColor="#10b981" marginRight="$2" />
-              <Text color="#047857" fontSize={13} fontWeight="600">
-                {historyBorrows.length} Returned
-              </Text>
-            </XStack>
-          </XStack>
-        }
+        ListHeaderComponent={null}
         ListEmptyComponent={
           isLoading ? (
             <ActivityIndicator size="large" color="#6C48C5" style={{ marginTop: 40 }} />

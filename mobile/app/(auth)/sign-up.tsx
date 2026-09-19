@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert, Image } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Check, UserCircle2, GraduationCap, ShieldCheck, BellRing, Eye, EyeOff } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
@@ -172,10 +171,6 @@ export default function SignUp() {
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={['#f3f4f6', '#e5e7eb']}
-        style={StyleSheet.absoluteFill}
-      />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1, zIndex: 1 }}>
@@ -453,14 +448,14 @@ export default function SignUp() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f3f4f6' },
+  container: { flex: 1, backgroundColor: '#faf9fe' },
   topBar: { paddingTop: Platform.OS === 'ios' ? 50 : 20, paddingHorizontal: 24, backgroundColor: 'transparent' },
   progressContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
   progressSegment: { height: 4, flex: 1, marginHorizontal: 2, borderRadius: 2 },
   progressActive: { backgroundColor: '#6C48C5' },
   progressInactive: { backgroundColor: '#e5e7eb' },
   headerIconsContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 24 },
-  backButton: { position: 'absolute', left: 0, zIndex: 10, padding: 8 },
+  backButton: { position: 'absolute', left: 0, zIndex: 10, padding: 8, minHeight: 48, minWidth: 48, justifyContent: 'center', alignItems: 'center' },
   iconRow: { flex: 1, flexDirection: 'row', justifyContent: 'center' },
   iconCircle: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginHorizontal: 6 },
   iconActive: { backgroundColor: '#6C48C5' },
@@ -468,14 +463,14 @@ const styles = StyleSheet.create({
   scrollContainer: { flexGrow: 1, padding: 24 },
   stepContent: { flex: 1 },
   stepHeader: { alignItems: 'center', marginBottom: 40 },
-  largeIconCircle: { width: 80, height: 80, borderRadius: 24, backgroundColor: '#6C48C5', justifyContent: 'center', alignItems: 'center', marginBottom: 24 },
-  title: { fontSize: 28, fontWeight: 'bold', color: '#111827', marginBottom: 8, textAlign: 'center' },
-  subtitle: { fontSize: 16, color: '#6b7280', textAlign: 'center' },
-  label: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 8 },
-  input: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 16, padding: 16, fontSize: 16, marginBottom: 20, color: '#111827' },
-  passwordContainer: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 16, backgroundColor: '#fff', marginBottom: 12 },
-  passwordInput: { flex: 1, padding: 16, fontSize: 16, color: '#111827' },
-  eyeIcon: { padding: 16 },
+  largeIconCircle: { width: 80, height: 80, borderRadius: 16, backgroundColor: '#6C48C5', justifyContent: 'center', alignItems: 'center', marginBottom: 24 },
+  title: { fontSize: 28, fontWeight: '800', color: '#1e1e2e', marginBottom: 8, textAlign: 'center' },
+  subtitle: { fontSize: 14, fontWeight: '500', color: '#7c7c8a', textAlign: 'center' },
+  label: { fontSize: 14, fontWeight: '600', color: '#4b5563', marginBottom: 8 },
+  input: { borderWidth: 1, borderColor: '#ede9f6', borderRadius: 16, padding: 16, fontSize: 16, marginBottom: 20, color: '#1e1e2e', backgroundColor: '#ffffff' },
+  passwordContainer: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#ede9f6', borderRadius: 16, backgroundColor: '#ffffff', marginBottom: 12 },
+  passwordInput: { flex: 1, padding: 16, fontSize: 16, color: '#1e1e2e' },
+  eyeIcon: { padding: 16, minHeight: 48, minWidth: 48, justifyContent: 'center', alignItems: 'center' },
   passwordRequirements: { backgroundColor: '#f9fafb', padding: 12, borderRadius: 12, marginBottom: 20 },
   reqTitle: { fontSize: 13, fontWeight: '600', color: '#4b5563', marginBottom: 8 },
   reqRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
@@ -483,7 +478,7 @@ const styles = StyleSheet.create({
   reqText: { fontSize: 13, color: '#6b7280', marginLeft: 6 },
   reqMet: { color: '#10B981', textDecorationLine: 'line-through' },
   matchPassword: { color: '#10B981', marginTop: 8, marginLeft: 4, fontSize: 14 },
-  roleCard: { borderWidth: 2, borderColor: '#f3f4f6', borderRadius: 16, padding: 20, marginBottom: 16, backgroundColor: '#fff' },
+  roleCard: { borderWidth: 1, borderColor: '#ede9f6', borderRadius: 16, padding: 20, marginBottom: 16, backgroundColor: '#ffffff', boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.05)', elevation: 2 },
   roleCardActive: { borderColor: '#6C48C5', backgroundColor: '#faf5ff' },
   roleCardInner: { flexDirection: 'row', alignItems: 'center' },
   roleIcon: { width: 48, height: 48, borderRadius: 12, backgroundColor: '#f3f4f6', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
@@ -492,7 +487,7 @@ const styles = StyleSheet.create({
   roleTitle: { fontSize: 18, fontWeight: 'bold', color: '#111827', marginBottom: 4 },
   roleDesc: { fontSize: 14, color: '#6b7280' },
   gridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  gridItem: { width: '48%', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 16, padding: 16, marginBottom: 12, alignItems: 'center' },
+  gridItem: { width: '48%', borderWidth: 1, borderColor: '#ede9f6', borderRadius: 16, padding: 16, marginBottom: 12, alignItems: 'center', backgroundColor: '#ffffff', minHeight: 48, justifyContent: 'center', boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.05)', elevation: 2 },
   gridItemActive: { borderColor: '#6C48C5', backgroundColor: '#faf5ff' },
   gridItemText: { color: '#4b5563', fontWeight: '500' },
   gridItemTextActive: { color: '#6C48C5', fontWeight: 'bold' },

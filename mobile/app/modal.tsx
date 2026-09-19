@@ -24,8 +24,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 24,
+    fontWeight: '800',
   },
   separator: {
     marginVertical: 30,
