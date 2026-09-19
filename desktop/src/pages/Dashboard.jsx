@@ -187,9 +187,7 @@ export default function Dashboard() {
 
           <div className="flex flex-col">
             <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center bg-purple-950 border border-purple-400/30 shadow-xs">
-                <img src="/CCC_icon.jpg" alt="CCC" className="w-full h-full object-cover" />
-              </div>
+              <img src="/CCC_icon.png" alt="CCC" className="w-8 h-8 object-contain drop-shadow-sm shrink-0" />
               <span className="text-white text-sm font-medium">Good Evening</span>
             </div>
             <h2 className="text-2xl lg:text-3xl font-bold mb-1 tracking-tight">Welcome to CCC LIB APP</h2>

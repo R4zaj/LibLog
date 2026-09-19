@@ -192,7 +192,7 @@ export default function SignUp() {
             <View style={styles.stepContent}>
               <View style={styles.stepHeader}>
                 <View style={[styles.largeIconCircle, { backgroundColor: 'transparent' }]}>
-                  <Image source={require('../../assets/images/CCC_icon.jpg')} style={{ width: 80, height: 80, borderRadius: 20 }} />
+                  <Image source={require('../../assets/images/CCC_icon.png')} style={{ width: 90, height: 90 }} resizeMode="contain" />
                 </View>
                 <Text style={styles.title}>Welcome to CCC LIB APP</Text>
                 <Text style={styles.subtitle}>Choose your role to get started with the digital library</Text>

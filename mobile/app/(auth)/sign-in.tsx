@@ -68,7 +68,7 @@ export default function SignIn() {
       >
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.headerContainer}>
-          <Image source={require('../../assets/images/CCC_icon.jpg')} style={{ width: 80, height: 80, borderRadius: 20, marginBottom: 16 }} />
+          <Image source={require('../../assets/images/CCC_icon.png')} style={{ width: 90, height: 90, marginBottom: 16 }} resizeMode="contain" />
           <Text style={styles.title}>Welcome Back!</Text>
           <Text style={styles.subtitle}>Sign in to your account</Text>
         </View>

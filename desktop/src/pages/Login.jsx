@@ -45,9 +45,7 @@ export default function Login() {
       
       {/* Branding */}
       <div className="flex flex-col items-center mb-8 relative z-10">
-        <div className="w-16 h-16 flex items-center justify-center shadow-lg mb-3 rounded-2xl overflow-hidden bg-white border border-[#EAE3F2]">
-          <img src="/CCC_icon.jpg" alt="Logo" className="w-full h-full object-contain p-1" />
-        </div>
+        <img src="/CCC_icon.png" alt="Logo" className="w-16 h-16 object-contain mb-3 drop-shadow-md" />
         <h1 className="text-2xl font-bold text-[#1A1A1A] mb-1 drop-shadow-sm">CCC LIB APP</h1>
         <p className="text-xs text-[#555555] font-semibold tracking-wide">Library Logbook Management System</p>
       </div>

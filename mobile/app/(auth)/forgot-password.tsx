@@ -133,8 +133,9 @@ export default function ForgotPassword() {
           {/* Header */}
           <View style={styles.headerContainer}>
             <Image
-              source={require('../../assets/images/CCC_icon.jpg')}
-              style={{ width: 72, height: 72, borderRadius: 18, marginBottom: 14 }}
+              source={require('../../assets/images/CCC_icon.png')}
+              style={{ width: 80, height: 80, marginBottom: 14 }}
+              resizeMode="contain"
             />
             <Text style={styles.title}>
               {step === 1 ? 'Forgot Password' : step === 2 ? 'Create New Password' : 'Password Reset'}

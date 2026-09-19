@@ -140,10 +140,17 @@ export default function Home() {
         <Animated.ScrollView style={[styles.container, { opacity: fadeAnim }]} contentContainerStyle={{ paddingBottom: 100 }}>
         {/* Top Bar */}
       <View style={styles.topBar}>
-        <View style={styles.streakContainer}>
-          <Flame color="#f97316" size={20} />
-          <Text style={styles.streakCount}>{user?.stats?.streak || 0}</Text>
-          <Text style={styles.streakText}>day streak</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <Image
+            source={require('../../assets/images/CCC_icon.png')}
+            style={{ width: 34, height: 34 }}
+            resizeMode="contain"
+          />
+          <View style={styles.streakContainer}>
+            <Flame color="#f97316" size={18} />
+            <Text style={styles.streakCount}>{user?.stats?.streak || 0}</Text>
+            <Text style={styles.streakText}>day streak</Text>
+          </View>
         </View>
         <View style={styles.topBarActions}>
           <TouchableOpacity

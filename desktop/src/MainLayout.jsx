@@ -154,9 +154,7 @@ export default function MainLayout() {
       <aside className="w-64 bg-sidebar-bg dark:bg-dark-sidebar border-r border-gray-200 dark:border-dark-border flex flex-col shadow-sm z-10 shrink-0 print:hidden">
         {/* Logo Area */}
         <div className="h-16 flex items-center px-6 border-b border-gray-200 dark:border-dark-border gap-3">
-          <div className="rounded-lg shadow-xs overflow-hidden flex items-center justify-center w-9 h-9 bg-white border border-purple-100 dark:border-purple-900/40 p-0.5">
-            <img src="/CCC_icon.jpg" alt="Logo" className="w-full h-full object-contain" />
-          </div>
+          <img src="/CCC_icon.png" alt="Logo" className="w-9 h-9 object-contain drop-shadow-xs shrink-0" />
           <div className="flex flex-col">
             <span className="font-bold text-lg text-primary-900 dark:text-primary-300 leading-tight">CCC LIB APP</span>
             <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Library System</span>
