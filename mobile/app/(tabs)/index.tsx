@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, TouchableW
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
-import { Bell, Settings, Flame, ArrowRight, ScanLine, BookOpen, Bookmark, Calendar, ChevronRight, Clock, TrendingUp, Megaphone, Star, Users, Check, X, Activity, ArrowRightLeft, DollarSign, ExternalLink, AlertCircle, Heart } from 'lucide-react-native';
+import { Bell, Settings, Flame, ArrowRight, ScanLine, BookOpen, Bookmark, Calendar, ChevronRight, Clock, TrendingUp, Megaphone, Star, Users, Check, X, Activity, ArrowRightLeft, DollarSign, ExternalLink, AlertCircle, Heart, CircleUser } from 'lucide-react-native';
 import api from '../../api';
 import { useFavorites } from '../../context/FavoritesContext';
 import type {
@@ -172,7 +172,7 @@ export default function Home() {
             <Text style={styles.streakText}>day streak</Text>
           </View>
         </View>
-        <View style={styles.topBarActions}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <TouchableOpacity
             style={styles.actionChip}
             onPress={() => setNotificationsOpen(true)}
@@ -185,12 +185,21 @@ export default function Home() {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.actionChip}
-            onPress={() => router.push('/profile')}
+            onPress={() => router.push('/settings')}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             accessibilityRole="button"
             accessibilityLabel="Settings"
           >
             <Settings color="#1f2937" size={20} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.actionChip}
+            onPress={() => router.push('/profile')}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityRole="button"
+            accessibilityLabel="Profile"
+          >
+            <CircleUser color="#1f2937" size={20} />
           </TouchableOpacity>
         </View>
       </View>
@@ -587,7 +596,7 @@ const styles = StyleSheet.create({
   streakCount: { fontSize: 14, fontWeight: '700', color: '#f97316', marginHorizontal: 6 },
   streakText: { fontSize: 14, color: '#f97316', fontWeight: '500' },
   topBarActions: { flexDirection: 'row', gap: 12 },
-  actionChip: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#ffffff', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#ede9f6' },
+  actionChip: { width: 40, height: 40, borderRadius: 16, backgroundColor: '#ffffff', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#ede9f6' },
   badge: { position: 'absolute', top: -4, right: -4, backgroundColor: '#ef4444', borderRadius: 10, width: 18, height: 18, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#fff' },
   badgeText: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
   
