@@ -139,14 +139,16 @@ export default function ScanScreen() {
           {/* ── QR Card ── */}
           <YStack
             backgroundColor="white"
-            borderRadius={28}
-            padding="$5"
+            borderRadius={24}
+            padding={24}
             alignItems="center"
-            shadowColor="rgba(108, 72, 197, 0.15)"
-            shadowOffset={{ width: 0, height: 8 }}
-            shadowOpacity={1}
-            shadowRadius={24}
-            elevation={8}
+            borderWidth={1}
+            borderColor="#ede9f6"
+            shadowColor="#000"
+            shadowOffset={{ width: 0, height: 4 }}
+            shadowOpacity={0.03}
+            shadowRadius={12}
+            elevation={2}
             marginBottom="$5"
             width="100%"
             maxWidth={320}
@@ -189,8 +191,8 @@ export default function ScanScreen() {
           {/* ── History Section ── */}
           <YStack width="100%" marginTop="$2">
             <XStack alignItems="center" justifyContent="space-between" marginBottom="$3">
-              <Text fontSize={18} fontWeight="600" color="#1e1e2e">
-                Recent Scans
+              <Text fontSize={12} fontWeight="700" color="#7c7c8a" letterSpacing={1}>
+                RECENT SCANS
               </Text>
               {history.length > 0 && (
                 <Text fontSize={12} color="#9ca3af" fontWeight="500">

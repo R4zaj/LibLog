@@ -119,11 +119,11 @@ export default function Profile() {
   const [infoModal, setInfoModal] = React.useState({ visible: false, title: '', content: '' });
 
   const menuItems = [
-    { id: 1, title: 'Edit Profile', sub: 'Update your information', icon: Edit, color: '#6C48C5', bg: '#faf9fe', action: () => setEditProfileVisible(true) },
+    { id: 1, title: 'Edit Profile', sub: 'Update your information', icon: Edit, color: '#6C48C5', bg: '#f4f1fa', action: () => setEditProfileVisible(true) },
     { id: 2, title: 'My Favorites', sub: `${favorites.length} Favorite Book${favorites.length === 1 ? '' : 's'}`, icon: Heart, color: '#ef4444', bg: '#fef3f2', action: () => setFavoritesModalVisible(true) },
-    { id: 5, title: 'Privacy Policy', sub: 'How we protect your data', icon: Shield, color: '#6C48C5', bg: '#faf9fe', action: () => setInfoModal({ visible: true, title: 'Privacy Policy', content: 'CCC LIB APP values your privacy. We collect only the necessary data to manage your library account securely. We do not sell or share your data with third parties.' }) },
-    { id: 6, title: 'Help & Support', sub: 'FAQs and contact info', icon: HelpCircle, color: '#6C48C5', bg: '#faf9fe', action: () => setInfoModal({ visible: true, title: 'Help & Support', content: 'For assistance, please contact the library administration at admin@university.edu or visit the front desk.' }) },
-    { id: 7, title: 'About', sub: 'Version 1.0.0', icon: Info, color: '#6C48C5', bg: '#faf9fe', action: () => setInfoModal({ visible: true, title: 'About', content: 'CCC LIB APP Mobile Version 1.0.0\nDeveloped by the CCC Library Team.' }) },
+    { id: 5, title: 'Privacy Policy', sub: 'How we protect your data', icon: Shield, color: '#6C48C5', bg: '#f4f1fa', action: () => setInfoModal({ visible: true, title: 'Privacy Policy', content: 'CCC LIB APP values your privacy. We collect only the necessary data to manage your library account securely. We do not sell or share your data with third parties.' }) },
+    { id: 6, title: 'Help & Support', sub: 'FAQs and contact info', icon: HelpCircle, color: '#6C48C5', bg: '#f4f1fa', action: () => setInfoModal({ visible: true, title: 'Help & Support', content: 'For assistance, please contact the library administration at admin@university.edu or visit the front desk.' }) },
+    { id: 7, title: 'About', sub: 'Version 1.0.0', icon: Info, color: '#6C48C5', bg: '#f4f1fa', action: () => setInfoModal({ visible: true, title: 'About', content: 'CCC LIB APP Mobile Version 1.0.0\nDeveloped by the CCC Library Team.' }) },
     ...(user?.role === 'ADMIN'
       ? [{ id: 8, title: 'Create Announcement', sub: 'Broadcast to all users', icon: Megaphone, color: '#fff', bg: '#6C48C5', action: () => setCreateAnnouncementVisible(true) }]
       : []),
@@ -133,7 +133,7 @@ export default function Profile() {
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f4f1fa' }}>
     <ScrollView backgroundColor="#f4f1fa" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
       {/* ── Header ── */}
-      <YStack backgroundColor="#faf9fe" paddingTop="$5" paddingBottom={44} borderBottomLeftRadius={32} borderBottomRightRadius={32} borderBottomWidth={1} borderBottomColor="#ede9f6" alignItems="center" paddingHorizontal="$4">
+      <YStack backgroundColor="#ffffff" borderRadius={24} padding={20} borderWidth={1} borderColor="#ede9f6" alignItems="center" marginHorizontal="$5" marginTop="$5" marginBottom="$4">
         <YStack
           width={80}
           height={80}
@@ -230,16 +230,15 @@ export default function Profile() {
       <XStack
         backgroundColor="white"
         marginHorizontal="$5"
-        marginTop={-28}
-        borderRadius={20}
+        borderRadius={24}
         paddingVertical="$4"
         borderWidth={1}
-        borderColor="#f0eef5"
-        shadowColor="rgba(108, 72, 197, 0.1)"
+        borderColor="#ede9f6"
+        shadowColor="#000"
         shadowOffset={{ width: 0, height: 4 }}
-        shadowOpacity={1}
+        shadowOpacity={0.03}
         shadowRadius={12}
-        elevation={4}
+        elevation={2}
       >
         <YStack flex={1} alignItems="center">
           <YStack width={40} height={40} borderRadius={14} backgroundColor="#faf9fe" justifyContent="center" alignItems="center" marginBottom="$2">
@@ -284,11 +283,11 @@ export default function Profile() {
         </XStack>
 
         {/* Menu */}
-        <YStack backgroundColor="white" borderRadius={20} padding="$2" marginBottom="$5" borderWidth={1} borderColor="#f0eef5">
+        <YStack backgroundColor="white" borderRadius={24} padding={12} marginBottom="$5" borderWidth={1} borderColor="#ede9f6">
           {menuItems.map((item, idx) => (
             <React.Fragment key={item.id}>
-              <TouchableOpacity onPress={item.action}>
-                <XStack alignItems="center" padding="$3">
+              <TouchableOpacity onPress={item.action} style={{ minHeight: 48, justifyContent: 'center' }}>
+                <XStack alignItems="center" padding="$2">
                   <YStack width={40} height={40} borderRadius={14} backgroundColor={item.bg as any} justifyContent="center" alignItems="center" marginRight="$3">
                     <item.icon color={item.color} size={20} />
                   </YStack>
@@ -476,7 +475,7 @@ export default function Profile() {
                 <Text fontSize={13} color="#b91c1c" fontWeight="500" textAlign="center">
                   Couldn't load courses
                 </Text>
-                <TouchableOpacity onPress={fetchPrograms} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+                <TouchableOpacity onPress={fetchPrograms} hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}>
                   <Text fontSize={12} color="#6C48C5" fontWeight="700">Tap to retry</Text>
                 </TouchableOpacity>
               </YStack>
@@ -632,7 +631,7 @@ export default function Profile() {
                         </YStack>
                         <TouchableOpacity
                           onPress={() => removeFavorite(book.id)}
-                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                          hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
                           style={{
                             padding: 8,
                             borderRadius: 10,

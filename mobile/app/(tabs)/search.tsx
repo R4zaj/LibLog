@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { TextInput, TouchableOpacity, Dimensions, Modal, FlatList, ListRenderItem } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { TextInput, TouchableOpacity, Dimensions, FlatList, ListRenderItem } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AlertCircle, ArrowUpRight, Search as SearchIcon, BookOpen, Clock, X, Heart } from 'lucide-react-native';
 import { YStack, XStack, Text, ScrollView, View } from 'tamagui';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../../api';
 import { useFavorites } from '../../context/FavoritesContext';
+import { BookDetailModal } from '../../components/BookDetailModal';
 import type { LiteratureBook } from '../../types/api';
 
 const { width } = Dimensions.get('window');
@@ -41,6 +42,7 @@ export default function Search() {
   const [popularSearches, setPopularSearches] = useState<string[]>(['Algorithms', 'Nursing', 'Psychology']);
   const [recentItems, setRecentItems] = useState<CatalogBook[]>([]);
   const [selectedBook, setSelectedBook] = useState<CatalogBook | null>(null);
+  const insets = useSafeAreaInsets();
 
   const fetchBooks = useCallback(async () => {
     setLoading(true);
@@ -133,13 +135,19 @@ export default function Search() {
   };
 
   const renderCatalogItem: ListRenderItem<CatalogBook> = ({ item }) => (
-    <TouchableOpacity onPress={() => handleBookPress(item)} activeOpacity={0.7}>
+    <TouchableOpacity onPress={() => handleBookPress(item)} activeOpacity={0.7} style={{ paddingHorizontal: 20, marginBottom: 16 }}>
       <XStack
         alignItems="center"
-        paddingHorizontal="$5"
-        paddingVertical="$3.5"
-        borderBottomWidth={1}
-        borderBottomColor="#f0eef5"
+        backgroundColor="#ffffff"
+        borderRadius={24}
+        padding={16}
+        borderWidth={1}
+        borderColor="#ede9f6"
+        shadowColor="#000"
+        shadowOffset={{ width: 0, height: 4 }}
+        shadowOpacity={0.03}
+        shadowRadius={12}
+        elevation={2}
       >
         <YStack
           width={56}
@@ -162,10 +170,10 @@ export default function Search() {
                 e.stopPropagation?.();
                 toggleFavorite(item);
               }}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
               accessibilityRole="button"
               accessibilityLabel={isFavorite(item.id) ? 'Remove from favorites' : 'Add to favorites'}
-              style={{ padding: 3 }}
+              style={{ padding: 3, minHeight: 48, minWidth: 48, justifyContent: 'center', alignItems: 'flex-end', marginTop: -12, marginRight: -12 }}
             >
               <Heart
                 color={isFavorite(item.id) ? '#ef4444' : '#cbd5e1'}
@@ -181,7 +189,7 @@ export default function Search() {
             {item.tags?.slice(0, 2).map((tag: string, idx: number) => (
               <YStack
                 key={idx}
-                backgroundColor="#f3f4f6"
+                backgroundColor="#f4f1fa"
                 paddingHorizontal="$2"
                 paddingVertical={3}
                 borderRadius={8}
@@ -191,9 +199,8 @@ export default function Search() {
                 </Text>
               </YStack>
             ))}
-            <XStack alignItems="center" marginLeft="auto">
-              <View width={6} height={6} borderRadius={3} backgroundColor={item.availColor as any} marginRight="$1" />
-              <Text fontSize={11} fontWeight="700" color={item.availColor as any}>
+            <XStack alignItems="center" marginLeft="auto" backgroundColor={item.available > 0 ? '#ecfdf5' : '#fef2f2'} paddingHorizontal="$2" paddingVertical={4} borderRadius={9999}>
+              <Text fontSize={11} fontWeight="700" color={item.available > 0 ? '#10b981' : '#ef4444'}>
                 {item.avail}
               </Text>
             </XStack>
@@ -205,93 +212,13 @@ export default function Search() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f4f1fa' }}>
-      <Modal
-        visible={!!selectedBook}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setSelectedBook(null)}
-      >
-        <View flex={1} backgroundColor="rgba(0,0,0,0.5)" justifyContent="center" alignItems="center" padding="$4">
-          <YStack backgroundColor="white" width="100%" maxWidth={400} borderRadius={24} padding="$5" elevation={5}>
-            <XStack justifyContent="space-between" alignItems="flex-start" marginBottom="$4">
-              <YStack flex={1} marginRight="$3">
-                <Text fontSize={24} fontWeight="800" color="#1e1e2e" marginBottom="$1">
-                  {selectedBook?.title}
-                </Text>
-                <Text fontSize={14} color="#7c7c8a">
-                  By {selectedBook?.author}
-                </Text>
-              </YStack>
-              <XStack gap="$2" alignItems="center">
-                <TouchableOpacity
-                  onPress={() => selectedBook && toggleFavorite(selectedBook)}
-                  activeOpacity={0.7}
-                  accessibilityRole="button"
-                  accessibilityLabel={selectedBook && isFavorite(selectedBook.id) ? 'Remove from favorites' : 'Add to favorites'}
-                >
-                  <View backgroundColor={selectedBook && isFavorite(selectedBook.id) ? '#fef2f2' : '#f4f1fa'} padding="$2" borderRadius={12}>
-                    <Heart
-                      color={selectedBook && isFavorite(selectedBook.id) ? '#ef4444' : '#6C48C5'}
-                      size={20}
-                      fill={selectedBook && isFavorite(selectedBook.id) ? '#ef4444' : 'none'}
-                    />
-                  </View>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => setSelectedBook(null)}
-                  accessibilityRole="button"
-                  accessibilityLabel="Close"
-                >
-                  <View backgroundColor="#f4f1fa" padding="$2" borderRadius={12}>
-                    <X color="#6C48C5" size={20} />
-                  </View>
-                </TouchableOpacity>
-              </XStack>
-            </XStack>
-
-            <ScrollView maxHeight={300} showsVerticalScrollIndicator={false}>
-              <YStack gap="$3" marginBottom="$4">
-                <XStack justifyContent="space-between">
-                  <Text fontSize={14} color="#7c7c8a">Genre</Text>
-                  <Text fontSize={14} fontWeight="600" color="#1e1e2e">{selectedBook?.genre}</Text>
-                </XStack>
-                <XStack justifyContent="space-between">
-                  <Text fontSize={14} color="#7c7c8a">Shelf</Text>
-                  <Text fontSize={14} fontWeight="600" color="#1e1e2e">{selectedBook?.shelf}</Text>
-                </XStack>
-                <XStack justifyContent="space-between">
-                  <Text fontSize={14} color="#7c7c8a">Condition</Text>
-                  <Text fontSize={14} fontWeight="600" color={selectedBook?.condition === 'POOR' ? '#ef4444' : '#10b981'}>{selectedBook?.condition}</Text>
-                </XStack>
-                <XStack justifyContent="space-between">
-                  <Text fontSize={14} color="#7c7c8a">Availability</Text>
-                  <Text fontSize={14} fontWeight="600" color={selectedBook && selectedBook.available > 0 ? '#10b981' : '#ef4444'}>
-                    {selectedBook?.available} / {selectedBook?.total}
-                  </Text>
-                </XStack>
-                <XStack justifyContent="space-between">
-                  <Text fontSize={14} color="#7c7c8a">Year</Text>
-                  <Text fontSize={14} fontWeight="600" color="#1e1e2e">{selectedBook?.year}</Text>
-                </XStack>
-                <XStack justifyContent="space-between">
-                  <Text fontSize={14} color="#7c7c8a">ISBN</Text>
-                  <Text fontSize={14} fontWeight="600" color="#1e1e2e">{selectedBook?.isbn}</Text>
-                </XStack>
-                <XStack justifyContent="space-between">
-                  <Text fontSize={14} color="#7c7c8a">Call No. / LCCN</Text>
-                  <Text fontSize={14} fontWeight="600" color="#1e1e2e">{selectedBook?.lccn}</Text>
-                </XStack>
-              </YStack>
-            </ScrollView>
-
-            <YStack backgroundColor="#f9f8fc" padding="$3" borderRadius={12} borderWidth={1} borderColor="#ede9f6" alignItems="center">
-              <Text fontSize={13} color="#6C48C5" fontWeight="600" textAlign="center">
-                Kindly find the book to scan its qr to borrow
-              </Text>
-            </YStack>
-          </YStack>
-        </View>
-      </Modal>
+      <BookDetailModal
+        isOpen={!!selectedBook}
+        book={selectedBook}
+        onClose={() => setSelectedBook(null)}
+        isFavorite={selectedBook ? isFavorite(selectedBook.id) : false}
+        onToggleFavorite={() => selectedBook && toggleFavorite(selectedBook)}
+      />
 
       {/* Header */}
       <YStack paddingTop="$4" paddingHorizontal="$5" paddingBottom="$4" backgroundColor="white">
@@ -345,7 +272,7 @@ export default function Search() {
         keyExtractor={(item) => String(item.id)}
         renderItem={renderCatalogItem}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 32 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 98 }}
         ListHeaderComponent={
           <YStack>
             {/* Popular Tags */}
@@ -396,13 +323,13 @@ export default function Search() {
                       flexDirection: 'row',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      backgroundColor: isActive ? '#6C48C5' : 'white',
+                      backgroundColor: isActive ? '#6C48C5' : '#faf9fe',
                       paddingHorizontal: 16,
                       minHeight: 48,
-                      borderRadius: 12,
+                      borderRadius: 9999,
                       marginRight: 8,
                       borderWidth: 1,
-                      borderColor: isActive ? '#6C48C5' : '#f0eef5',
+                      borderColor: isActive ? '#6C48C5' : '#ede9f6',
                     }}
                   >
                     {(tab === 'All' || tab === 'Books' || tab === 'Research') && (
@@ -468,7 +395,7 @@ export default function Search() {
                             e.stopPropagation?.();
                             toggleFavorite(item);
                           }}
-                          hitSlop={{ top: 13, bottom: 13, left: 13, right: 13 }}
+                          hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
                           accessibilityRole="button"
                           accessibilityLabel={isFavorite(item.id) ? 'Remove from favorites' : 'Add to favorites'}
                           style={{
@@ -522,7 +449,7 @@ export default function Search() {
               </Text>
               <TouchableOpacity
                 onPress={fetchBooks}
-                hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+                hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
               >
                 <Text fontSize={12} color="#6C48C5" fontWeight="700">
                   Tap to retry

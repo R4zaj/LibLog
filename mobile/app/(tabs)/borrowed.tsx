@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { TouchableOpacity, ActivityIndicator, FlatList, ListRenderItem } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AlertCircle, Book, ChevronRight, Clock, Info } from 'lucide-react-native';
 import { YStack, XStack, Text, View } from 'tamagui';
 import { useAuth } from '../../context/AuthContext';
@@ -15,6 +15,7 @@ export default function Borrowed() {
   const [borrows, setBorrows] = useState<BorrowRecordWithBook[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [fetchError, setFetchError] = useState(false);
+  const insets = useSafeAreaInsets();
 
   const fetchBorrows = useCallback(async () => {
     try {
@@ -64,13 +65,11 @@ export default function Borrowed() {
     return (
       <YStack
         backgroundColor={isOverdue ? '#fef2f2' : 'white'}
-        borderRadius={20}
-        padding="$4"
-        marginBottom="$3"
-        borderWidth={isOverdue ? 1.5 : 1}
-        borderColor={isOverdue ? '#fca5a5' : '#f0eef5'}
-        borderLeftWidth={4}
-        borderLeftColor={isOverdue ? '#ef4444' : isReturned ? '#10b981' : '#6C48C5'}
+        borderRadius={24}
+        padding={16}
+        marginBottom={12}
+        borderWidth={1}
+        borderColor={isOverdue ? '#fca5a5' : '#ede9f6'}
       >
         {/* Book Info */}
         <XStack marginBottom="$3">
@@ -167,10 +166,10 @@ export default function Borrowed() {
           {!isReturned && (
             <TouchableOpacity
               onPress={() => router.push('/scan')}
-              hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+              hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
               accessibilityRole="button"
               accessibilityLabel="Return at the library — open your scan code"
-              style={{ flexDirection: 'row', alignItems: 'center', minHeight: 32 }}
+              style={{ flexDirection: 'row', alignItems: 'center', minHeight: 48 }}
             >
               <Info color="#9ca3af" size={13} style={{ marginRight: 5 }} />
               <Text color="#9ca3af" fontWeight="500" fontSize={12}>
@@ -193,20 +192,18 @@ export default function Borrowed() {
         </Text>
 
         {/* Tab Switcher */}
-        <XStack gap="$2">
+        <XStack backgroundColor="#f4f1fa" borderRadius={9999} padding={4} minHeight={48}>
           <TouchableOpacity
             onPress={() => setActiveTab('active')}
             style={{
               flex: 1,
-              paddingVertical: 11,
+              justifyContent: 'center',
               alignItems: 'center',
-              borderRadius: 12,
-              backgroundColor: activeTab === 'active' ? '#6C48C5' : '#faf9fe',
-              borderWidth: 1,
-              borderColor: activeTab === 'active' ? '#6C48C5' : '#ede9f6',
+              borderRadius: 9999,
+              backgroundColor: activeTab === 'active' ? '#6C48C5' : 'transparent',
             }}
           >
-            <Text color={activeTab === 'active' ? 'white' : '#6C48C5'} fontWeight="700" fontSize={14}>
+            <Text color={activeTab === 'active' ? 'white' : '#7c7c8a'} fontWeight="700" fontSize={14}>
               Active ({activeBorrows.length})
             </Text>
           </TouchableOpacity>
@@ -214,15 +211,13 @@ export default function Borrowed() {
             onPress={() => setActiveTab('history')}
             style={{
               flex: 1,
-              paddingVertical: 11,
+              justifyContent: 'center',
               alignItems: 'center',
-              borderRadius: 12,
-              backgroundColor: activeTab === 'history' ? '#6C48C5' : '#faf9fe',
-              borderWidth: 1,
-              borderColor: activeTab === 'history' ? '#6C48C5' : '#ede9f6',
+              borderRadius: 9999,
+              backgroundColor: activeTab === 'history' ? '#6C48C5' : 'transparent',
             }}
           >
-            <Text color={activeTab === 'history' ? 'white' : '#6C48C5'} fontWeight="700" fontSize={14}>
+            <Text color={activeTab === 'history' ? 'white' : '#7c7c8a'} fontWeight="700" fontSize={14}>
               History ({historyBorrows.length})
             </Text>
           </TouchableOpacity>
@@ -234,28 +229,28 @@ export default function Borrowed() {
         keyExtractor={(item) => String(item.id)}
         renderItem={renderItem}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 32 }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: insets.bottom + 98 }}
         onRefresh={fetchBorrows}
         refreshing={isLoading && borrows.length > 0}
         ListHeaderComponent={
-          <XStack marginBottom={16} gap={16} flexWrap="wrap">
-            <XStack alignItems="center">
+          <XStack marginBottom={16} gap={8} flexWrap="wrap">
+            <XStack alignItems="center" backgroundColor="#faf9fe" paddingHorizontal={12} paddingVertical={6} borderRadius={9999} borderWidth={1} borderColor="#ede9f6">
               <View width={8} height={8} borderRadius={4} backgroundColor="#6C48C5" marginRight="$2" />
-              <Text color="#7c7c8a" fontSize={13} fontWeight="600">
+              <Text color="#4b5563" fontSize={13} fontWeight="600">
                 {activeBorrows.length} Active
               </Text>
             </XStack>
             {overdueCount > 0 && (
-              <XStack alignItems="center">
+              <XStack alignItems="center" backgroundColor="#fef2f2" paddingHorizontal={12} paddingVertical={6} borderRadius={9999} borderWidth={1} borderColor="#fca5a5">
                 <View width={8} height={8} borderRadius={4} backgroundColor="#ef4444" marginRight="$2" />
-                <Text color="#ef4444" fontSize={13} fontWeight="700">
+                <Text color="#b91c1c" fontSize={13} fontWeight="700">
                   {overdueCount} Due
                 </Text>
               </XStack>
             )}
-            <XStack alignItems="center">
+            <XStack alignItems="center" backgroundColor="#ecfdf5" paddingHorizontal={12} paddingVertical={6} borderRadius={9999} borderWidth={1} borderColor="#6ee7b7">
               <View width={8} height={8} borderRadius={4} backgroundColor="#10b981" marginRight="$2" />
-              <Text color="#7c7c8a" fontSize={13} fontWeight="600">
+              <Text color="#047857" fontSize={13} fontWeight="600">
                 {historyBorrows.length} Returned
               </Text>
             </XStack>
@@ -282,7 +277,7 @@ export default function Borrowed() {
               </Text>
               <TouchableOpacity
                 onPress={fetchBorrows}
-                hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}
+                hitSlop={{ top: 15, bottom: 15, left: 16, right: 16 }}
                 style={{ paddingVertical: 12, paddingHorizontal: 8 }}
               >
                 <Text fontSize={12} color="#6C48C5" fontWeight="700">

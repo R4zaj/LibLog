@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, TouchableWithoutFeedback, Dimensions, Alert, Modal, Animated, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { Bell, Settings, Flame, ArrowRight, ScanLine, BookOpen, Bookmark, Calendar, ChevronRight, Clock, TrendingUp, Megaphone, Star, Users, Check, X, Activity, ArrowRightLeft, DollarSign, ExternalLink, AlertCircle, Heart } from 'lucide-react-native';
@@ -10,10 +10,11 @@ import type {
   Announcement,
   DashboardNotification,
   BorrowRecordWithBook,
-  ActiveAttendanceUser,
   LiteratureBook,
-  AttendanceStats,
+  AttendanceLog,
 } from '../../types/api';
+import { TabBarVisibilityContext } from './_layout';
+import { BookDetailModal } from '../../components/BookDetailModal';
 
 const { width, height } = Dimensions.get('window');
 
@@ -32,15 +33,21 @@ export default function Home() {
   const { user } = useAuth();
   const { isFavorite, toggleFavorite } = useFavorites();
   const router = useRouter();
-  const [insideNow, setInsideNow] = useState<number | null>(null);
   const [announcements, setAnnouncements] = useState<DashboardNotification[]>([]);
   const [activeBorrows, setActiveBorrows] = useState<BorrowRecordWithBook[]>([]);
-  const [activeUsers, setActiveUsers] = useState<ActiveAttendanceUser[]>([]);
   const [books, setBooks] = useState<LiteratureBook[]>([]);
+  const [selectedBook, setSelectedBook] = useState<LiteratureBook | null>(null);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
+  const insets = useSafeAreaInsets();
+
+  // New states for interactive cards
+  const { setTabBarVisible } = React.useContext(TabBarVisibilityContext);
+  const lastOffsetY = React.useRef(0);
+  const [attendanceLogs, setAttendanceLogs] = useState<AttendanceLog[]>([]);
+  const [penaltyRange, setPenaltyRange] = useState<'day' | 'week' | 'all'>('day');
 
   const fetchDashboardData = useCallback(async () => {
     if (!user?.id) return; // don't hit authenticated-adjacent endpoints before login resolves
@@ -60,20 +67,18 @@ export default function Home() {
     };
 
     try {
-      const [statsRes, annRes, borrowRes, usersRes, booksRes] = await Promise.all([
-        safeGet<Partial<AttendanceStats>>(api.get<AttendanceStats>('/attendance/stats'), { insideNow: 0 }),
+      const [annRes, borrowRes, booksRes, attendanceRes] = await Promise.all([
         safeGet<Announcement[]>(api.get<Announcement[]>('/announcements/active'), []),
         user?.id
           ? safeGet<BorrowRecordWithBook[]>(api.get<BorrowRecordWithBook[]>(`/borrowing/user/${user.id}`), [])
           : Promise.resolve({ data: [] as BorrowRecordWithBook[] }),
-        safeGet<ActiveAttendanceUser[]>(api.get<ActiveAttendanceUser[]>('/attendance/active'), []),
         safeGet<LiteratureBook[]>(api.get<LiteratureBook[]>('/literatures/books'), []),
+        safeGet<AttendanceLog[]>(api.get<AttendanceLog[]>('/attendance/my-history'), []),
       ]);
 
-      setInsideNow(statsRes.data.insideNow ?? 0);
       setActiveBorrows(borrowRes.data);
-      setActiveUsers(usersRes.data);
       setBooks(booksRes.data);
+      setAttendanceLogs(attendanceRes.data);
 
       const rawAnnouncements = annRes.data || [];
       const rawBorrows = borrowRes.data || [];
@@ -130,73 +135,70 @@ export default function Home() {
   const announcementsCount = announcements.length;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#faf9fe' }}>
       {isLoading ? (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
            <ActivityIndicator size="large" color="#6C48C5" />
            <Text style={{ marginTop: 16, color: '#6b7280', fontSize: 14 }}>Loading your library dashboard...</Text>
         </View>
       ) : (
-        <Animated.ScrollView style={[styles.container, { opacity: fadeAnim }]} contentContainerStyle={{ paddingBottom: 100 }}>
-        {/* Top Bar */}
-      <View style={styles.topBar}>
+        <Animated.ScrollView 
+          style={[styles.container, { opacity: fadeAnim }]} 
+          contentContainerStyle={{ paddingBottom: insets.bottom + 98 }}
+          onScroll={(e) => {
+            const offsetY = e.nativeEvent.contentOffset.y;
+            if (offsetY <= 0) {
+              setTabBarVisible(true);
+            } else if (offsetY > lastOffsetY.current + 10) {
+              setTabBarVisible(false);
+            } else if (offsetY < lastOffsetY.current - 10) {
+              setTabBarVisible(true);
+            }
+            lastOffsetY.current = offsetY;
+          }}
+          scrollEventThrottle={16}
+        >
+        {/* Top Utility Bar */}
+      <View style={styles.topUtilityBar}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <Image
             source={require('../../assets/images/CCC_icon.png')}
             style={{ width: 34, height: 34 }}
             resizeMode="contain"
           />
-          <View style={styles.streakContainer}>
-            <Flame color="#f97316" size={18} />
+          <View style={styles.streakPill}>
+            <Flame color="#f97316" size={16} fill="#f97316" />
             <Text style={styles.streakCount}>{user?.stats?.streak || 0}</Text>
             <Text style={styles.streakText}>day streak</Text>
           </View>
         </View>
         <View style={styles.topBarActions}>
           <TouchableOpacity
-            style={styles.iconBtn}
+            style={styles.actionChip}
             onPress={() => setNotificationsOpen(true)}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             accessibilityRole="button"
             accessibilityLabel="Notifications"
           >
-            <Bell color="#1f2937" size={24} />
+            <Bell color="#1f2937" size={20} />
             {announcementsCount > 0 && <View style={styles.badge}><Text style={styles.badgeText}>{announcementsCount}</Text></View>}
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.iconBtn}
+            style={styles.actionChip}
             onPress={() => router.push('/profile')}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             accessibilityRole="button"
             accessibilityLabel="Settings"
           >
-            <Settings color="#1f2937" size={24} />
+            <Settings color="#1f2937" size={20} />
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Header Info */}
-      <View style={styles.headerInfo}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{user?.first_name?.[0]?.toUpperCase() || 'J'}{user?.last_name?.[0]?.toUpperCase() || 'D'}</Text>
-        </View>
-        <View style={styles.headerTextCont}>
-          <Text style={styles.greeting}>{greetingWord}, {user?.first_name || 'Juan'}!</Text>
-          <Text style={styles.subtitle}>{user?.program?.name || 'Computer Science'} • {user?.year_level || '1st Year'} • {user?.role === 'STUDENT' ? 'Student' : 'Staff'}</Text>
-        </View>
-      </View>
-
-      <View style={styles.statusContainer}>
-        <View style={styles.statusPill}>
-          <View style={styles.statusDot} />
-          <Text style={styles.statusText}>
-            Library Open {insideNow !== null ? `· ${insideNow} inside` : '· Closes 9PM'}
-          </Text>
-        </View>
-        <View style={styles.dateRow}>
-          <Calendar size={12} color="#6b7280" strokeWidth={2} />
-          <Text style={styles.dateText}>{currentDate}</Text>
-        </View>
+      {/* Greeting Header */}
+      <View style={styles.greetingHeader}>
+        <Text style={styles.overlineDate}>{currentDate.toUpperCase()}</Text>
+        <Text style={styles.greetingTitle}>{greetingWord}, {user?.first_name || 'Juan'}!</Text>
       </View>
 
       {/* Fetch error banner */}
@@ -204,48 +206,173 @@ export default function Home() {
         <View style={styles.fetchErrorCard}>
           <AlertCircle color="#dc2626" size={18} />
           <Text style={styles.fetchErrorText}>Couldn't load dashboard data</Text>
-          <TouchableOpacity onPress={fetchDashboardData} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+          <TouchableOpacity onPress={fetchDashboardData} hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}>
             <Text style={styles.fetchErrorRetry}>Tap to retry</Text>
           </TouchableOpacity>
         </View>
       )}
 
-      {/* Section: Announcements */}
+      {/* Streamlined Assistant Bubble */}
       {announcements.length > 0 && (
-        <>
-          <View style={styles.sectionHeader}>
-            <View style={styles.sectionBar} />
-            <Megaphone color="#6C48C5" size={20} />
-            <Text style={styles.sectionTitle}>Announcements</Text>
+        <View style={styles.assistantCard}>
+          <View style={styles.assistantIconTray}>
+            <Megaphone color="#6C48C5" size={18} />
           </View>
-          <View style={styles.announcementCard}>
-            <View style={styles.announcementIconBg}>
-              <Megaphone color="#fff" size={20} />
-            </View>
-            <View style={styles.announcementContent}>
-              <Text style={styles.announcementTitle}>{announcements[0].title}</Text>
-              <Text style={styles.announcementBody}>{announcements[0].body}</Text>
-              {announcements.length > 1 && (
-                <View style={styles.paginationDots}>
-                  {announcements.map((_, i) => (
-                    <View key={i} style={i === 0 ? styles.dotActive : styles.dotInactive} />
-                  ))}
-                </View>
-              )}
-            </View>
+          <View style={styles.assistantContent}>
+            <Text style={styles.assistantOverline}>{announcements[0].is_overdue ? 'URGENT' : 'ANNOUNCEMENT'}</Text>
+            <Text style={styles.assistantBody}>{announcements[0].title}: {announcements[0].body}</Text>
           </View>
-        </>
+        </View>
       )}
+
+      {/* Two-Column Mid-Tier Grid Cards */}
+      <View style={styles.gridContainer}>
+        {/* Left Card: Attendance */}
+        <View style={styles.gridCard}>
+          <Text style={styles.gridEyebrow}>LAST 7 DAYS</Text>
+          <View style={styles.chartContainer}>
+            {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, idx) => {
+              const todayIndex = new Date().getDay();
+              const isToday = todayIndex === idx;
+              
+              // Calculate date for this day of week in the past 7 days
+              const diff = todayIndex >= idx ? todayIndex - idx : 7 - (idx - todayIndex);
+              const targetDate = new Date();
+              targetDate.setDate(targetDate.getDate() - diff);
+              const targetDateString = targetDate.toLocaleDateString();
+
+              const logsForDay = attendanceLogs.filter(log => new Date(log.logged_at).toLocaleDateString() === targetDateString);
+              const totalMinutes = logsForDay.reduce((sum, log) => sum + (log.duration_minutes || 0), 0);
+              const totalHours = totalMinutes / 60;
+              
+              // Base height 4px for empty days, up to ~50px max (assuming 10 hours max)
+              const barHeight = Math.max(4, Math.min(50, totalHours * 5));
+
+              return (
+                <View key={idx} style={styles.chartCol}>
+                  <View style={styles.chartBarBg}>
+                    <View style={[styles.chartBarFill, { height: barHeight, backgroundColor: isToday ? '#6C48C5' : '#ede9f6' }]} />
+                  </View>
+                  <Text style={styles.chartLabel}>{day}</Text>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* Right Card: Penalties */}
+        <View style={styles.gridCard}>
+          <Text style={styles.gridCardTitle}>Penalties</Text>
+          <View style={styles.penaltyValueCont}>
+            <Text style={styles.currencySymbol}>₱</Text>
+            <Text style={styles.penaltyValue}>
+              {(() => {
+                if (penaltyRange === 'all') return Number(user?.penalty_balance || 0).toFixed(2);
+                
+                // Derive estimated day/week penalties from activeBorrows
+                const now = new Date().getTime();
+                const overdues = activeBorrows.filter(b => b.status === 'OVERDUE' || (b.status === 'BORROWED' && new Date(b.due_date).getTime() < now));
+                let totalEstimated = 0;
+                
+                overdues.forEach(b => {
+                  const daysOverdue = Math.abs(Math.ceil((new Date(b.due_date).getTime() - now) / (1000 * 3600 * 24)));
+                  // Mock 5 pesos per day penalty
+                  const penaltyPerDay = 5;
+                  if (penaltyRange === 'day' && daysOverdue > 0) {
+                     // Assume today accrued a daily penalty if overdue
+                     totalEstimated += penaltyPerDay;
+                  } else if (penaltyRange === 'week' && daysOverdue > 0) {
+                     // Max 7 days of penalty for this week
+                     totalEstimated += Math.min(daysOverdue, 7) * penaltyPerDay;
+                  }
+                });
+                return totalEstimated.toFixed(2);
+              })()}
+            </Text>
+          </View>
+          
+          <View style={styles.segmentedPill}>
+            {['Day', 'Week', 'All'].map((tab) => {
+              const isActive = penaltyRange === tab.toLowerCase();
+              return (
+                <TouchableOpacity 
+                  key={tab} 
+                  onPress={() => setPenaltyRange(tab.toLowerCase() as 'day' | 'week' | 'all')}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  style={[styles.segmentTab, isActive && styles.segmentTabActive]}
+                >
+                  <Text style={[styles.segmentTabText, isActive && styles.segmentTabTextActive]}>{tab}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+      </View>
+
+      {/* Upcoming Borrows */}
+      <View style={styles.borrowsSection}>
+        <View style={styles.borrowsCard}>
+          <View style={styles.borrowsHeaderRow}>
+            <View style={styles.borrowsIconTray}>
+              <Calendar color="#6C48C5" size={20} />
+            </View>
+            <View style={styles.borrowsHeaderContent}>
+              <Text style={styles.borrowsTitle}>Due Soon</Text>
+              <Text style={styles.borrowsSubtitle}>Active borrow return dates</Text>
+            </View>
+          </View>
+
+          {activeBorrows.length > 0 ? (
+            <View style={styles.borrowsList}>
+              {activeBorrows.slice(0, 3).map((borrow, idx) => {
+                const daysLeft = Math.ceil((new Date(borrow.due_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                let statusBg = '#ecfdf5';
+                let statusColor = '#10b981';
+                let statusText = 'Available';
+                
+                if (daysLeft < 0) {
+                  statusBg = '#fef2f2';
+                  statusColor = '#ef4444';
+                  statusText = 'Overdue';
+                } else if (daysLeft <= 1) {
+                  statusBg = '#fef3c7';
+                  statusColor = '#b45309';
+                  statusText = daysLeft === 0 ? 'Today' : 'Tomorrow';
+                } else {
+                  statusText = `${daysLeft} days`;
+                }
+
+                return (
+                  <View key={borrow.id} style={[styles.borrowRow, idx !== 0 && { borderTopWidth: 1, borderTopColor: '#f3f4f6' }]}>
+                    <View style={styles.borrowRowIcon}>
+                      <BookOpen color="#6C48C5" size={16} />
+                    </View>
+                    <View style={styles.borrowRowContent}>
+                      <Text style={styles.borrowRowTitle} numberOfLines={1}>{borrow.book?.title || 'Unknown Book'}</Text>
+                      <Text style={styles.borrowRowDate}>{new Date(borrow.due_date).toLocaleDateString()}</Text>
+                    </View>
+                    <View style={[styles.borrowStatusPill, { backgroundColor: statusBg }]}>
+                      <Text style={[styles.borrowStatusText, { color: statusColor }]}>{statusText}</Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          ) : (
+             <View style={styles.borrowsEmpty}>
+               <Text style={styles.borrowsEmptyText}>No active books currently borrowed.</Text>
+             </View>
+          )}
+        </View>
+      </View>
 
       {/* Section: Today's Highlight */}
       {books.length > 0 && (
         <>
           <View style={styles.sectionHeader}>
-            <View style={styles.sectionBar} />
-            <Star color="#6C48C5" size={20} />
             <Text style={styles.sectionTitle}>Today's Highlight</Text>
           </View>
-          <View style={styles.highlightCard}>
+          <TouchableOpacity style={styles.highlightCard} onPress={() => setSelectedBook(books[0])}>
             <View style={styles.highlightIconCont}>
               <BookOpen color="#fff" size={40} opacity={0.85} />
             </View>
@@ -256,8 +383,8 @@ export default function Home() {
                   <Text style={styles.featuredTagText}>Featured Pick</Text>
                 </View>
                 <TouchableOpacity
-                  onPress={() => toggleFavorite(books[0])}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  onPress={(e) => { e.stopPropagation?.(); toggleFavorite(books[0]); }}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                   style={{ padding: 4 }}
                 >
                   <Heart
@@ -271,183 +398,58 @@ export default function Home() {
               <Text style={styles.highlightBookAuthor} numberOfLines={1}>{books[0].author}</Text>
               <View style={styles.unavailableTag}>
                 {books[0].available > 0 ? (
-                  <Text style={[styles.unavailableText, { color: '#059669' }]}>Available ({books[0].available})</Text>
+                  <Text style={[styles.unavailableText, { color: '#10b981' }]}>Available ({books[0].available})</Text>
                 ) : (
                   <Text style={styles.unavailableText}>Currently unavailable <ArrowRight size={12} color="#9ca3af" /></Text>
                 )}
               </View>
             </View>
-          </View>
+          </TouchableOpacity>
         </>
       )}
 
-      {/* Section: Current Borrow */}
-      {activeBorrows.length > 0 && (
-        <>
-          <View style={styles.sectionHeader}>
-            <View style={styles.sectionBar} />
-            <Text style={styles.sectionTitle}>Current Borrow</Text>
-          </View>
-          <View style={styles.borrowCard}>
-            <View style={styles.borrowTop}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.borrowTitle} numberOfLines={1}>{activeBorrows[0].book?.title || 'Unknown Book'}</Text>
-                <Text style={styles.borrowAuthor} numberOfLines={1}>{activeBorrows[0].book?.author?.name || 'Unknown Author'}</Text>
-              </View>
-              {(() => {
-                const daysLeft = Math.ceil((new Date(activeBorrows[0].due_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-                let statusBg = '#6C48C520';
-                let statusColor = '#6C48C5';
-                let statusText = `${daysLeft} days left`;
-                
-                if (daysLeft < 0) {
-                  statusBg = '#fee2e2';
-                  statusColor = '#ef4444';
-                  statusText = 'Overdue';
-                } else if (daysLeft === 0) {
-                  statusBg = '#ffedd5';
-                  statusColor = '#f97316';
-                  statusText = 'Due Today!';
-                } else if (daysLeft === 1) {
-                  statusBg = '#fef08a';
-                  statusColor = '#ca8a04';
-                  statusText = 'Due Tomorrow';
-                }
 
-                return (
-                  <View style={[styles.daysLeftBadge, { backgroundColor: statusBg }]}>
-                    <Text style={[styles.daysLeftText, { color: statusColor }]}>
-                      {statusText}
-                    </Text>
-                  </View>
-                );
-              })()}
-            </View>
-            <View style={styles.borrowCategory}>
-              <Text style={styles.borrowCategoryText}>{activeBorrows[0].book?.genre?.name || 'General'}</Text>
-            </View>
-            <View style={styles.progressBarBg}>
-              {(() => {
-                const daysLeft = Math.ceil((new Date(activeBorrows[0].due_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-                const barColor = daysLeft < 0 ? '#ef4444' : (daysLeft === 0 ? '#f97316' : (daysLeft === 1 ? '#eab308' : '#6C48C5'));
-                const barWidth = daysLeft < 0 ? '100%' : (daysLeft <= 1 ? '90%' : '50%');
-                return <View style={[styles.progressBarFill, { width: barWidth, backgroundColor: barColor }]} />;
-              })()}
-            </View>
-            <View style={styles.borrowDates}>
-              <Text style={styles.dateSmall}>Borrowed: {new Date(activeBorrows[0].borrow_date).toLocaleDateString()}</Text>
-              <Text style={styles.dateSmall}>Due: {new Date(activeBorrows[0].due_date).toLocaleDateString()}</Text>
-            </View>
-            <TouchableOpacity style={styles.viewDetailsBtn} onPress={() => router.push('/borrowed')}>
-              <Text style={styles.viewDetailsText}>View Details</Text>
-              <ChevronRight size={16} color="#6C48C5" />
-            </TouchableOpacity>
-          </View>
-        </>
-      )}
 
-      {/* Section: Currently Inside (Activity Feed) */}
-      <View style={[styles.sectionHeader, { justifyContent: 'space-between' }]}>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <View style={styles.sectionBar} />
-          <Users color="#6C48C5" size={20} />
-          <Text style={styles.sectionTitle}>Currently Inside</Text>
-        </View>
-        <Text style={styles.seeAllText}>{activeUsers.length} Users</Text>
-      </View>
-      {activeUsers.length > 0 ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.activeUsersScroll} contentContainerStyle={{ paddingRight: 16 }}>
-          {activeUsers.map((u) => (
-            <View key={u.id} style={styles.activeUserCard}>
-              <View style={styles.activeUserAvatar}>
-                <Text style={styles.activeUserAvatarText}>
-                  {u.first_name?.[0]}{u.last_name?.[0]}
-                </Text>
-              </View>
-              <Text style={styles.activeUserName} numberOfLines={1}>{u.first_name} {u.last_name}</Text>
-              <Text style={styles.activeUserDept} numberOfLines={1}>{u.department}</Text>
-              <Text style={styles.activeUserTime}>{new Date(u.checked_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
-            </View>
-          ))}
-        </ScrollView>
-      ) : (
-        <View style={styles.emptyStateContainer}>
-          <Text style={styles.emptyStateText}>No users currently in the library.</Text>
-        </View>
-      )}
-
-      {/* Section: Quick Actions */}
-      <View style={styles.sectionHeader}>
-        <View style={styles.sectionBar} />
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
-      </View>
-      <View style={styles.quickActionsContainer}>
-        <TouchableOpacity style={[styles.actionItem, { width: '30%' }]} onPress={() => router.push('/scan')}>
-          <View style={styles.actionIconBg}><ScanLine color="#fff" size={24} /></View>
-          <Text style={styles.actionTitle}>Scan QR</Text>
-          <Text style={styles.actionSubtitle}>Attendance</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.actionItem, { width: '30%' }]} onPress={() => router.push('/borrowed')}>
-          <View style={styles.actionIconBgOutline}><BookOpen color="#6C48C5" size={24} /></View>
-          <Text style={styles.actionTitle}>Borrowing</Text>
-          <Text style={styles.actionSubtitle}>View history</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.actionItem, { width: '30%' }]} onPress={() => router.push('/scan')}>
-          <View style={styles.actionIconBgOutline}><Calendar color="#6C48C5" size={24} /></View>
-          <Text style={styles.actionTitle}>Attendance</Text>
-          <Text style={styles.actionSubtitle}>Check in</Text>
-        </TouchableOpacity>
-      </View>
 
       {/* Section: Recommended for You */}
       {books.length > 1 && (
         <>
           <View style={[styles.sectionHeader, { justifyContent: 'space-between' }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <View style={styles.sectionBar} />
-              <Text style={styles.sectionTitle}>Recommended for You</Text>
-            </View>
-            <TouchableOpacity onPress={() => router.push('/search')}>
+            <Text style={styles.sectionTitle}>Recommended for You</Text>
+            <TouchableOpacity onPress={() => router.push('/search')} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
               <Text style={styles.seeAllText}>See All <ChevronRight size={14} color="#6C48C5" /></Text>
             </TouchableOpacity>
           </View>
           
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.recommendedScroll}>
             {books.slice(1, 4).map((book, i) => (
-              <View key={book.id} style={styles.recCard}>
-                <View style={[styles.recCover, { backgroundColor: i % 2 === 0 ? '#6C48C5' : '#1e1e2e' }]}>
-                  <View style={styles.recTags}>
-                    <View style={styles.recTypeTag}><Text style={styles.recTypeText}>{book.genre || 'Book'}</Text></View>
-                    <View style={styles.forYouTag}><Star color="#fff" size={10} fill="#fff" /><Text style={styles.forYouText}> For You</Text></View>
+              <TouchableOpacity key={book.id} style={styles.recCard} onPress={() => setSelectedBook(book)}>
+                <View style={styles.recCover}>
+                  <View style={styles.recTypeTag}>
+                    <Text style={styles.recTypeText}>{book.genre || 'Book'}</Text>
                   </View>
                   <TouchableOpacity
-                    onPress={() => toggleFavorite(book)}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    style={{
-                      position: 'absolute',
-                      bottom: 10,
-                      right: 10,
-                      backgroundColor: 'rgba(255,255,255,0.9)',
-                      padding: 6,
-                      borderRadius: 14,
-                      zIndex: 2,
-                    }}
+                    onPress={(e) => { e.stopPropagation?.(); toggleFavorite(book); }}
+                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                    style={styles.recFavBtn}
                   >
                     <Heart
-                      color={isFavorite(book.id) ? '#ef4444' : '#9ca3af'}
-                      size={15}
+                      color={isFavorite(book.id) ? '#ef4444' : '#6C48C5'}
+                      size={18}
                       fill={isFavorite(book.id) ? '#ef4444' : 'none'}
                     />
                   </TouchableOpacity>
-                  <BookOpen color="#fff" size={40} opacity={0.6} />
+                  <BookOpen color="#6C48C5" size={32} />
                 </View>
-                <Text style={styles.recAvail}>
-                  <View style={[styles.dot, { backgroundColor: book.available > 0 ? '#22c55e' : '#ef4444' }]} /> 
-                  {book.available > 0 ? `${book.available} available` : 'Unavailable'}
-                </Text>
-                <Text style={styles.recTitle} numberOfLines={2}>{book.title}</Text>
+                <View style={styles.recAvailRow}>
+                  <View style={[styles.dot, { backgroundColor: book.available > 0 ? '#10b981' : '#ef4444' }]} /> 
+                  <Text style={[styles.recAvailText, { color: book.available > 0 ? '#10b981' : '#ef4444' }]}>
+                    {book.available > 0 ? `${book.available} available` : 'Unavailable'}
+                  </Text>
+                </View>
+                <Text style={styles.recTitle} numberOfLines={2} ellipsizeMode="tail">{book.title}</Text>
                 <Text style={styles.recAuthor} numberOfLines={1}>{book.author}</Text>
-              </View>
+              </TouchableOpacity>
             ))}
           </ScrollView>
         </>
@@ -457,23 +459,21 @@ export default function Home() {
       {books.length > 4 && (
         <>
           <View style={styles.sectionHeader}>
-            <View style={styles.sectionBar} />
-            <TrendingUp color="#6C48C5" size={20} />
             <Text style={styles.sectionTitle}>Trending in Your Department</Text>
           </View>
           <View style={styles.trendingList}>
             {books.slice(4, 9).map((book, idx) => (
-              <View key={book.id} style={styles.trendingItem}>
+              <TouchableOpacity key={book.id} style={styles.trendingItem} onPress={() => setSelectedBook(book)}>
                 <View style={[styles.rankCircle, { backgroundColor: idx < 3 ? '#6C48C5' : '#faf9fe' }]}>
                   <Text style={[styles.rankText, { color: idx < 3 ? '#fff' : '#6C48C5' }]}>{idx + 1}</Text>
                 </View>
                 <View style={styles.trendingInfo}>
-                  <Text style={styles.trendingTitle} numberOfLines={1}>{book.title}</Text>
-                  <Text style={styles.trendingAuthor} numberOfLines={1}>{book.author}</Text>
+                  <Text style={styles.trendingTitle} numberOfLines={1} ellipsizeMode="tail">{book.title}</Text>
+                  <Text style={styles.trendingAuthor} numberOfLines={1} ellipsizeMode="tail">{book.author}</Text>
                 </View>
                 <TouchableOpacity
-                  onPress={() => toggleFavorite(book)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  onPress={(e) => { e.stopPropagation?.(); toggleFavorite(book); }}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                   style={{ padding: 6, marginRight: 4 }}
                 >
                   <Heart
@@ -486,7 +486,7 @@ export default function Home() {
                   <Clock size={11} color="#9ca3af" strokeWidth={2} />
                   <Text style={styles.countText}>{book.total} copies</Text>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))}
           </View>
         </>
@@ -494,6 +494,15 @@ export default function Home() {
 
       </Animated.ScrollView>
       )}
+
+      {/* Book Detail Modal */}
+      <BookDetailModal
+        isOpen={!!selectedBook}
+        book={selectedBook}
+        onClose={() => setSelectedBook(null)}
+        isFavorite={selectedBook ? isFavorite(selectedBook.id) : false}
+        onToggleFavorite={() => selectedBook && toggleFavorite(selectedBook)}
+      />
 
       {/* Announcements Modal */}
       <Modal
@@ -559,112 +568,104 @@ export default function Home() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', paddingHorizontal: 16 },
-  topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, marginBottom: 16 },
-  streakContainer: { flexDirection: 'row', alignItems: 'center' },
-  streakCount: { fontSize: 18, fontWeight: 'bold', color: '#1e1e2e', marginHorizontal: 4 },
-  streakText: { fontSize: 14, color: '#6b7280' },
-  topBarActions: { flexDirection: 'row' },
-  iconBtn: { marginLeft: 16, position: 'relative' },
-  badge: { position: 'absolute', top: -4, right: -4, backgroundColor: '#ef4444', borderRadius: 10, width: 18, height: 18, justifyContent: 'center', alignItems: 'center' },
+  topUtilityBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, marginBottom: 24 },
+  streakPill: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff7ed', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 9999 },
+  streakCount: { fontSize: 14, fontWeight: '700', color: '#f97316', marginHorizontal: 6 },
+  streakText: { fontSize: 14, color: '#f97316', fontWeight: '500' },
+  topBarActions: { flexDirection: 'row', gap: 12 },
+  actionChip: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#ffffff', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#ede9f6' },
+  badge: { position: 'absolute', top: -4, right: -4, backgroundColor: '#ef4444', borderRadius: 10, width: 18, height: 18, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#fff' },
   badgeText: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
   
-  headerInfo: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
-  avatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#6C48C5', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
-  avatarText: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
-  headerTextCont: { flex: 1 },
-  greeting: { fontSize: 20, fontWeight: 'bold', color: '#1e1e2e', marginBottom: 2 },
-  subtitle: { fontSize: 13, color: '#6b7280' },
+  greetingHeader: { marginBottom: 24 },
+  overlineDate: { fontSize: 12, fontWeight: '700', color: '#7c7c8a', letterSpacing: 1, marginBottom: 4 },
+  greetingTitle: { fontSize: 24, fontWeight: '800', color: '#1e1e2e' },
   
-  statusContainer: { marginBottom: 24 },
-  statusPill: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ecfdf5', alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, marginBottom: 8 },
-  statusDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#10b981', marginRight: 8 },
-  statusText: { color: '#059669', fontWeight: '600', fontSize: 12 },
-  dateRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  dateText: { fontSize: 13, color: '#6b7280' },
+  assistantCard: { flexDirection: 'row', backgroundColor: '#ffffff', borderRadius: 24, padding: 16, marginBottom: 24, borderWidth: 1, borderColor: '#ede9f6', elevation: 2, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, alignItems: 'center' },
+  assistantIconTray: { width: 44, height: 44, borderRadius: 16, backgroundColor: '#f4f1fa', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+  assistantContent: { flex: 1 },
+  assistantOverline: { fontSize: 11, fontWeight: '700', color: '#6C48C5', marginBottom: 2 },
+  assistantBody: { fontSize: 14, fontWeight: '500', color: '#4b5563', lineHeight: 20 },
 
+  gridContainer: { flexDirection: 'row', gap: 12, marginBottom: 24 },
+  gridCard: { flex: 1, backgroundColor: '#ffffff', borderRadius: 24, padding: 16, borderWidth: 1, borderColor: '#ede9f6', elevation: 2, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, justifyContent: 'space-between', minHeight: 140 },
+  gridEyebrow: { fontSize: 11, fontWeight: '700', color: '#7c7c8a', marginBottom: 16 },
+  chartContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 60, marginTop: 'auto' },
+  chartCol: { alignItems: 'center', gap: 4 },
+  chartBarBg: { height: 50, justifyContent: 'flex-end' },
+  chartBarFill: { width: 6, borderRadius: 4 },
+  chartLabel: { fontSize: 9, color: '#9ca3af', fontWeight: '600' },
+  
+  gridCardTitle: { fontSize: 16, fontWeight: '600', color: '#1e1e2e', marginBottom: 8 },
+  penaltyValueCont: { flexDirection: 'row', alignItems: 'flex-start' },
+  currencySymbol: { fontSize: 14, fontWeight: '700', color: '#9ca3af', marginTop: 2, marginRight: 2 },
+  penaltyValue: { fontSize: 22, fontWeight: '800', color: '#1e1e2e' },
+  segmentedPill: { flexDirection: 'row', backgroundColor: '#f4f1fa', borderRadius: 9999, padding: 3, marginTop: 16 },
+  segmentTab: { flex: 1, alignItems: 'center', paddingVertical: 4, borderRadius: 9999 },
+  segmentTabActive: { backgroundColor: '#6C48C5' },
+  segmentTabText: { fontSize: 11, fontWeight: '600', color: '#7c7c8a' },
+  segmentTabTextActive: { color: '#ffffff' },
+
+  borrowsSection: { marginBottom: 32 },
+  borrowsCard: { backgroundColor: '#ffffff', borderRadius: 24, padding: 16, borderWidth: 1, borderColor: '#ede9f6', elevation: 2, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
+  borrowsHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
+  borrowsIconTray: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#faf9fe', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  borrowsHeaderContent: { flex: 1 },
+  borrowsTitle: { fontSize: 18, fontWeight: '600', color: '#1e1e2e' },
+  borrowsSubtitle: { fontSize: 13, color: '#7c7c8a' },
+  borrowsList: { gap: 0 },
+  borrowRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12 },
+  borrowRowIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#f4f1fa', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  borrowRowContent: { flex: 1, marginRight: 8 },
+  borrowRowTitle: { fontSize: 14, fontWeight: '600', color: '#1e1e2e', marginBottom: 2 },
+  borrowRowDate: { fontSize: 12, color: '#7c7c8a' },
+  borrowStatusPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 9999 },
+  borrowStatusText: { fontSize: 11, fontWeight: '700' },
+  borrowsEmpty: { paddingVertical: 24, alignItems: 'center' },
+  borrowsEmptyText: { fontSize: 14, color: '#9ca3af' },
+
+
+  container: { flex: 1, backgroundColor: '#faf9fe', paddingHorizontal: 16 },
+  
   fetchErrorCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fef3f2', borderWidth: 1, borderColor: '#fecaca', borderRadius: 14, paddingVertical: 10, paddingHorizontal: 14, marginBottom: 16, gap: 8 },
   fetchErrorText: { flex: 1, fontSize: 12.5, color: '#b91c1c', fontWeight: '500' },
   fetchErrorRetry: { fontSize: 12.5, color: '#6C48C5', fontWeight: '700' },
 
   sectionHeader: { flexDirection: 'row', alignItems: 'center', marginTop: 8, marginBottom: 16 },
-  sectionBar: { width: 4, height: 20, backgroundColor: '#6C48C5', borderRadius: 2, marginRight: 8 },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#1e1e2e', marginLeft: 8 },
-
-  announcementCard: { backgroundColor: '#faf9fe', borderRadius: 16, padding: 16, flexDirection: 'row', marginBottom: 24, borderWidth: 1, borderColor: '#ede9f6' },
-  announcementIconBg: { width: 40, height: 40, borderRadius: 8, backgroundColor: '#6C48C5', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  announcementContent: { flex: 1 },
-  announcementTitle: { fontSize: 15, fontWeight: 'bold', color: '#6C48C5', marginBottom: 6 },
-  announcementBody: { fontSize: 13, color: '#6b7280', lineHeight: 18, marginBottom: 12 },
-  paginationDots: { flexDirection: 'row', justifyContent: 'center' },
-  dotActive: { width: 16, height: 6, borderRadius: 3, backgroundColor: '#6C48C5', marginRight: 4 },
-  dotInactive: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#ede9f6' },
+  sectionTitle: { fontSize: 18, fontWeight: '600', color: '#1e1e2e' },
 
   highlightCard: { backgroundColor: '#faf9fe', borderRadius: 16, padding: 20, flexDirection: 'row', marginBottom: 24, borderWidth: 1, borderColor: '#ede9f6' },
   highlightIconCont: { width: 80, height: 110, backgroundColor: '#6C48C5', borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
   highlightContent: { flex: 1, justifyContent: 'center' },
   featuredTag: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   featuredTagText: { color: '#b45309', fontSize: 12, fontWeight: 'bold', marginLeft: 4 },
-  highlightBookTitle: { color: '#1e1e2e', fontSize: 18, fontWeight: 'bold', marginBottom: 4 },
-  highlightBookAuthor: { color: '#7c7c8a', fontSize: 13, marginBottom: 12 },
+  highlightBookTitle: { color: '#1e1e2e', fontSize: 18, fontWeight: '600', marginBottom: 4 },
+  highlightBookAuthor: { color: '#7c7c8a', fontSize: 14, fontWeight: '500', marginBottom: 12 },
   unavailableTag: { alignSelf: 'flex-start', backgroundColor: '#ede9f6', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, flexDirection: 'row', alignItems: 'center' },
-  unavailableText: { color: '#9ca3af', fontSize: 12, fontWeight: '600', marginRight: 4 },
-
-  borrowCard: { backgroundColor: '#fff', borderRadius: 16, padding: 16, marginBottom: 24, borderWidth: 1, borderColor: '#f3f4f6', elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, borderLeftWidth: 4, borderLeftColor: '#6C48C5' },
-  borrowTop: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  borrowTitle: { fontSize: 16, fontWeight: 'bold', color: '#1e1e2e' },
-  borrowAuthor: { fontSize: 13, color: '#6b7280', marginTop: 2 },
-  daysLeftBadge: { backgroundColor: '#faf9fe', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, alignSelf: 'flex-start' },
-  daysLeftText: { color: '#6C48C5', fontSize: 12, fontWeight: 'bold' },
-  borrowCategory: { alignSelf: 'flex-start', borderWidth: 1, borderColor: '#ede9f6', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12, marginBottom: 12 },
-  borrowCategoryText: { color: '#6C48C5', fontSize: 11 },
-  progressBarBg: { height: 6, backgroundColor: '#f3f4f6', borderRadius: 3, marginBottom: 8 },
-  progressBarFill: { height: '100%', width: '40%', backgroundColor: '#6C48C5', borderRadius: 3 },
-  borrowDates: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
-  dateSmall: { fontSize: 11, color: '#9ca3af' },
-  viewDetailsBtn: { flexDirection: 'row', alignItems: 'center' },
-  viewDetailsText: { color: '#6C48C5', fontSize: 14, fontWeight: '600', marginRight: 4 },
-
-  quickActionsContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap' },
-  actionItem: { width: '23%', alignItems: 'center', backgroundColor: '#fff', paddingVertical: 16, paddingHorizontal: 8, borderRadius: 16, borderWidth: 1, borderColor: '#f3f4f6', elevation: 1 },
-  actionIconBg: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#6C48C5', justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
-  actionIconBgOutline: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#faf9fe', justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
-  actionTitle: { fontSize: 12, fontWeight: 'bold', color: '#1e1e2e', textAlign: 'center', marginBottom: 2 },
-  actionSubtitle: { fontSize: 10, color: '#9ca3af', textAlign: 'center' },
+  unavailableText: { color: '#9ca3af', fontSize: 12, fontWeight: '500', marginRight: 4 },
 
   seeAllText: { color: '#6C48C5', fontSize: 14, fontWeight: '600' },
   recommendedScroll: { marginBottom: 24, marginLeft: -16, paddingLeft: 16 },
-  recCard: { width: 160, marginRight: 16 },
-  recCover: { height: 200, borderRadius: 12, padding: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 8, position: 'relative' },
-  recTags: { position: 'absolute', top: 12, left: 12, right: 12, flexDirection: 'row', justifyContent: 'space-between' },
-  recTypeTag: { backgroundColor: '#fff', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
-  recTypeText: { fontSize: 10, fontWeight: 'bold', color: '#6C48C5' },
-  forYouTag: { backgroundColor: '#fbbf24', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, flexDirection: 'row', alignItems: 'center' },
-  forYouText: { fontSize: 10, fontWeight: 'bold', color: '#fff' },
-  recAvail: { fontSize: 11, color: '#6b7280', marginBottom: 4 },
+  recCard: { width: 180, marginRight: 16, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#ede9f6', borderRadius: 24, padding: 12, elevation: 2, shadowColor: '#000000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.03, shadowRadius: 10 },
+  recCover: { height: 190, backgroundColor: '#faf9fe', borderWidth: 1, borderColor: '#ede9f6', borderRadius: 16, justifyContent: 'center', alignItems: 'center', position: 'relative' },
+  recTypeTag: { position: 'absolute', top: 10, left: 10, backgroundColor: '#ffffff', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 9999 },
+  recTypeText: { fontSize: 10, fontWeight: '700', color: '#6C48C5' },
+  recFavBtn: { position: 'absolute', bottom: 10, right: 10, width: 36, height: 36, borderRadius: 18, backgroundColor: '#ffffff', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 2, justifyContent: 'center', alignItems: 'center', zIndex: 2 },
+  recAvailRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6, marginBottom: 4 },
   dot: { width: 6, height: 6, borderRadius: 3, marginRight: 4 },
-  recTitle: { fontSize: 14, fontWeight: 'bold', color: '#1e1e2e', marginBottom: 2 },
-  recAuthor: { fontSize: 12, color: '#9ca3af' },
+  recAvailText: { fontSize: 12, fontWeight: '600' },
+  recTitle: { fontSize: 16, fontWeight: '700', color: '#1e1e2e', lineHeight: 20, marginBottom: 2 },
+  recAuthor: { fontSize: 13, fontWeight: '500', color: '#7c7c8a' },
 
   trendingList: { marginBottom: 24 },
   trendingItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 16, borderRadius: 16, marginBottom: 8, borderWidth: 1, borderColor: '#f3f4f6' },
   rankCircle: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   rankText: { fontSize: 14, fontWeight: 'bold' },
   trendingInfo: { flex: 1 },
-  trendingTitle: { fontSize: 14, fontWeight: 'bold', color: '#1e1e2e', marginBottom: 2 },
-  trendingAuthor: { fontSize: 12, color: '#6b7280' },
+  trendingTitle: { fontSize: 18, fontWeight: '600', color: '#1e1e2e', marginBottom: 2 },
+  trendingAuthor: { fontSize: 14, fontWeight: '500', color: '#6b7280' },
   trendingCount: { marginLeft: 12, flexDirection: 'row', alignItems: 'center', gap: 4 },
-  countText: { fontSize: 12, color: '#9ca3af' },
-
-  activeUsersScroll: { paddingLeft: 16, marginBottom: 24, marginLeft: -16 },
-  activeUserCard: { width: 100, backgroundColor: '#faf9fe', borderRadius: 16, padding: 12, marginRight: 12, alignItems: 'center', borderWidth: 1, borderColor: '#ede9f6' },
-  activeUserAvatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#6C48C5', justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
-  activeUserAvatarText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  activeUserName: { fontSize: 12, fontWeight: 'bold', color: '#1e1e2e', textAlign: 'center', marginBottom: 2 },
-  activeUserDept: { fontSize: 10, color: '#6b7280', textAlign: 'center', marginBottom: 6 },
-  activeUserTime: { fontSize: 10, fontWeight: 'bold', color: '#10b981', textAlign: 'center' },
-  emptyStateContainer: { backgroundColor: '#f9fafb', padding: 16, borderRadius: 12, marginBottom: 24 },
-  emptyStateText: { color: '#6b7280', textAlign: 'center', fontSize: 13 },
+  countText: { fontSize: 12, fontWeight: '500', color: '#9ca3af' },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
   modalContent: { width: '90%', maxHeight: height * 0.8, backgroundColor: '#fff', borderRadius: 16, overflow: 'hidden' },

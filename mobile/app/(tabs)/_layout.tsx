@@ -1,9 +1,10 @@
 import { Tabs, usePathname } from 'expo-router';
 import React, { useRef, useEffect, useState } from 'react';
-import { View, Platform, Text, Animated, TouchableWithoutFeedback } from 'react-native';
+import { View, Platform, Text, Animated, TouchableWithoutFeedback, TouchableOpacity } from 'react-native';
 import { Home, Search, QrCode, BookCopy, User } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface TabButtonProps {
   children: React.ReactNode;
@@ -47,10 +48,108 @@ const TabButton = (props: TabButtonProps) => {
   );
 };
 
+export const TabBarVisibilityContext = React.createContext({
+  setTabBarVisible: (visible: boolean) => {}
+});
+
+function CustomTabBar({ state, descriptors, navigation, translateY }: any) {
+  const dockRoutes = state.routes.filter((r: any) => r.name !== 'scan');
+  const qrRoute = state.routes.find((r: any) => r.name === 'scan');
+  const insets = useSafeAreaInsets();
+
+  return (
+    <Animated.View style={{
+      position: 'absolute',
+      bottom: Math.max(insets.bottom, 16),
+      left: 16,
+      right: 16,
+      flexDirection: 'row',
+      alignItems: 'center',
+      transform: [{ translateY }],
+      zIndex: 100
+    }}>
+      <View style={{
+        flex: 1,
+        flexDirection: 'row',
+        backgroundColor: '#ffffff',
+        borderRadius: 30,
+        borderWidth: 1,
+        borderColor: '#ede9f6',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        elevation: 8,
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.08,
+        shadowRadius: 16,
+      }}>
+        {dockRoutes.map((route: any) => {
+          const { options } = descriptors[route.key];
+          const isFocused = state.index === state.routes.findIndex((r: any) => r.key === route.key);
+          const color = isFocused ? '#6C48C5' : '#9ca3af';
+
+          const onPress = () => {
+            const event = navigation.emit({
+              type: 'tabPress',
+              target: route.key,
+              canPreventDefault: true,
+            });
+            if (!isFocused && !event.defaultPrevented) {
+              navigation.navigate(route.name);
+            }
+          };
+
+          return (
+            <TabButton key={route.key} onPress={onPress} style={{ flex: 1 }}>
+              {options.tabBarIcon && options.tabBarIcon({ color, focused: isFocused, size: 24 })}
+              {options.tabBarLabel && options.tabBarLabel({ color, focused: isFocused })}
+            </TabButton>
+          );
+        })}
+      </View>
+
+      <View style={{ width: 12 }} />
+
+      {qrRoute && (
+        <TouchableOpacity 
+          onPress={() => navigation.navigate(qrRoute.name)}
+          activeOpacity={0.8}
+          style={{
+            width: 54, 
+            height: 54, 
+            borderRadius: 20, 
+            backgroundColor: '#6C48C5',
+            justifyContent: 'center',
+            alignItems: 'center',
+            elevation: 5,
+            shadowColor: '#6C48C5',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.25,
+            shadowRadius: 8,
+          }}
+        >
+          <QrCode color="#ffffff" size={24} />
+        </TouchableOpacity>
+      )}
+    </Animated.View>
+  );
+}
+
 export default function TabLayout() {
   const { user } = useAuth();
   const pathname = usePathname();
   const [borrowCount, setBorrowCount] = useState(0);
+  const [tabBarVisible, setTabBarVisible] = useState(true);
+  const translateY = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.spring(translateY, {
+      toValue: tabBarVisible ? 0 : 150,
+      useNativeDriver: true,
+      tension: 50,
+      friction: 8,
+    }).start();
+  }, [tabBarVisible]);
 
   useEffect(() => {
     if (user?.id) {
@@ -63,41 +162,31 @@ export default function TabLayout() {
   }, [user?.id]);
 
   return (
+    <TabBarVisibilityContext.Provider value={{ setTabBarVisible }}>
     <Tabs
+      tabBar={(props) => <CustomTabBar {...props} translateY={translateY} />}
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#6C48C5',
-        tabBarInactiveTintColor: '#9ca3af',
-        tabBarStyle: {
-          paddingBottom: Platform.OS === 'ios' ? 20 : 10,
-          paddingTop: 10,
-          height: Platform.OS === 'ios' ? 85 : 70,
-          backgroundColor: '#ffffff',
-          borderTopWidth: 1,
-          borderTopColor: '#f3f4f6',
-          elevation: 10,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.05,
-          shadowRadius: 4,
-        },
         animation: 'fade',
         sceneStyle: {
           backgroundColor: '#ffffff',
         },
-        tabBarLabelStyle: {
-          fontSize: 10,
-          fontWeight: '600',
-          marginTop: 4,
+        tabBarStyle: {
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          backgroundColor: 'transparent',
+          borderTopWidth: 0,
+          elevation: 0,
         }
       }}>
       <Tabs.Screen
         name="index"
         options={{
           title: 'Home',
-          tabBarButton: (props) => <TabButton {...props} />,
           tabBarLabel: ({ focused, color }) => (
-            <View style={{ alignItems: 'center', marginBottom: 8 }}>
+            <View style={{ alignItems: 'center', marginBottom: 4 }}>
               <Text style={{ color, fontSize: 10, fontWeight: '600' }}>Home</Text>
               {focused && <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: '#6C48C5', marginTop: 4, position: 'absolute', bottom: -8 }} />}
             </View>
@@ -114,7 +203,12 @@ export default function TabLayout() {
         options={{
           title: 'Search',
           tabBarButton: (props) => <TabButton {...props} />,
-          tabBarLabel: ({ color }) => <Text style={{ color, fontSize: 10, fontWeight: '600', marginBottom: 8 }}>Search</Text>,
+          tabBarLabel: ({ focused, color }) => (
+            <View style={{ alignItems: 'center', marginBottom: 8 }}>
+              <Text style={{ color, fontSize: 10, fontWeight: '600' }}>Search</Text>
+              {focused && <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: '#6C48C5', position: 'absolute', bottom: -8 }} />}
+            </View>
+          ),
           tabBarIcon: ({ color }) => <Search color={color} size={24} />,
         }}
       />
@@ -138,8 +232,8 @@ export default function TabLayout() {
                   alignItems: 'center',
                   shadowColor: '#6C48C5',
                   shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.3,
-                  shadowRadius: 5,
+                  shadowOpacity: 0.25,
+                  shadowRadius: 8,
                   elevation: 5,
                   borderWidth: 3,
                   borderColor: '#ffffff',
@@ -165,7 +259,12 @@ export default function TabLayout() {
         options={{
           title: 'Borrowed',
           tabBarButton: (props) => <TabButton {...props} />,
-          tabBarLabel: ({ color }) => <Text style={{ color, fontSize: 10, fontWeight: '600', marginBottom: 8 }}>Borrowed</Text>,
+          tabBarLabel: ({ focused, color }) => (
+            <View style={{ alignItems: 'center', marginBottom: 8 }}>
+              <Text style={{ color, fontSize: 10, fontWeight: '600' }}>Borrowed</Text>
+              {focused && <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: '#6C48C5', position: 'absolute', bottom: -8 }} />}
+            </View>
+          ),
           tabBarIcon: ({ color }) => (
             <View>
               <BookCopy color={color} size={24} />
@@ -193,10 +292,16 @@ export default function TabLayout() {
         options={{
           title: 'Profile',
           tabBarButton: (props) => <TabButton {...props} />,
-          tabBarLabel: ({ color }) => <Text style={{ color, fontSize: 10, fontWeight: '600', marginBottom: 8 }}>Profile</Text>,
+          tabBarLabel: ({ focused, color }) => (
+            <View style={{ alignItems: 'center', marginBottom: 8 }}>
+              <Text style={{ color, fontSize: 10, fontWeight: '600' }}>Profile</Text>
+              {focused && <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: '#6C48C5', position: 'absolute', bottom: -8 }} />}
+            </View>
+          ),
           tabBarIcon: ({ color }) => <User color={color} size={24} />,
         }}
       />
     </Tabs>
+    </TabBarVisibilityContext.Provider>
   );
 }
