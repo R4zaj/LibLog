@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { WifiOff } from 'lucide-react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { Text, XStack, YStack } from 'tamagui';
+import * as Haptics from 'expo-haptics';
 import api from '../api';
 import type { QrTokenResponse } from '../types/api';
 
@@ -28,6 +29,7 @@ export function DynamicQrCode({ fallbackId, size = 200 }: DynamicQrCodeProps) {
       const { data } = await api.get<QrTokenResponse>('/auth/qr-token');
       setValue(data.token);
       setIsLive(true);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch {
       setValue(fallbackId); // scanQR on the server accepts the raw student_id too
       setIsLive(false);

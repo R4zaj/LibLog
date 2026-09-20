@@ -179,7 +179,7 @@ export default function SignUp() {
           {renderHeaderIcons()}
         </View>
 
-        <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
           {/* STEP 1: ROLE SELECTION */}

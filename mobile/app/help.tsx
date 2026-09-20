@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, Stack } from 'expo-router';
 import { ArrowLeft, BookOpen, Info, QrCode } from 'lucide-react-native';
 
 export default function HelpScreen() {
@@ -9,6 +9,7 @@ export default function HelpScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}>
           <ArrowLeft color="#1e1e2e" size={24} />

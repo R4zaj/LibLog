@@ -2,8 +2,8 @@ import React, { useState, useRef, useCallback } from 'react';
 import { Animated, TouchableOpacity, Vibration, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
-import { useFocusEffect } from 'expo-router';
-import { AlertCircle, Check, Clock, LogIn, LogOut } from 'lucide-react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { AlertCircle, Check, Clock, LogIn, LogOut, ArrowLeft } from 'lucide-react-native';
 import { YStack, XStack, Text, ScrollView, Separator, View } from 'tamagui';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api';
@@ -16,6 +16,7 @@ const FRESH_LOG_WINDOW_MS = 15000;
 
 export default function ScanScreen() {
   const { user } = useAuth();
+  const router = useRouter();
   const [history, setHistory] = useState<any[]>([]);
   const [historyError, setHistoryError] = useState(false);
   const [showCheckmark, setShowCheckmark] = useState(false);
@@ -84,14 +85,24 @@ export default function ScanScreen() {
         <YStack alignItems="center" paddingHorizontal="$5" paddingTop="$5" paddingBottom="$8">
 
           {/* ── Header ── */}
-          <Text
-            fontSize={24}
-            fontWeight="800"
-            color="#1e1e2e"
-            marginBottom="$1"
-          >
-            Your Library ID
-          </Text>
+          <View style={{ width: '100%', flexDirection: 'row', alignItems: 'center', marginBottom: 4, position: 'relative' }}>
+            <TouchableOpacity 
+              onPress={() => router.canGoBack() ? router.back() : router.replace('/')} 
+              style={{ position: 'absolute', left: 0, zIndex: 10, padding: 8, backgroundColor: '#fff', borderRadius: 20, borderWidth: 1, borderColor: '#ede9f6' }}
+              hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+            >
+              <ArrowLeft color="#1e1e2e" size={24} />
+            </TouchableOpacity>
+            <Text
+              flex={1}
+              fontSize={24}
+              fontWeight="800"
+              color="#1e1e2e"
+              textAlign="center"
+            >
+              Your Library ID
+            </Text>
+          </View>
           <Text
             fontSize={14}
             fontWeight="500"

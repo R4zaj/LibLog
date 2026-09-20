@@ -2,7 +2,8 @@ import React, { useState, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Animated, TextInput } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
-import { LogIn, LogOut, BookOpen, Receipt, RefreshCcw, Activity, Search, Calendar, ListFilter, MoreVertical, ChevronRight, ChevronDown } from 'lucide-react-native';
+import { LogIn, LogOut, BookOpen, Receipt, RefreshCcw, Activity, Search, Calendar, ListFilter, MoreVertical, ChevronRight, ChevronDown, Wind } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 import { YStack, XStack } from 'tamagui';
 import api from '../../api';
 import { useFocusEffect } from 'expo-router';
@@ -142,7 +143,7 @@ export default function HistoryScreen() {
   const renderIcon = (type: string) => {
     switch (type) {
       case 'ATTENDANCE_IN': return <LogIn color="#10b981" size={16} />;
-      case 'ATTENDANCE_OUT': return <LogOut color="#fbbf24" size={16} />;
+      case 'ATTENDANCE_OUT': return <LogOut color="#ef4444" size={16} />;
       case 'BORROW': return <BookOpen color="#6C48C5" size={16} />;
       case 'RETURN': return <RefreshCcw color="#6C48C5" size={16} />;
       case 'PENALTY': return <Receipt color="#ef4444" size={16} />;
@@ -152,7 +153,10 @@ export default function HistoryScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <XStack paddingHorizontal={24} paddingTop={16} paddingBottom={8} justifyContent="flex-end" alignItems="center">
+      <XStack paddingHorizontal={24} paddingTop={16} paddingBottom={8} justifyContent="space-between" alignItems="center">
+        <Text style={{ fontSize: 24, fontWeight: '800', color: '#1e1e2e', flex: 1, paddingRight: 16 }}>
+          You have {filteredEvents.length} history event{filteredEvents.length !== 1 ? 's' : ''}
+        </Text>
         <XStack gap={8}>
           <TouchableOpacity 
             style={[styles.utilityChip, isSearchVisible && { borderColor: '#6C48C5' }]} 
@@ -197,7 +201,10 @@ export default function HistoryScreen() {
             <TouchableOpacity 
               key={f} 
               style={[styles.filterChip, filter === f && styles.filterChipActive]}
-              onPress={() => setFilter(f as any)}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setFilter(f as any);
+              }}
             >
               <Text style={[styles.filterText, filter === f && styles.filterTextActive]}>{f}</Text>
             </TouchableOpacity>
@@ -212,6 +219,7 @@ export default function HistoryScreen() {
       ) : (
         <Animated.ScrollView
           contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 98 }}
+          showsVerticalScrollIndicator={false}
           onScroll={(e) => {
             const offsetY = e.nativeEvent.contentOffset.y;
             if (offsetY <= 0) {
@@ -226,9 +234,12 @@ export default function HistoryScreen() {
           scrollEventThrottle={16}
         >
           {filteredEvents.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyText}>No recent activity found.</Text>
-            </View>
+            <YStack padding={32} alignItems="center" justifyContent="center" flex={1} marginTop={40}>
+              <Wind color="#9ca3af" size={48} style={{ marginBottom: 16 }} />
+              <Text style={{ fontSize: 14, fontWeight: '500', color: '#7c7c8a', textAlign: 'center' }}>
+                No {filter.toLowerCase() === 'all' ? 'history' : filter.toLowerCase()} events found
+              </Text>
+            </YStack>
           ) : (
             sections.map((section, idx) => (
               <YStack key={idx} marginBottom={16}>
@@ -261,41 +272,38 @@ export default function HistoryScreen() {
                   </XStack>
                 </TouchableOpacity>
                 
-                {!collapsedDays[section.dayStr + '|' + section.dateStr] && section.events.map((evt, evtIdx) => {
-                  const isLast = evtIdx === section.events.length - 1;
-                  const dotColor = evt.type === 'ATTENDANCE_IN' ? '#10b981' : evt.type === 'ATTENDANCE_OUT' ? '#fbbf24' : (evt.type === 'BORROW' || evt.type === 'RETURN') ? '#6C48C5' : '#ef4444';
-
-                  return (
-                    <XStack key={evt.id} position="relative">
-                      {/* Left Timeline */}
-                      <YStack width={24} alignItems="center">
-                        <View style={{ position: 'absolute', top: 0, bottom: isLast ? undefined : 0, height: isLast ? 40 : undefined, width: 2, backgroundColor: '#ede9f6' }} />
-                        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: dotColor, zIndex: 10, marginTop: 36 }} />
-                      </YStack>
+                {!collapsedDays[section.dayStr + '|' + section.dateStr] && (
+                  <YStack backgroundColor="#ffffff" borderRadius={24} borderWidth={1} borderColor="#ede9f6" overflow="hidden">
+                    {section.events.map((evt, evtIdx) => {
+                      const isLast = evtIdx === section.events.length - 1;
+                      const dotColor = evt.type === 'ATTENDANCE_IN' ? '#10b981' : evt.type === 'ATTENDANCE_OUT' ? '#ef4444' : (evt.type === 'BORROW' || evt.type === 'RETURN') ? '#6C48C5' : '#ef4444';
+                      const iconBgColor = evt.type === 'ATTENDANCE_OUT' ? '#fef2f2' : '#f4f1fa';
                       
-                      {/* Right Content */}
-                      <YStack flex={1} paddingLeft={12} paddingBottom={16}>
-                        <Text style={{ fontSize: 11, fontWeight: '600', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 6 }}>
-                          {new Date(evt.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </Text>
-                        <XStack backgroundColor="#ffffff" borderRadius={20} borderWidth={1} borderColor="#ede9f6" paddingVertical={10} paddingHorizontal={12} alignItems="center" style={{ elevation: 2, boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.05)' }}>
-                          <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: '#f4f1fa', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
+                      return (
+                        <XStack 
+                          key={evt.id} 
+                          padding={16} 
+                          alignItems="center" 
+                          borderBottomWidth={isLast ? 0 : 1} 
+                          borderBottomColor="#f3f4f6"
+                        >
+                          <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: iconBgColor, justifyContent: 'center', alignItems: 'center', marginRight: 16 }}>
                             {renderIcon(evt.type)}
                           </View>
                           <YStack flex={1}>
-                            <Text style={{ fontSize: 15, fontWeight: '600', color: '#1e1e2e', marginBottom: 2 }}>{evt.title}</Text>
-                            {evt.subtitle && evt.type !== 'PENALTY' && <Text style={{ fontSize: 13, fontWeight: '500', color: '#7c7c8a' }} numberOfLines={1}>{evt.subtitle}</Text>}
+                            <XStack justifyContent="space-between" alignItems="center" marginBottom={2}>
+                              <Text style={{ fontSize: 16, fontWeight: '600', color: '#1e1e2e' }} numberOfLines={1}>{evt.title}</Text>
+                              <Text style={{ fontSize: 12, fontWeight: '600', color: dotColor, marginLeft: 8 }}>
+                                {new Date(evt.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </Text>
+                            </XStack>
+                            {evt.subtitle && <Text style={{ fontSize: 14, fontWeight: '500', color: '#7c7c8a' }} numberOfLines={1}>{evt.subtitle}</Text>}
                           </YStack>
-                          <XStack alignItems="center">
-                            {evt.type === 'PENALTY' && (
-                              <Text style={{ fontSize: 14, fontWeight: '700', color: '#ef4444' }}>{evt.subtitle}</Text>
-                            )}
-                          </XStack>
                         </XStack>
-                      </YStack>
-                    </XStack>
-                  );
-                })}
+                      );
+                    })}
+                  </YStack>
+                )}
               </YStack>
             ))
           )}

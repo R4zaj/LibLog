@@ -3,6 +3,7 @@ import { TextInput, TouchableOpacity, Dimensions, FlatList, ListRenderItem } fro
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AlertCircle, ArrowUpRight, Search as SearchIcon, BookOpen, Clock, X, Heart } from 'lucide-react-native';
 import { YStack, XStack, Text, ScrollView, View } from 'tamagui';
+import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../../api';
 import { useFavorites } from '../../context/FavoritesContext';
@@ -138,17 +139,28 @@ export default function Search() {
     return Array.from(suggestions).slice(0, 6);
   };
 
-  const renderCatalogItem: ListRenderItem<CatalogBook> = ({ item }) => (
-    <TouchableOpacity onPress={() => handleBookPress(item)} activeOpacity={0.7} style={{ paddingHorizontal: 20, marginBottom: 16 }}>
+  const renderCatalogItem = ({ item, index }: { item: CatalogBook; index: number }) => {
+    const isFirst = index === 0;
+    const isLast = index === filteredBooks.length - 1;
+
+    return (
+    <TouchableOpacity onPress={() => handleBookPress(item)} activeOpacity={0.7} style={{ paddingHorizontal: 20 }}>
       <XStack
         alignItems="center"
         backgroundColor="#ffffff"
-        borderRadius={16}
         padding={16}
-        borderWidth={1}
-        borderColor="#ede9f6"
-        style={{ boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.05)' }}
-        elevation={2}
+        borderLeftWidth={1}
+        borderRightWidth={1}
+        borderTopWidth={isFirst ? 1 : 0}
+        borderBottomWidth={1}
+        borderBottomColor={isLast ? '#ede9f6' : '#f3f4f6'}
+        borderLeftColor="#ede9f6"
+        borderRightColor="#ede9f6"
+        borderTopColor="#ede9f6"
+        borderTopLeftRadius={isFirst ? 24 : 0}
+        borderTopRightRadius={isFirst ? 24 : 0}
+        borderBottomLeftRadius={isLast ? 24 : 0}
+        borderBottomRightRadius={isLast ? 24 : 0}
       >
         <YStack
           width={72}
@@ -171,6 +183,7 @@ export default function Search() {
             <TouchableOpacity
               onPress={(e) => {
                 e.stopPropagation?.();
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 toggleFavorite(item);
               }}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
@@ -204,6 +217,7 @@ export default function Search() {
       </XStack>
     </TouchableOpacity>
   );
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f4f1fa' }}>
@@ -265,7 +279,7 @@ export default function Search() {
       <FlatList
         data={filteredBooks}
         keyExtractor={(item) => String(item.id)}
-        renderItem={renderCatalogItem}
+        renderItem={({ item, index }) => renderCatalogItem({ item, index })}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: insets.bottom + 98 }}
         onScroll={(e) => {
@@ -294,7 +308,10 @@ export default function Search() {
                 return (
                   <TouchableOpacity
                     key={`tab-${idx}`}
-                    onPress={() => setActiveTab(tab)}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setActiveTab(tab);
+                    }}
                     style={{
                       flexDirection: 'row',
                       alignItems: 'center',
@@ -427,9 +444,18 @@ export default function Search() {
         }
         ListEmptyComponent={
           loading ? (
-            <Text textAlign="center" marginTop="$5" color="#7c7c8a">
-              Loading catalog...
-            </Text>
+            <YStack backgroundColor="#ffffff" borderRadius={24} borderWidth={1} borderColor="#ede9f6" marginHorizontal={20} overflow="hidden">
+              {[1, 2, 3, 4].map((i) => (
+                <XStack key={i} alignItems="center" padding={16} borderBottomWidth={i !== 4 ? 1 : 0} borderBottomColor="#f3f4f6">
+                  <YStack width={72} height={96} borderRadius={12} backgroundColor="#f4f1fa" marginRight="$3" />
+                  <YStack flex={1} gap={8}>
+                    <YStack height={16} width="80%" backgroundColor="#f4f1fa" borderRadius={4} />
+                    <YStack height={14} width="50%" backgroundColor="#f4f1fa" borderRadius={4} />
+                    <YStack height={12} width="30%" backgroundColor="#f4f1fa" borderRadius={4} marginTop={8} />
+                  </YStack>
+                </XStack>
+              ))}
+            </YStack>
           ) : fetchError ? (
             <YStack
               backgroundColor="#fef3f2"

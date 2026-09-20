@@ -1,8 +1,9 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { TouchableOpacity, ActivityIndicator, FlatList, ListRenderItem } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AlertCircle, Book, ChevronRight, Clock, Info, QrCode } from 'lucide-react-native';
+import { AlertCircle, Book, ChevronRight, Clock, Info, QrCode, BookX, Wind } from 'lucide-react-native';
 import { YStack, XStack, Text, View } from 'tamagui';
+import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../context/AuthContext';
 import { useFocusEffect, useRouter } from 'expo-router';
 import api from '../../api';
@@ -58,23 +59,20 @@ export default function Borrowed() {
 
   const currentList = activeTab === 'active' ? activeBorrows : historyBorrows;
 
-  const renderItem: ListRenderItem<BorrowRecordWithBook> = ({ item: record }) => {
+  const renderItem = ({ item: record, index }: { item: BorrowRecordWithBook; index: number }) => {
     const isReturned = record.status === 'RETURNED';
     const daysLeft = daysLeftFor(record.due_date);
     const isOverdue = !isReturned && (record.status === 'OVERDUE' || daysLeft < 0);
     const isDueSoon = !isReturned && !isOverdue && (daysLeft === 0 || daysLeft === 1);
     const dueDateStr = new Date(record.due_date).toLocaleDateString();
     const borrowDateStr = new Date(record.borrow_date).toLocaleDateString();
+    const isLast = index === currentList.length - 1;
 
     return (
       <YStack
         backgroundColor="white"
-        borderRadius={24}
-        marginBottom={12}
-        borderWidth={1}
-        borderColor="#ede9f6"
-        style={{ boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.03)' }}
-        elevation={2}
+        borderBottomWidth={isLast ? 0 : 1}
+        borderBottomColor="#f3f4f6"
       >
         {/* Book Info */}
         <XStack padding={16} marginBottom={!isReturned ? 0 : "$2"}>
@@ -159,12 +157,8 @@ export default function Borrowed() {
             onPress={() => router.push('/scan')}
             style={{
               backgroundColor: '#f4f1fa',
-              borderTopWidth: 1,
-              borderColor: '#ede9f6',
               paddingVertical: 12,
               paddingHorizontal: 16,
-              borderBottomLeftRadius: 24,
-              borderBottomRightRadius: 24,
               flexDirection: 'row',
               alignItems: 'center',
               minHeight: 48,
@@ -185,15 +179,18 @@ export default function Borrowed() {
       {/* Header */}
       <YStack paddingTop="$4" paddingHorizontal="$5" paddingBottom="$4" backgroundColor="white">
         <Text fontSize={24} fontWeight="800" color="#1e1e2e" marginBottom="$3">
-          {activeBorrows.length === 0 
-            ? "You have no active borrows." 
-            : `You have ${activeBorrows.length} active borrow${activeBorrows.length === 1 ? '' : 's'}.${overdueCount > 0 ? ` ${overdueCount} need${overdueCount === 1 ? 's' : ''} your attention.` : ''}`}
+          {activeTab === 'active' 
+            ? `You have ${activeBorrows.length} active borrow${activeBorrows.length === 1 ? '' : 's'}${overdueCount > 0 ? `. ${overdueCount} need${overdueCount === 1 ? 's' : ''} attention.` : '.'}`
+            : `You have ${historyBorrows.length} past borrow${historyBorrows.length === 1 ? '' : 's'}.`}
         </Text>
 
         {/* Tab Switcher */}
         <XStack backgroundColor="#f4f1fa" borderRadius={9999} padding={4} minHeight={48}>
           <TouchableOpacity
-            onPress={() => setActiveTab('active')}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setActiveTab('active');
+            }}
             style={{
               flex: 1,
               justifyContent: 'center',
@@ -207,7 +204,10 @@ export default function Borrowed() {
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => setActiveTab('history')}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setActiveTab('history');
+            }}
             style={{
               flex: 1,
               justifyContent: 'center',
@@ -226,9 +226,19 @@ export default function Borrowed() {
       <FlatList
         data={currentList}
         keyExtractor={(item) => String(item.id)}
-        renderItem={renderItem}
+        renderItem={({ item, index }) => renderItem({ item, index })}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: insets.bottom + 98 }}
+        style={{ paddingHorizontal: 20, paddingTop: 16 }}
+        contentContainerStyle={[
+          { paddingBottom: insets.bottom + 98 },
+          currentList.length > 0 && {
+            backgroundColor: 'white',
+            borderRadius: 24,
+            borderWidth: 1,
+            borderColor: '#ede9f6',
+            overflow: 'hidden',
+          }
+        ]}
         onScroll={(e) => {
           const offsetY = e.nativeEvent.contentOffset.y;
           if (offsetY <= 0) {
@@ -274,24 +284,10 @@ export default function Borrowed() {
               </TouchableOpacity>
             </YStack>
           ) : (
-            <YStack
-              backgroundColor="white"
-              borderRadius={16}
-              padding="$6"
-              alignItems="center"
-              justifyContent="center"
-              borderWidth={1}
-              borderColor="#f0eef5"
-              marginTop="$4"
-            >
-              <Book color="#9ca3af" size={36} strokeWidth={1.5} style={{ marginBottom: 12 }} />
-              <Text color="#9ca3af" fontSize={15} fontWeight="600">
-                {activeTab === 'active' ? 'No active borrows' : 'No return history'}
-              </Text>
-              <Text color="#c4c4cc" fontSize={12} marginTop="$1">
-                {activeTab === 'active'
-                  ? 'Borrow a book from the library to get started'
-                  : 'Your returned books will appear here'}
+            <YStack padding={32} alignItems="center" justifyContent="center" flex={1} marginTop={40}>
+              <Wind color="#9ca3af" size={48} style={{ marginBottom: 16 }} />
+              <Text style={{ fontSize: 14, fontWeight: '500', color: '#7c7c8a', textAlign: 'center' }}>
+                {activeTab === 'active' ? 'No active borrows found' : 'No past borrows found'}
               </Text>
             </YStack>
           )

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, Modal, TouchableOpacity, StyleSheet, Pressable, ScrollView } from 'react-native';
-import { Heart, X, MapPin, CheckCircle2, BookOpen, QrCode } from 'lucide-react-native';
+import { Heart, X, MapPin, CheckCircle2, BookOpen, QrCode, ArrowLeft } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LiteratureBook } from '../types/api';
 
@@ -64,7 +64,7 @@ export function BookDetailModal({
                     hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                   >
                     <View style={styles.actionChip}>
-                      <X color="#6C48C5" size={20} />
+                      <ArrowLeft color="#6C48C5" size={20} />
                     </View>
                   </TouchableOpacity>
                 </View>

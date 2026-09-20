@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Pressable,
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
-import { Bell, Settings, Flame, ArrowRight, ScanLine, BookOpen, Bookmark, Calendar, ChevronRight, Clock, TrendingUp, Megaphone, Star, Users, Check, X, Activity, ArrowRightLeft, DollarSign, ExternalLink, AlertCircle, Heart, CircleUser } from 'lucide-react-native';
+import { Bell, Settings, Flame, ArrowRight, ScanLine, BookOpen, Bookmark, Calendar, ChevronRight, Clock, TrendingUp, Megaphone, Star, Users, Check, X, Activity, ArrowRightLeft, DollarSign, ExternalLink, AlertCircle, Heart, CircleUser, ArrowLeft } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 import api from '../../api';
 import { useFavorites } from '../../context/FavoritesContext';
 import type {
@@ -137,14 +138,27 @@ export default function Home() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#faf9fe' }}>
       {isLoading ? (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-           <ActivityIndicator size="large" color="#6C48C5" />
-           <Text style={{ marginTop: 16, color: '#6b7280', fontSize: 14 }}>Loading your library dashboard...</Text>
+        <View style={{ flex: 1, paddingHorizontal: 16, paddingTop: 20, gap: 24 }}>
+          {/* Greeting Skeleton */}
+          <View>
+            <View style={{ width: 120, height: 14, backgroundColor: '#ede9f6', borderRadius: 4, marginBottom: 8 }} />
+            <View style={{ width: 200, height: 28, backgroundColor: '#ede9f6', borderRadius: 8 }} />
+          </View>
+          {/* Assistant Skeleton */}
+          <View style={{ height: 76, backgroundColor: '#ffffff', borderRadius: 24, borderWidth: 1, borderColor: '#ede9f6' }} />
+          {/* Grid Skeleton */}
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <View style={{ flex: 1, height: 140, backgroundColor: '#ffffff', borderRadius: 24, borderWidth: 1, borderColor: '#ede9f6' }} />
+            <View style={{ flex: 1, height: 140, backgroundColor: '#ffffff', borderRadius: 24, borderWidth: 1, borderColor: '#ede9f6' }} />
+          </View>
+          {/* Borrows Skeleton */}
+          <View style={{ height: 200, backgroundColor: '#ffffff', borderRadius: 24, borderWidth: 1, borderColor: '#ede9f6' }} />
         </View>
       ) : (
         <Animated.ScrollView 
           style={[styles.container, { opacity: fadeAnim }]} 
           contentContainerStyle={{ paddingBottom: insets.bottom + 98 }}
+          showsVerticalScrollIndicator={false}
           onScroll={(e) => {
             const offsetY = e.nativeEvent.contentOffset.y;
             if (offsetY <= 0) {
@@ -306,7 +320,10 @@ export default function Home() {
               return (
                 <TouchableOpacity 
                   key={tab} 
-                  onPress={() => setPenaltyRange(tab.toLowerCase() as 'day' | 'week' | 'all')}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setPenaltyRange(tab.toLowerCase() as 'day' | 'week' | 'all');
+                  }}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   style={[styles.segmentTab, isActive && styles.segmentTabActive]}
                 >
@@ -406,7 +423,11 @@ export default function Home() {
                   <Text style={styles.featuredTagText}>Featured Pick</Text>
                 </View>
                 <TouchableOpacity
-                  onPress={(e) => { e.stopPropagation?.(); toggleFavorite(books[0]); }}
+                  onPress={(e) => { 
+                    e.stopPropagation?.(); 
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    toggleFavorite(books[0]); 
+                  }}
                   hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                   style={{ padding: 4 }}
                 >
@@ -452,7 +473,11 @@ export default function Home() {
                     <Text style={styles.recTypeText}>{book.genre || 'Book'}</Text>
                   </View>
                   <TouchableOpacity
-                    onPress={(e) => { e.stopPropagation?.(); toggleFavorite(book); }}
+                    onPress={(e) => {
+                      e.stopPropagation?.();
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      toggleFavorite(book);
+                    }}
                     hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                     style={styles.recFavBtn}
                   >
@@ -529,33 +554,47 @@ export default function Home() {
 
       {/* Announcements Modal */}
       <Modal
-        animationType="fade"
+        animationType="slide"
         transparent={true}
         visible={notificationsOpen}
         onRequestClose={() => setNotificationsOpen(false)}
       >
-        <Pressable onPress={() => setNotificationsOpen(false)}>
-          <View style={styles.modalOverlay}>
+        <Pressable style={styles.modalOverlay} onPress={() => setNotificationsOpen(false)}>
+          <View style={[styles.modalContent, { paddingBottom: Math.max(insets.bottom + 16, 16) }]}>
             <Pressable>
-              <View style={styles.modalContent}>
-                
-                {/* Header */}
-                <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>Notifications {announcementsCount > 0 && `(${announcementsCount})`}</Text>
+              
+              {/* Header */}
+              <View style={styles.modalHeader}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={styles.modalTitle}>Notifications</Text>
+                  {announcementsCount > 0 && (
+                    <View style={{ backgroundColor: '#f4f1fa', borderRadius: 9999, paddingHorizontal: 8, paddingVertical: 2, marginLeft: 8 }}>
+                      <Text style={{ fontSize: 12, fontWeight: '600', color: '#6C48C5' }}>{announcementsCount}</Text>
+                    </View>
+                  )}
                 </View>
+                <Pressable 
+                  onPress={() => setNotificationsOpen(false)}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#faf9fe', borderWidth: 1, borderColor: '#ede9f6', justifyContent: 'center', alignItems: 'center' }}
+                >
+                  <ArrowLeft size={20} color="#4b5563" />
+                </Pressable>
+              </View>
 
-                {/* List */}
-                <ScrollView style={styles.notifList}>
-                  {announcements.length === 0 ? (
-                    <Text style={styles.noNotifsText}>No new notifications</Text>
-                  ) : (
-                    announcements.map(a => {
-                      return (
-                        <View 
-                          key={a.id} 
-                          style={styles.notifItem}
-                        >
-                          <View style={[styles.notifIconWrapper, { backgroundColor: a.is_overdue ? '#fee2e2' : '#faf9fe' }]}>
+              {/* List */}
+              <ScrollView style={styles.notifList} showsVerticalScrollIndicator={false}>
+                {announcements.length === 0 ? (
+                  <Text style={styles.noNotifsText}>No new notifications</Text>
+                ) : (
+                  announcements.map(a => {
+                    return (
+                      <View 
+                        key={a.id} 
+                        style={styles.notifItem}
+                      >
+                        <View style={{ flexDirection: 'row' }}>
+                          <View style={[styles.notifIconWrapper, { backgroundColor: a.is_overdue ? '#fef2f2' : '#f4f1fa' }]}>
                             {a.is_overdue ? (
                               <AlertCircle size={18} color="#ef4444" />
                             ) : (
@@ -564,23 +603,19 @@ export default function Home() {
                           </View>
                           <View style={styles.notifContent}>
                             <View style={styles.notifTop}>
-                              <Text style={[styles.notifTitle, styles.notifTitleUnread, a.is_overdue && { color: '#ef4444' }]}>{a.title}</Text>
+                              <Text style={styles.notifTitle}>{a.title}</Text>
                               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                 <Text style={styles.notifTime}>{a.is_overdue ? 'Past Due' : formatTimeAgo(a.created_at)}</Text>
                               </View>
                             </View>
-                            <Text style={[styles.notifMessage, styles.notifMessageUnread]}>{a.body}</Text>
+                            <Text style={styles.notifMessage}>{a.body}</Text>
                           </View>
                         </View>
-                      );
-                    })
+                      </View>
+                    );
+                  })
                   )}
                 </ScrollView>
-
-                <TouchableOpacity style={styles.closeModalBtn} onPress={() => setNotificationsOpen(false)}>
-                  <X size={20} color="#fff" />
-                </TouchableOpacity>
-              </View>
             </Pressable>
           </View>
         </Pressable>
@@ -604,14 +639,14 @@ const styles = StyleSheet.create({
   overlineDate: { fontSize: 12, fontWeight: '700', color: '#7c7c8a', letterSpacing: 1, marginBottom: 4 },
   greetingTitle: { fontSize: 24, fontWeight: '800', color: '#1e1e2e' },
   
-  assistantCard: { flexDirection: 'row', backgroundColor: '#ffffff', borderRadius: 16, padding: 16, marginBottom: 24, borderWidth: 1, borderColor: '#ede9f6', elevation: 2, boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.05)', alignItems: 'center' },
+  assistantCard: { flexDirection: 'row', backgroundColor: '#ffffff', borderRadius: 24, padding: 16, marginBottom: 24, borderWidth: 1, borderColor: '#ede9f6', alignItems: 'center' },
   assistantIconTray: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#f4f1fa', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
   assistantContent: { flex: 1 },
   assistantOverline: { fontSize: 12, fontWeight: '500', color: '#6C48C5', marginBottom: 2 },
   assistantBody: { fontSize: 14, fontWeight: '500', color: '#4b5563', lineHeight: 20 },
 
   gridContainer: { flexDirection: 'row', gap: 12, marginBottom: 24 },
-  gridCard: { flex: 1, backgroundColor: '#ffffff', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#ede9f6', elevation: 2, boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.05)', justifyContent: 'space-between', minHeight: 140 },
+  gridCard: { flex: 1, backgroundColor: '#ffffff', borderRadius: 24, padding: 16, borderWidth: 1, borderColor: '#ede9f6', justifyContent: 'space-between', minHeight: 140 },
   gridEyebrow: { fontSize: 12, fontWeight: '500', color: '#7c7c8a', marginBottom: 16 },
   chartContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 60, marginTop: 'auto' },
   chartCol: { alignItems: 'center', gap: 4 },
@@ -623,14 +658,14 @@ const styles = StyleSheet.create({
   penaltyValueCont: { flexDirection: 'row', alignItems: 'flex-start' },
   currencySymbol: { fontSize: 14, fontWeight: '700', color: '#9ca3af', marginTop: 2, marginRight: 2 },
   penaltyValue: { fontSize: 24, fontWeight: '800', color: '#1e1e2e' },
-  segmentedPill: { flexDirection: 'row', backgroundColor: '#f4f1fa', borderRadius: 9999, padding: 3, marginTop: 16, minHeight: 48 },
-  segmentTab: { flex: 1, alignItems: 'center', paddingVertical: 4, borderRadius: 9999 },
-  segmentTabActive: { backgroundColor: '#6C48C5' },
-  segmentTabText: { fontSize: 11, fontWeight: '600', color: '#7c7c8a' },
-  segmentTabTextActive: { color: '#ffffff' },
+  segmentedPill: { flexDirection: 'row', backgroundColor: '#f4f1fa', borderRadius: 9999, padding: 4, alignItems: 'center', marginTop: 16 },
+  segmentTab: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 32, borderRadius: 9999, backgroundColor: 'transparent' },
+  segmentTabActive: { backgroundColor: '#ffffff', elevation: 1, boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.05)' },
+  segmentTabText: { fontSize: 12, fontWeight: '500', color: '#7c7c8a' },
+  segmentTabTextActive: { fontWeight: '600', color: '#1e1e2e' },
 
   borrowsSection: { marginBottom: 32 },
-  borrowsCard: { backgroundColor: '#ffffff', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#ede9f6', elevation: 2, boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.05)' },
+  borrowsCard: { backgroundColor: '#ffffff', borderRadius: 24, padding: 16, borderWidth: 1, borderColor: '#ede9f6' },
   borrowsHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
   borrowsIconTray: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#faf9fe', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   borrowsHeaderContent: { flex: 1 },
@@ -657,7 +692,7 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', alignItems: 'center', marginTop: 8, marginBottom: 16 },
   sectionTitle: { fontSize: 18, fontWeight: '600', color: '#1e1e2e' },
 
-  highlightCard: { backgroundColor: '#faf9fe', borderRadius: 16, padding: 20, flexDirection: 'row', marginBottom: 24, borderWidth: 1, borderColor: '#ede9f6', elevation: 2, boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.05)' },
+  highlightCard: { backgroundColor: '#faf9fe', borderRadius: 24, padding: 20, flexDirection: 'row', marginBottom: 24, borderWidth: 1, borderColor: '#ede9f6' },
   highlightIconCont: { width: 80, height: 110, backgroundColor: '#6C48C5', borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
   highlightContent: { flex: 1, justifyContent: 'center' },
   featuredTag: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
@@ -669,7 +704,7 @@ const styles = StyleSheet.create({
 
   seeAllText: { color: '#6C48C5', fontSize: 14, fontWeight: '600' },
   recommendedScroll: { marginBottom: 24, marginLeft: -16, paddingLeft: 16 },
-  recCard: { width: 180, marginRight: 16, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#ede9f6', borderRadius: 16, padding: 12, elevation: 2, boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.05)' },
+  recCard: { width: 180, marginRight: 16, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#ede9f6', borderRadius: 24, padding: 12 },
   recCover: { height: 190, backgroundColor: '#faf9fe', borderWidth: 1, borderColor: '#ede9f6', borderRadius: 12, justifyContent: 'center', alignItems: 'center', position: 'relative' },
   recTypeTag: { position: 'absolute', top: 10, left: 10, backgroundColor: '#ffffff', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 9999 },
   recTypeText: { fontSize: 12, fontWeight: '500', color: '#6C48C5' },
@@ -681,7 +716,7 @@ const styles = StyleSheet.create({
   recAuthor: { fontSize: 14, fontWeight: '500', color: '#7c7c8a' },
 
   trendingList: { marginBottom: 24 },
-  trendingItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 16, borderRadius: 16, marginBottom: 8, borderWidth: 1, borderColor: '#f3f4f6', elevation: 2, boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.05)' },
+  trendingItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 16, borderRadius: 24, marginBottom: 8, borderWidth: 1, borderColor: '#ede9f6' },
   rankCircle: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   rankText: { fontSize: 14, fontWeight: 'bold' },
   trendingInfo: { flex: 1 },
@@ -690,10 +725,10 @@ const styles = StyleSheet.create({
   trendingCount: { marginLeft: 12, flexDirection: 'row', alignItems: 'center', gap: 4 },
   countText: { fontSize: 12, fontWeight: '500', color: '#9ca3af' },
 
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
-  modalContent: { width: '90%', maxHeight: height * 0.8, backgroundColor: '#fff', borderRadius: 16, overflow: 'hidden' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, backgroundColor: '#faf9fe', borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  modalTitle: { fontSize: 18, fontWeight: '600', color: '#1e1e2e' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(30, 30, 46, 0.45)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: '#ffffff', width: '100%', maxHeight: '85%', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 24, paddingHorizontal: 16, elevation: 10 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  modalTitle: { fontSize: 24, fontWeight: '800', color: '#1e1e2e' },
   markAllBtn: { flexDirection: 'row', alignItems: 'center' },
   markAllText: { fontSize: 12, color: '#6b7280', marginLeft: 4 },
   notifTabs: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#f3f4f6', paddingHorizontal: 16 },
@@ -703,17 +738,16 @@ const styles = StyleSheet.create({
   notifTabTextActive: { fontWeight: 'bold', color: '#6C48C5' },
   notifList: { flexShrink: 1 },
   noNotifsText: { textAlign: 'center', padding: 32, color: '#9ca3af', fontSize: 13 },
-  notifItem: { flexDirection: 'row', padding: 16, borderBottomWidth: 1, borderBottomColor: '#f9fafb' },
+  notifItem: { backgroundColor: '#faf9fe', borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#ede9f6' },
   notifItemUnread: { backgroundColor: '#faf9fe' },
-  notifIconWrapper: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  notifIconWrapper: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
   notifContent: { flex: 1 },
-  notifTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 2 },
-  notifTitle: { fontSize: 14, fontWeight: '500', color: '#4b5563', flex: 1, marginRight: 8 },
+  notifTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 },
+  notifTitle: { fontSize: 16, fontWeight: '600', color: '#1e1e2e', flex: 1, marginRight: 8 },
   notifTitleUnread: { fontWeight: '600', color: '#1e1e2e' },
   unreadDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#6C48C5', marginRight: 6 },
-  notifTime: { fontSize: 11, color: '#9ca3af' },
-  notifMessage: { fontSize: 12, color: '#6b7280' },
-  notifMessageUnread: { color: '#4b5563', fontWeight: '500' },
+  notifTime: { fontSize: 12, fontWeight: '500', color: '#9ca3af' },
+  notifMessage: { fontSize: 14, fontWeight: '500', color: '#4b5563' },
   notifTrigger: { fontSize: 10, color: '#9ca3af', marginTop: 4 },
   notifFooter: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', padding: 16, backgroundColor: '#faf9fe', borderTopWidth: 1, borderTopColor: '#f3f4f6' },
   notifFooterText: { fontSize: 14, fontWeight: 'bold', color: '#6C48C5', marginLeft: 8 },

@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import {
-  AlertCircle, BookOpen, MapPin, Flame, Edit, GraduationCap, Heart, Bell, Mail, Shield, HelpCircle, Info, LogOut, ChevronRight, Clock, QrCode, X, Megaphone,
+  AlertCircle, BookOpen, MapPin, Flame, Edit, GraduationCap, Heart, Bell, Mail, Shield, HelpCircle, Info, LogOut, ChevronRight, Clock, QrCode, X, Megaphone, ArrowLeft
 } from 'lucide-react-native';
 import { YStack, XStack, Text, ScrollView, View, Separator } from 'tamagui';
 import api from '../../api';
@@ -126,8 +126,21 @@ export default function Profile() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f4f1fa' }}>
-    <ScrollView backgroundColor="#f4f1fa" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
-      {/* ── Header ── */}
+      {/* ── Sticky Header ── */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8, backgroundColor: '#f4f1fa' }}>
+        <TouchableOpacity 
+          onPress={() => router.canGoBack() ? router.back() : router.replace('/')} 
+          style={{ padding: 8, backgroundColor: '#fff', borderRadius: 20, borderWidth: 1, borderColor: '#ede9f6', position: 'absolute', left: 20, zIndex: 10 }}
+          hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+        >
+          <ArrowLeft color="#1e1e2e" size={24} />
+        </TouchableOpacity>
+        <Text style={{ flex: 1, fontSize: 18, fontWeight: '800', color: '#1e1e2e', textAlign: 'center' }}>
+          Profile
+        </Text>
+      </View>
+      <ScrollView backgroundColor="#f4f1fa" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+        {/* ── Header ── */}
       <YStack backgroundColor="#ffffff" borderRadius={16} padding={20} borderWidth={1} borderColor="#ede9f6" alignItems="center" marginHorizontal="$5" marginTop="$5" marginBottom="$4" style={{ boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.05)' }} elevation={2}>
         <YStack
           width={80}

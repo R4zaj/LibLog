@@ -114,7 +114,7 @@ export default function ForgotPassword() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1, zIndex: 1 }}
       >
-        <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           {/* Back button */}
           <TouchableOpacity
             style={styles.backButton}
