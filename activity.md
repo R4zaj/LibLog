@@ -4,6 +4,7 @@ Dev progress notes for LibLog. Newest entries at the top.
 Format: YYYY-MM-DD - what happened / what's next
 
 ## 2026-09-20
+- Enforced light theme lock across `mobile/components/useColorScheme.ts`, `mobile/app/_layout.tsx`, and `mobile/app/+html.tsx` to prevent theme auto-reverting to dark mode when rendering in web preview tools such as WebFrame Pro.
 - Fixed `ERR_QUIC_PROTOCOL_ERROR` sign-in failures by ensuring local development environment defaults to localhost API instead of the production backend (updated `mobile/app.json` and `mobile/api/index.ts`).
 - Fixed a layout bug in the custom bottom tab bar (`mobile/app/(tabs)/_layout.tsx`) where labels were collapsing horizontally instead of wrapping under icons.
 - Conducted a UX & Visual Character Overhaul for `mobile/app/(tabs)/search.tsx` and `mobile/app/(tabs)/borrowed.tsx` per `DESIGN.md`:

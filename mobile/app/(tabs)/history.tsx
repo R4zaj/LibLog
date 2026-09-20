@@ -1,8 +1,9 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Animated, TextInput } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
-import { LogIn, LogOut, BookOpen, Receipt, RefreshCcw, Activity } from 'lucide-react-native';
+import { LogIn, LogOut, BookOpen, Receipt, RefreshCcw, Activity, Search, Calendar, ListFilter, MoreVertical, ChevronRight, ChevronDown } from 'lucide-react-native';
+import { YStack, XStack } from 'tamagui';
 import api from '../../api';
 import { useFocusEffect } from 'expo-router';
 import { TabBarVisibilityContext } from './_layout';
@@ -21,6 +22,9 @@ export default function HistoryScreen() {
   const [filter, setFilter] = useState<'All' | 'Attendance' | 'Borrows' | 'Penalties'>('All');
   const [events, setEvents] = useState<ActivityEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isSearchVisible, setIsSearchVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [collapsedDays, setCollapsedDays] = useState<Record<string, boolean>>({});
   
   const { setTabBarVisible } = React.useContext(TabBarVisibilityContext);
   const lastOffsetY = useRef(0);
@@ -103,6 +107,13 @@ export default function HistoryScreen() {
   );
 
   const filteredEvents = events.filter((e) => {
+    if (searchQuery.trim() !== '') {
+      const q = searchQuery.toLowerCase();
+      const matchesTitle = e.title.toLowerCase().includes(q);
+      const matchesSubtitle = e.subtitle?.toLowerCase().includes(q);
+      if (!matchesTitle && !matchesSubtitle) return false;
+    }
+
     if (filter === 'All') return true;
     if (filter === 'Attendance') return e.type.startsWith('ATTENDANCE');
     if (filter === 'Borrows') return e.type === 'BORROW' || e.type === 'RETURN';
@@ -110,22 +121,75 @@ export default function HistoryScreen() {
     return true;
   });
 
+  const groupedEvents = filteredEvents.reduce((acc, event) => {
+    const date = new Date(event.timestamp);
+    const dateStr = date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }).toUpperCase();
+    const dayStr = date.toLocaleDateString('en-US', { weekday: 'long' });
+    
+    const key = `${dayStr}|${dateStr}`;
+    if (!acc[key]) {
+      acc[key] = [];
+    }
+    acc[key].push(event);
+    return acc;
+  }, {} as Record<string, ActivityEvent[]>);
+
+  const sections = Object.entries(groupedEvents).map(([key, events]) => {
+    const [dayStr, dateStr] = key.split('|');
+    return { dayStr, dateStr, events };
+  });
+
   const renderIcon = (type: string) => {
     switch (type) {
-      case 'ATTENDANCE_IN': return <LogIn color="#10b981" size={20} />;
-      case 'ATTENDANCE_OUT': return <LogOut color="#6b7280" size={20} />;
-      case 'BORROW': return <BookOpen color="#6C48C5" size={20} />;
-      case 'RETURN': return <RefreshCcw color="#3b82f6" size={20} />;
-      case 'PENALTY': return <Receipt color="#ef4444" size={20} />;
-      default: return <Activity color="#9ca3af" size={20} />;
+      case 'ATTENDANCE_IN': return <LogIn color="#10b981" size={16} />;
+      case 'ATTENDANCE_OUT': return <LogOut color="#fbbf24" size={16} />;
+      case 'BORROW': return <BookOpen color="#6C48C5" size={16} />;
+      case 'RETURN': return <RefreshCcw color="#6C48C5" size={16} />;
+      case 'PENALTY': return <Receipt color="#ef4444" size={16} />;
+      default: return <Activity color="#9ca3af" size={16} />;
     }
   };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Activity History</Text>
-      </View>
+      <XStack paddingHorizontal={24} paddingTop={16} paddingBottom={8} justifyContent="flex-end" alignItems="center">
+        <XStack gap={8}>
+          <TouchableOpacity 
+            style={[styles.utilityChip, isSearchVisible && { borderColor: '#6C48C5' }]} 
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            onPress={() => setIsSearchVisible(!isSearchVisible)}
+          >
+            <Search color={isSearchVisible ? "#6C48C5" : "#4b5563"} size={20} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.utilityChip} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Calendar color="#4b5563" size={20} />
+          </TouchableOpacity>
+        </XStack>
+      </XStack>
+
+      {isSearchVisible && (
+        <View style={{ paddingHorizontal: 24, paddingBottom: 16 }}>
+          <View style={{ height: 48, backgroundColor: '#faf9fe', borderRadius: 16, borderWidth: 1, borderColor: '#ede9f6', flexDirection: 'row', alignItems: 'center', paddingLeft: 14, paddingRight: 8 }}>
+            <TextInput 
+              style={{ flex: 1, fontSize: 14, color: '#1e1e2e' }}
+              placeholder="Search history..."
+              placeholderTextColor="#9ca3af"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoFocus
+            />
+            <TouchableOpacity 
+              hitSlop={{ top: 48, bottom: 48, left: 48, right: 48 }}
+              onPress={() => {
+                setSearchQuery('');
+                setIsSearchVisible(false);
+              }}
+            >
+              <Text style={{ fontSize: 13, fontWeight: '600', color: '#6C48C5', padding: 8 }}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       <View style={styles.filterContainer}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
@@ -166,19 +230,73 @@ export default function HistoryScreen() {
               <Text style={styles.emptyText}>No recent activity found.</Text>
             </View>
           ) : (
-            filteredEvents.map((evt) => (
-              <View key={evt.id} style={styles.card}>
-                <View style={styles.iconContainer}>
-                  {renderIcon(evt.type)}
-                </View>
-                <View style={styles.content}>
-                  <Text style={styles.cardTitle}>{evt.title}</Text>
-                  {evt.subtitle && <Text style={styles.cardSubtitle} numberOfLines={1}>{evt.subtitle}</Text>}
-                </View>
-                <Text style={styles.dateText}>
-                  {new Date(evt.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' })}
-                </Text>
-              </View>
+            sections.map((section, idx) => (
+              <YStack key={idx} marginBottom={16}>
+                <TouchableOpacity 
+                  activeOpacity={0.7}
+                  style={{ minHeight: 48, justifyContent: 'center' }}
+                  onPress={() => {
+                    const key = section.dayStr + '|' + section.dateStr;
+                    setCollapsedDays(prev => ({
+                      ...prev,
+                      [key]: !prev[key]
+                    }));
+                  }}
+                >
+                  <XStack paddingVertical={12} alignItems="center" justifyContent="space-between">
+                    <XStack alignItems="center" gap={8}>
+                      {collapsedDays[section.dayStr + '|' + section.dateStr] ? (
+                        <ChevronRight size={20} color="#4b5563" />
+                      ) : (
+                        <ChevronDown size={20} color="#4b5563" />
+                      )}
+                      <YStack>
+                        <Text style={{ fontSize: 18, fontWeight: '600', color: '#1e1e2e' }}>{section.dayStr}</Text>
+                        <Text style={{ fontSize: 12, fontWeight: '500', color: '#9ca3af', letterSpacing: 0.5, textTransform: 'uppercase' }}>{section.dateStr}</Text>
+                      </YStack>
+                    </XStack>
+                    <XStack backgroundColor="#f4f1fa" paddingHorizontal={12} paddingVertical={6} borderRadius={9999} alignItems="center">
+                      <Text style={{ color: '#6C48C5', fontSize: 12, fontWeight: '600' }}>{section.events.length} Event{section.events.length !== 1 ? 's' : ''}</Text>
+                    </XStack>
+                  </XStack>
+                </TouchableOpacity>
+                
+                {!collapsedDays[section.dayStr + '|' + section.dateStr] && section.events.map((evt, evtIdx) => {
+                  const isLast = evtIdx === section.events.length - 1;
+                  const dotColor = evt.type === 'ATTENDANCE_IN' ? '#10b981' : evt.type === 'ATTENDANCE_OUT' ? '#fbbf24' : (evt.type === 'BORROW' || evt.type === 'RETURN') ? '#6C48C5' : '#ef4444';
+
+                  return (
+                    <XStack key={evt.id} position="relative">
+                      {/* Left Timeline */}
+                      <YStack width={24} alignItems="center">
+                        <View style={{ position: 'absolute', top: 0, bottom: isLast ? undefined : 0, height: isLast ? 40 : undefined, width: 2, backgroundColor: '#ede9f6' }} />
+                        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: dotColor, zIndex: 10, marginTop: 36 }} />
+                      </YStack>
+                      
+                      {/* Right Content */}
+                      <YStack flex={1} paddingLeft={12} paddingBottom={16}>
+                        <Text style={{ fontSize: 11, fontWeight: '600', color: '#9ca3af', textTransform: 'uppercase', marginBottom: 6 }}>
+                          {new Date(evt.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </Text>
+                        <XStack backgroundColor="#ffffff" borderRadius={20} borderWidth={1} borderColor="#ede9f6" paddingVertical={10} paddingHorizontal={12} alignItems="center" style={{ elevation: 2, boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.05)' }}>
+                          <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: '#f4f1fa', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
+                            {renderIcon(evt.type)}
+                          </View>
+                          <YStack flex={1}>
+                            <Text style={{ fontSize: 15, fontWeight: '600', color: '#1e1e2e', marginBottom: 2 }}>{evt.title}</Text>
+                            {evt.subtitle && evt.type !== 'PENALTY' && <Text style={{ fontSize: 13, fontWeight: '500', color: '#7c7c8a' }} numberOfLines={1}>{evt.subtitle}</Text>}
+                          </YStack>
+                          <XStack alignItems="center">
+                            {evt.type === 'PENALTY' && (
+                              <Text style={{ fontSize: 14, fontWeight: '700', color: '#ef4444' }}>{evt.subtitle}</Text>
+                            )}
+                          </XStack>
+                        </XStack>
+                      </YStack>
+                    </XStack>
+                  );
+                })}
+              </YStack>
             ))
           )}
         </Animated.ScrollView>
@@ -201,6 +319,16 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '800',
     color: '#1e1e2e',
+  },
+  utilityChip: {
+    width: 44,
+    height: 44,
+    borderRadius: 16,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#ede9f6',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   filterContainer: {
     marginBottom: 8,

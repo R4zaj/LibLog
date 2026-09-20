@@ -55,8 +55,8 @@ function RootLayoutNav() {
   const colorScheme = useColorScheme();
 
   return (
-    <TamaguiProvider config={tamaguiConfig} defaultTheme={colorScheme === 'dark' ? 'dark' : 'light'}>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <TamaguiProvider config={tamaguiConfig} defaultTheme="light">
+      <ThemeProvider value={DefaultTheme}>
         <AuthProvider>
           <FavoritesProvider>
             <Stack>
