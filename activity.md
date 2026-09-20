@@ -12,6 +12,7 @@ Format: YYYY-MM-DD - what happened / what's next
   - Rebuilt card architectures across both screens with a consistent pure white surface, soft shadows, and a 3:4 aspect ratio for book covers.
   - Implemented conversational headers in Borrowed Log for a more humanized summary of active / overdue loans.
   - Docked a full-width actionable instruction banner with a QR code to the bottom of active borrow cards.
+- Master UX Polish & Reading Room consistency check completed: removed redundant borders and shadows, implemented mobile-native Bottom Sheet pattern for Notifications, standardized all screen return headers to a single `ArrowLeft` icon with no native headers, and disabled the right-side vertical scrollbar on all mobile app screens.
 
 ## 2026-09-19
 - Implemented dynamic bottom dock visibility across all mobile tab screens (dock hides on scroll down and reveals on scroll up using `Animated.timing` for smoother transitions).
