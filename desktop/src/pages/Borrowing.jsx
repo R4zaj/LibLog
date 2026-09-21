@@ -232,18 +232,18 @@ export default function Borrowing() {
           <div className="flex flex-col gap-8 mt-4 animate-fade-in">
             {/* Step Progress */}
             <div className="flex items-center justify-between px-16 relative">
-              <div className="absolute left-16 right-16 top-1/2 -translate-y-1/2 h-0.5 bg-gray-200 -z-10"></div>
+              <div className="absolute left-16 right-16 top-4 h-0.5 bg-gray-200 dark:bg-dark-border -z-10"></div>
               
-              <div className="flex flex-col items-center gap-2 bg-gray-50 dark:bg-dark-bg px-4">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${step >= 1 ? 'bg-primary-800 text-white' : 'bg-white dark:bg-transparent border-2 border-gray-200 dark:border-dark-border text-gray-400 dark:text-slate-500'}`}>1</div>
+              <div className="flex flex-col items-center gap-2">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shadow-sm ${step >= 1 ? 'bg-primary-800 text-white border-transparent' : 'bg-white dark:bg-dark-card border-2 border-gray-200 dark:border-dark-border text-gray-400 dark:text-slate-500'}`}>1</div>
                 <span className={`text-xs ${step >= 1 ? 'font-bold text-primary-800 dark:text-primary-400' : 'font-medium text-gray-400 dark:text-slate-500'}`}>Scan Book</span>
               </div>
-              <div className="flex flex-col items-center gap-2 bg-gray-50 dark:bg-dark-bg px-4">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${step >= 2 ? 'bg-primary-800 text-white' : 'bg-white dark:bg-transparent border-2 border-gray-200 dark:border-dark-border text-gray-400 dark:text-slate-500'}`}>2</div>
+              <div className="flex flex-col items-center gap-2">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shadow-sm ${step >= 2 ? 'bg-primary-800 text-white border-transparent' : 'bg-white dark:bg-dark-card border-2 border-gray-200 dark:border-dark-border text-gray-400 dark:text-slate-500'}`}>2</div>
                 <span className={`text-xs ${step >= 2 ? 'font-bold text-primary-800 dark:text-primary-400' : 'font-medium text-gray-400 dark:text-slate-500'}`}>Select Student</span>
               </div>
-              <div className="flex flex-col items-center gap-2 bg-gray-50 dark:bg-dark-bg px-4">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${step >= 3 ? 'bg-primary-800 text-white' : 'bg-white dark:bg-transparent border-2 border-gray-200 dark:border-dark-border text-gray-400 dark:text-slate-500'}`}>3</div>
+              <div className="flex flex-col items-center gap-2">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shadow-sm ${step >= 3 ? 'bg-primary-800 text-white border-transparent' : 'bg-white dark:bg-dark-card border-2 border-gray-200 dark:border-dark-border text-gray-400 dark:text-slate-500'}`}>3</div>
                 <span className={`text-xs ${step >= 3 ? 'font-bold text-primary-800 dark:text-primary-400' : 'font-medium text-gray-400 dark:text-slate-500'}`}>Confirm</span>
               </div>
             </div>
@@ -304,13 +304,13 @@ export default function Borrowing() {
                     <label className={`flex-1 flex flex-col items-center p-3 rounded-lg border-2 cursor-pointer transition-colors ${borrowType === 'READ_IN_LIBRARY' ? 'border-primary-600 bg-primary-50 dark:bg-primary-900/20' : 'border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card hover:border-primary-300'}`}>
                       <input type="radio" name="borrowType" value="READ_IN_LIBRARY" checked={borrowType === 'READ_IN_LIBRARY'} onChange={() => setBorrowType('READ_IN_LIBRARY')} className="sr-only" />
                       <BookUp size={24} className={`mb-2 ${borrowType === 'READ_IN_LIBRARY' ? 'text-primary-600' : 'text-gray-400'}`} />
-                      <span className={`text-sm font-bold ${borrowType === 'READ_IN_LIBRARY' ? 'text-primary-800 dark:text-primary-400' : 'text-gray-600 dark:text-slate-400'}`}>Read in Library</span>
+                      <span className={`text-sm font-bold whitespace-nowrap ${borrowType === 'READ_IN_LIBRARY' ? 'text-primary-800 dark:text-primary-400' : 'text-gray-600 dark:text-slate-400'}`}>Read in Library</span>
                       <span className="text-[10px] text-gray-500 mt-1 text-center">Due today before closing</span>
                     </label>
                     <label className={`flex-1 flex flex-col items-center p-3 rounded-lg border-2 cursor-pointer transition-colors ${borrowType === 'TAKE_OUT' ? 'border-primary-600 bg-primary-50 dark:bg-primary-900/20' : 'border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card hover:border-primary-300'}`}>
                       <input type="radio" name="borrowType" value="TAKE_OUT" checked={borrowType === 'TAKE_OUT'} onChange={() => setBorrowType('TAKE_OUT')} className="sr-only" />
                       <ArrowRightLeft size={24} className={`mb-2 ${borrowType === 'TAKE_OUT' ? 'text-primary-600' : 'text-gray-400'}`} />
-                      <span className={`text-sm font-bold ${borrowType === 'TAKE_OUT' ? 'text-primary-800 dark:text-primary-400' : 'text-gray-600 dark:text-slate-400'}`}>Take Out</span>
+                      <span className={`text-sm font-bold whitespace-nowrap ${borrowType === 'TAKE_OUT' ? 'text-primary-800 dark:text-primary-400' : 'text-gray-600 dark:text-slate-400'}`}>Take Out</span>
                       <span className="text-[10px] text-gray-500 mt-1 text-center">Standard due date applies</span>
                     </label>
                   </div>
@@ -329,18 +329,18 @@ export default function Borrowing() {
         {activeTab === 'Return' && (
           <div className="flex flex-col gap-8 mt-4 animate-fade-in">
             <div className="flex items-center justify-between px-16 relative">
-              <div className="absolute left-16 right-16 top-1/2 -translate-y-1/2 h-0.5 bg-gray-200 -z-10"></div>
+              <div className="absolute left-16 right-16 top-4 h-0.5 bg-gray-200 dark:bg-dark-border -z-10"></div>
               
-              <div className="flex flex-col items-center gap-2 bg-gray-50 dark:bg-dark-bg px-4">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${returnStep >= 1 ? 'bg-primary-800 text-white' : 'bg-white dark:bg-dark-card border-2 border-gray-200 dark:border-dark-border text-gray-400 dark:text-slate-500'}`}>1</div>
+              <div className="flex flex-col items-center gap-2">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shadow-sm ${returnStep >= 1 ? 'bg-primary-800 text-white border-transparent' : 'bg-white dark:bg-dark-card border-2 border-gray-200 dark:border-dark-border text-gray-400 dark:text-slate-500'}`}>1</div>
                 <span className={`text-xs ${returnStep >= 1 ? 'font-bold text-primary-800' : 'font-medium text-gray-400 dark:text-slate-500'}`}>Scan Book</span>
               </div>
-              <div className="flex flex-col items-center gap-2 bg-gray-50 dark:bg-dark-bg px-4">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${returnStep >= 2 ? 'bg-primary-800 text-white' : 'bg-white dark:bg-dark-card border-2 border-gray-200 dark:border-dark-border text-gray-400 dark:text-slate-500'}`}>2</div>
+              <div className="flex flex-col items-center gap-2">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shadow-sm ${returnStep >= 2 ? 'bg-primary-800 text-white border-transparent' : 'bg-white dark:bg-dark-card border-2 border-gray-200 dark:border-dark-border text-gray-400 dark:text-slate-500'}`}>2</div>
                 <span className={`text-xs ${returnStep >= 2 ? 'font-bold text-primary-800' : 'font-medium text-gray-400 dark:text-slate-500'}`}>Verify Student</span>
               </div>
-              <div className="flex flex-col items-center gap-2 bg-gray-50 dark:bg-dark-bg px-4">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${returnStep >= 3 ? 'bg-primary-800 text-white' : 'bg-white dark:bg-dark-card border-2 border-gray-200 dark:border-dark-border text-gray-400 dark:text-slate-500'}`}>3</div>
+              <div className="flex flex-col items-center gap-2">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shadow-sm ${returnStep >= 3 ? 'bg-primary-800 text-white border-transparent' : 'bg-white dark:bg-dark-card border-2 border-gray-200 dark:border-dark-border text-gray-400 dark:text-slate-500'}`}>3</div>
                 <span className={`text-xs ${returnStep >= 3 ? 'font-bold text-primary-800' : 'font-medium text-gray-400 dark:text-slate-500'}`}>Confirm Return</span>
               </div>
             </div>
@@ -504,7 +504,7 @@ export default function Borrowing() {
                           <span className="text-sm text-gray-700 dark:text-slate-300">{new Date(record.due_date).toLocaleDateString()}</span>
                         </td>
                         <td className="px-6 py-4">
-                          <span className="text-[11px] font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                          <span className="text-[11px] font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded whitespace-nowrap">
                             {record.type === 'READ_IN_LIBRARY' ? 'Read in Library' : 'Take Out'}
                           </span>
                         </td>
