@@ -88,6 +88,7 @@ export interface LiteratureBook {
   available: number;
   condition: string;
   genre: string;
+  is_archived?: boolean;
 }
 
 // GET /attendance/active — today's checked-in users, `department` is program.name computed server-side

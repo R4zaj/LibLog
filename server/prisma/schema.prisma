@@ -132,6 +132,7 @@ model BorrowRecord {
   due_date     DateTime      @db.Date
   return_date  DateTime?     @db.Date
   status       BorrowStatus  @default(BORROWED)
+  type         BorrowType    @default(TAKE_OUT)
   processed_by Int?
   processor    User?         @relation("ProcessedBy", fields: [processed_by], references: [id])
   notes        String?
@@ -237,6 +238,12 @@ enum BorrowStatus {
   OVERDUE
   LOST
   @@map("borrow_status")
+}
+
+enum BorrowType {
+  READ_IN_LIBRARY
+  TAKE_OUT
+  @@map("borrow_type")
 }
 
 enum PenaltyStatus {

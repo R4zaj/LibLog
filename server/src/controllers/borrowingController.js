@@ -33,6 +33,10 @@ const validateBook = async (req, res) => {
       return res.status(404).json({ error: 'Book not found' });
     }
 
+    if (action !== 'return' && book.is_archived) {
+      return res.status(400).json({ error: 'This book has been archived and is not available for borrowing' });
+    }
+
     if (action !== 'return' && book.available_copies <= 0) {
       return res.status(400).json({ error: 'No available copies of this book' });
     }
@@ -124,13 +128,21 @@ const validateUser = async (req, res) => {
 
 const checkout = async (req, res) => {
   try {
-    const { bookId, userId } = req.body;
+    const { bookId, userId, borrowType = 'TAKE_OUT' } = req.body;
 
     const bId = parseInt(bookId, 10);
     const uId = parseInt(userId, 10);
 
     const book = await prisma.book.findUnique({ where: { id: bId } });
-    if (!book || book.available_copies <= 0) {
+    if (!book) {
+      return res.status(404).json({ error: 'Book not found' });
+    }
+
+    if (book.is_archived) {
+      return res.status(400).json({ error: 'This book has been archived and cannot be checked out' });
+    }
+
+    if (book.available_copies <= 0) {
       return res.status(400).json({ error: 'Book is not available' });
     }
 
@@ -154,11 +166,17 @@ const checkout = async (req, res) => {
     }
 
     const dueDate = new Date();
-    let duration = 7; // fallback
-    if (settings) {
-      duration = user.role === 'FACULTY' ? parseInt(settings.borrow_duration_faculty) : parseInt(settings.borrow_duration_students);
+    
+    if (borrowType === 'READ_IN_LIBRARY') {
+      // Due at the end of the current day
+      dueDate.setHours(23, 59, 59, 999);
+    } else {
+      let duration = 7; // fallback
+      if (settings) {
+        duration = user.role === 'FACULTY' ? parseInt(settings.borrow_duration_faculty) : parseInt(settings.borrow_duration_students);
+      }
+      dueDate.setDate(dueDate.getDate() + duration);
     }
-    dueDate.setDate(dueDate.getDate() + duration);
 
     const record = await prisma.$transaction(async (tx) => {
       await tx.book.update({
@@ -172,7 +190,8 @@ const checkout = async (req, res) => {
           user_id: uId,
           borrow_date: new Date(),
           due_date: dueDate,
-          status: 'BORROWED'
+          status: 'BORROWED',
+          type: borrowType
         }
       });
 

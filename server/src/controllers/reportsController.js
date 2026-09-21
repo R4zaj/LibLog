@@ -294,6 +294,7 @@ const getFullReport = async (req, res) => {
       }),
       // Book inventory: show available/total + author
       prisma.book.findMany({
+        where: { is_archived: false },
         include: {
           genre: true,
           author: true
@@ -304,7 +305,7 @@ const getFullReport = async (req, res) => {
         include: { user: { select: { first_name: true, last_name: true } } }
       }),
       prisma.book.findMany({
-        where: { id: -1 },
+        where: { is_archived: true },
         include: { genre: true, author: true }
       })
     ]);

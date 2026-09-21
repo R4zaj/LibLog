@@ -1,8 +1,31 @@
 const prisma = require('../db');
 
+const mapBook = (b) => ({
+  id: b.id,
+  isbn: b.isbn,
+  title: b.title,
+  author: b.author?.name || 'Unknown',
+  genre: b.genre?.name || 'Unknown',
+  lccn: b.lccn || 'N/A',
+  year: b.year_published || 'N/A',
+  shelf: b.shelf_number || 'N/A',
+  total: b.total_copies,
+  available: b.available_copies,
+  stocks: `${b.total_copies} copies`,
+  condition: b.condition,
+  is_archived: b.is_archived || false,
+  updated_at: b.updated_at
+});
+
 const getBooks = async (req, res) => {
   try {
+    const { archived } = req.query;
+    const isArchived = archived === 'true';
+
     const books = await prisma.book.findMany({
+      where: {
+        is_archived: isArchived
+      },
       include: {
         author: true,
         genre: true
@@ -12,25 +35,32 @@ const getBooks = async (req, res) => {
       }
     });
 
-    const mappedBooks = books.map(b => ({
-      id: b.id,
-      isbn: b.isbn,
-      title: b.title,
-      author: b.author?.name || 'Unknown',
-      genre: b.genre?.name || 'Unknown',
-      lccn: b.lccn || 'N/A',
-      year: b.year_published || 'N/A',
-      shelf: b.shelf_number || 'N/A',
-      total: b.total_copies,
-      available: b.available_copies,
-      stocks: `${b.total_copies} copies`,
-      condition: b.condition
-    }));
-
-    res.json(mappedBooks);
+    res.json(books.map(mapBook));
   } catch (error) {
     console.error('Error fetching books:', error);
     res.status(500).json({ error: 'Server error fetching books' });
+  }
+};
+
+const getArchivedBooks = async (req, res) => {
+  try {
+    const books = await prisma.book.findMany({
+      where: {
+        is_archived: true
+      },
+      include: {
+        author: true,
+        genre: true
+      },
+      orderBy: {
+        updated_at: 'desc'
+      }
+    });
+
+    res.json(books.map(mapBook));
+  } catch (error) {
+    console.error('Error fetching archived books:', error);
+    res.status(500).json({ error: 'Server error fetching archived books' });
   }
 };
 
@@ -39,11 +69,16 @@ const getAuthors = async (req, res) => {
     const authors = await prisma.author.findMany({
       where: {
         books: {
-          some: {}
+          some: {
+            is_archived: false
+          }
         }
       },
       include: {
         books: {
+          where: {
+            is_archived: false
+          },
           select: { total_copies: true }
         }
       }
@@ -73,11 +108,16 @@ const getGenres = async (req, res) => {
     const genres = await prisma.genre.findMany({
       where: {
         books: {
-          some: {}
+          some: {
+            is_archived: false
+          }
         }
       },
       include: {
         books: {
+          where: {
+            is_archived: false
+          },
           select: { total_copies: true }
         }
       }
@@ -240,4 +280,309 @@ const deleteBook = async (req, res) => {
   }
 };
 
-module.exports = { getBooks, getAuthors, getGenres, createBook, updateBook, deleteBook };
+// Archive single book
+const archiveBook = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const bookId = parseInt(id, 10);
+
+    const book = await prisma.book.findUnique({
+      where: { id: bookId },
+      include: {
+        borrow_records: {
+          where: { status: { in: ['BORROWED', 'OVERDUE'] } }
+        }
+      }
+    });
+
+    if (!book) {
+      return res.status(404).json({ error: 'Book not found' });
+    }
+
+    if (book.is_archived) {
+      return res.status(400).json({ error: 'Book is already archived' });
+    }
+
+    if (book.borrow_records && book.borrow_records.length > 0) {
+      return res.status(400).json({
+        error: `Cannot archive "${book.title}" because it currently has ${book.borrow_records.length} active or overdue borrow(s). All copies must be returned first.`
+      });
+    }
+
+    const updated = await prisma.book.update({
+      where: { id: bookId },
+      data: {
+        is_archived: true,
+        updated_at: new Date()
+      },
+      include: {
+        author: true,
+        genre: true
+      }
+    });
+
+    res.json({ message: `"${updated.title}" was successfully archived.`, book: mapBook(updated) });
+  } catch (error) {
+    console.error('Error archiving book:', error);
+    res.status(500).json({ error: 'Server error archiving book' });
+  }
+};
+
+// Restore single book
+const restoreBook = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const bookId = parseInt(id, 10);
+
+    const book = await prisma.book.findUnique({ where: { id: bookId } });
+    if (!book) {
+      return res.status(404).json({ error: 'Book not found' });
+    }
+
+    if (!book.is_archived) {
+      return res.status(400).json({ error: 'Book is not archived' });
+    }
+
+    const updated = await prisma.book.update({
+      where: { id: bookId },
+      data: {
+        is_archived: false,
+        updated_at: new Date()
+      },
+      include: {
+        author: true,
+        genre: true
+      }
+    });
+
+    res.json({ message: `"${updated.title}" was successfully restored to active catalog.`, book: mapBook(updated) });
+  } catch (error) {
+    console.error('Error restoring book:', error);
+    res.status(500).json({ error: 'Server error restoring book' });
+  }
+};
+
+// Preview books to be archived by year
+const previewArchiveByYear = async (req, res) => {
+  try {
+    const year = parseInt(req.query.year, 10);
+    if (isNaN(year) || year < 1000 || year > 3000) {
+      return res.status(400).json({ error: 'Please provide a valid publication year' });
+    }
+
+    const matchingBooks = await prisma.book.findMany({
+      where: {
+        is_archived: false,
+        year_published: {
+          lte: year,
+          not: null
+        }
+      },
+      include: {
+        author: true,
+        genre: true,
+        borrow_records: {
+          where: { status: { in: ['BORROWED', 'OVERDUE'] } }
+        }
+      },
+      orderBy: {
+        year_published: 'asc'
+      }
+    });
+
+    const eligible = [];
+    const withActiveBorrows = [];
+
+    matchingBooks.forEach(b => {
+      const item = {
+        id: b.id,
+        title: b.title,
+        author: b.author?.name || 'Unknown',
+        year: b.year_published,
+        isbn: b.isbn,
+        genre: b.genre?.name || 'Unknown',
+        activeBorrowsCount: b.borrow_records.length
+      };
+      if (b.borrow_records.length > 0) {
+        withActiveBorrows.push(item);
+      } else {
+        eligible.push(item);
+      }
+    });
+
+    res.json({
+      cutoffYear: year,
+      totalMatching: matchingBooks.length,
+      eligibleCount: eligible.length,
+      borrowedCount: withActiveBorrows.length,
+      eligible,
+      withActiveBorrows
+    });
+  } catch (error) {
+    console.error('Error previewing archive by year:', error);
+    res.status(500).json({ error: 'Server error previewing archive by year' });
+  }
+};
+
+// Archive books by publication year
+const archiveByYear = async (req, res) => {
+  try {
+    const year = parseInt(req.body.year, 10);
+    if (isNaN(year) || year < 1000 || year > 3000) {
+      return res.status(400).json({ error: 'Please provide a valid publication year' });
+    }
+
+    const matchingBooks = await prisma.book.findMany({
+      where: {
+        is_archived: false,
+        year_published: {
+          lte: year,
+          not: null
+        }
+      },
+      include: {
+        borrow_records: {
+          where: { status: { in: ['BORROWED', 'OVERDUE'] } }
+        }
+      }
+    });
+
+    const eligibleIds = [];
+    const skippedBooks = [];
+
+    for (const b of matchingBooks) {
+      if (b.borrow_records.length > 0) {
+        skippedBooks.push({ id: b.id, title: b.title, activeLoans: b.borrow_records.length });
+      } else {
+        eligibleIds.push(b.id);
+      }
+    }
+
+    if (eligibleIds.length > 0) {
+      await prisma.book.updateMany({
+        where: { id: { in: eligibleIds } },
+        data: {
+          is_archived: true,
+          updated_at: new Date()
+        }
+      });
+    }
+
+    let message = `Successfully archived ${eligibleIds.length} book(s) published in or before ${year}.`;
+    if (skippedBooks.length > 0) {
+      message += ` ${skippedBooks.length} book(s) were skipped because they have active loans.`;
+    }
+
+    res.json({
+      message,
+      archivedCount: eligibleIds.length,
+      skippedCount: skippedBooks.length,
+      skippedBooks
+    });
+  } catch (error) {
+    console.error('Error archiving books by year:', error);
+    res.status(500).json({ error: 'Server error archiving books by year' });
+  }
+};
+
+// Batch archive selected books
+const archiveBatch = async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'Please provide an array of book IDs to archive' });
+    }
+
+    const numericIds = ids.map(id => parseInt(id, 10)).filter(id => !isNaN(id));
+
+    const books = await prisma.book.findMany({
+      where: { id: { in: numericIds } },
+      include: {
+        borrow_records: {
+          where: { status: { in: ['BORROWED', 'OVERDUE'] } }
+        }
+      }
+    });
+
+    const eligibleIds = [];
+    const skippedBooks = [];
+
+    for (const b of books) {
+      if (b.is_archived) continue;
+      if (b.borrow_records.length > 0) {
+        skippedBooks.push({ id: b.id, title: b.title, activeLoans: b.borrow_records.length });
+      } else {
+        eligibleIds.push(b.id);
+      }
+    }
+
+    if (eligibleIds.length > 0) {
+      await prisma.book.updateMany({
+        where: { id: { in: eligibleIds } },
+        data: {
+          is_archived: true,
+          updated_at: new Date()
+        }
+      });
+    }
+
+    let message = `Successfully archived ${eligibleIds.length} book(s).`;
+    if (skippedBooks.length > 0) {
+      message += ` ${skippedBooks.length} book(s) were skipped because they have active loans.`;
+    }
+
+    res.json({
+      message,
+      archivedCount: eligibleIds.length,
+      skippedCount: skippedBooks.length,
+      skippedBooks
+    });
+  } catch (error) {
+    console.error('Error in batch archive:', error);
+    res.status(500).json({ error: 'Server error archiving books' });
+  }
+};
+
+// Batch restore selected books
+const restoreBatch = async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'Please provide an array of book IDs to restore' });
+    }
+
+    const numericIds = ids.map(id => parseInt(id, 10)).filter(id => !isNaN(id));
+
+    const result = await prisma.book.updateMany({
+      where: { id: { in: numericIds } },
+      data: {
+        is_archived: false,
+        updated_at: new Date()
+      }
+    });
+
+    res.json({
+      message: `Successfully restored ${result.count} book(s) to active catalog.`,
+      restoredCount: result.count
+    });
+  } catch (error) {
+    console.error('Error in batch restore:', error);
+    res.status(500).json({ error: 'Server error restoring books' });
+  }
+};
+
+module.exports = {
+  getBooks,
+  getArchivedBooks,
+  getAuthors,
+  getGenres,
+  createBook,
+  updateBook,
+  deleteBook,
+  archiveBook,
+  restoreBook,
+  previewArchiveByYear,
+  archiveByYear,
+  archiveBatch,
+  restoreBatch
+};

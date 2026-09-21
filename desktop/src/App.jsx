@@ -8,6 +8,7 @@ import Borrowing from './pages/Borrowing';
 import Attendance from './pages/Attendance';
 import Settings from './pages/Settings';
 import Notifications from './pages/Notifications';
+import StudentActivities from './pages/StudentActivities';
 
 import RequireAuth from './components/RequireAuth';
 
@@ -37,6 +38,7 @@ function App() {
               <Route path="literatures" element={<Literatures />} />
               <Route path="borrowing" element={<Borrowing />} />
               <Route path="attendance" element={<Attendance />} />
+              <Route path="student-activities" element={<StudentActivities />} />
               <Route
                 path="reports"
                 element={

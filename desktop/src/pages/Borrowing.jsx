@@ -38,10 +38,12 @@ export default function Borrowing() {
   // Records State
   const [records, setRecords] = useState([]);
 
-  // Stats State
   const [stats, setStats] = useState({ active: 0, overdue: 0, returned: 0 });
   const [successMessage, setSuccessMessage] = useState(null);
   const [confirmPenaltyId, setConfirmPenaltyId] = useState(null);
+  
+  // Borrow Option State
+  const [borrowType, setBorrowType] = useState('TAKE_OUT');
 
   const { fetchWithOfflineSupport } = useOfflineApi();
 
@@ -73,7 +75,7 @@ export default function Borrowing() {
     setError(null);
     try {
       const res = await fetchWithOfflineSupport(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/borrowing/checkout`, { method: 'POST', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}`,  'Content-Type': 'application/json'  },
-        body: JSON.stringify({ bookId: scannedBook.id, userId: scannedUser.id })
+        body: JSON.stringify({ bookId: scannedBook.id, userId: scannedUser.id, borrowType })
       });
       const data = await res.json();
       if (res.ok) {
@@ -82,10 +84,10 @@ export default function Borrowing() {
         } else {
           setSuccessMessage('Borrowing Successful!');
         }
-        // Reset flow
         setStep(1);
         setScannedBook(null);
         setScannedUser(null);
+        setBorrowType('TAKE_OUT');
         fetchStats();
       } else {
         setError(data.error || 'Checkout failed');
@@ -295,7 +297,26 @@ export default function Borrowing() {
                   </div>
                 </div>
 
-                <div className="flex justify-end gap-3 mt-4">
+                {/* Borrowing Option Toggle */}
+                <div className="bg-gray-50 dark:bg-dark-bg p-4 rounded-lg border border-gray-200 dark:border-dark-border mt-2">
+                  <span className="text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider block mb-3">Borrowing Option</span>
+                  <div className="flex gap-4">
+                    <label className={`flex-1 flex flex-col items-center p-3 rounded-lg border-2 cursor-pointer transition-colors ${borrowType === 'READ_IN_LIBRARY' ? 'border-primary-600 bg-primary-50 dark:bg-primary-900/20' : 'border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card hover:border-primary-300'}`}>
+                      <input type="radio" name="borrowType" value="READ_IN_LIBRARY" checked={borrowType === 'READ_IN_LIBRARY'} onChange={() => setBorrowType('READ_IN_LIBRARY')} className="sr-only" />
+                      <BookUp size={24} className={`mb-2 ${borrowType === 'READ_IN_LIBRARY' ? 'text-primary-600' : 'text-gray-400'}`} />
+                      <span className={`text-sm font-bold ${borrowType === 'READ_IN_LIBRARY' ? 'text-primary-800 dark:text-primary-400' : 'text-gray-600 dark:text-slate-400'}`}>Read in Library</span>
+                      <span className="text-[10px] text-gray-500 mt-1 text-center">Due today before closing</span>
+                    </label>
+                    <label className={`flex-1 flex flex-col items-center p-3 rounded-lg border-2 cursor-pointer transition-colors ${borrowType === 'TAKE_OUT' ? 'border-primary-600 bg-primary-50 dark:bg-primary-900/20' : 'border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card hover:border-primary-300'}`}>
+                      <input type="radio" name="borrowType" value="TAKE_OUT" checked={borrowType === 'TAKE_OUT'} onChange={() => setBorrowType('TAKE_OUT')} className="sr-only" />
+                      <ArrowRightLeft size={24} className={`mb-2 ${borrowType === 'TAKE_OUT' ? 'text-primary-600' : 'text-gray-400'}`} />
+                      <span className={`text-sm font-bold ${borrowType === 'TAKE_OUT' ? 'text-primary-800 dark:text-primary-400' : 'text-gray-600 dark:text-slate-400'}`}>Take Out</span>
+                      <span className="text-[10px] text-gray-500 mt-1 text-center">Standard due date applies</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 mt-2">
                   <button onClick={() => setStep(1)} className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 dark:hover:bg-dark-hover">Cancel</button>
                   <button onClick={handleCheckout} className="px-6 py-2 bg-primary-800 text-white rounded-lg font-bold shadow-sm hover:bg-primary-900">Confirm Checkout</button>
                 </div>
@@ -458,6 +479,7 @@ export default function Borrowing() {
                     <th className="px-6 py-3 font-bold">Student</th>
                     <th className="px-6 py-3 font-bold">Borrow Date</th>
                     <th className="px-6 py-3 font-bold">Due Date</th>
+                    <th className="px-6 py-3 font-bold">Type</th>
                     <th className="px-6 py-3 font-bold">Status</th>
                   </tr>
                 </thead>
@@ -480,6 +502,11 @@ export default function Borrowing() {
                         </td>
                         <td className="px-6 py-4">
                           <span className="text-sm text-gray-700 dark:text-slate-300">{new Date(record.due_date).toLocaleDateString()}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-[11px] font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                            {record.type === 'READ_IN_LIBRARY' ? 'Read in Library' : 'Take Out'}
+                          </span>
                         </td>
                         <td className="px-6 py-4">
                           <span className={`px-2 py-1 rounded text-xs font-bold ${

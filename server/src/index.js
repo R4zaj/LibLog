@@ -18,6 +18,7 @@ const attendanceRoutes = require('./routes/attendanceRoutes');
 const reportsRoutes = require('./routes/reportsRoutes');
 const settingsRoutes = require('./routes/settingsRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const studentActivityRoutes = require('./routes/studentActivityRoutes');
 
 const app = express();
 
@@ -36,7 +37,7 @@ app.use(cors({
       callback(new Error('Not allowed by CORS'));
     }
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   credentials: true
 }));
 app.use(express.json());
@@ -66,6 +67,7 @@ app.use('/api/attendance', attendanceRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/student-activities', studentActivityRoutes);
 
 // Lightweight health check endpoint (no DB hit) — used to wake up Render from cold start
 app.get('/api/health', (req, res) => {

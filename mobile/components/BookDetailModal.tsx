@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, Modal, TouchableOpacity, StyleSheet, Pressable, ScrollView } from 'react-native';
-import { Heart, X, MapPin, CheckCircle2, BookOpen, QrCode, ArrowLeft } from 'lucide-react-native';
+import { Heart, X, MapPin, CheckCircle2, BookOpen, QrCode, ArrowLeft, Archive } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LiteratureBook } from '../types/api';
 
@@ -37,8 +37,15 @@ export function BookDetailModal({
               
               {/* Cover Placeholder Hero Well */}
               <View style={styles.coverWell}>
-                <View style={styles.genrePill}>
-                  <Text style={styles.genreText} numberOfLines={1}>{book.genre || 'Book'}</Text>
+                <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+                  <View style={styles.genrePill}>
+                    <Text style={styles.genreText} numberOfLines={1}>{book.genre || 'Book'}</Text>
+                  </View>
+                  {book.is_archived && (
+                    <View style={[styles.genrePill, { backgroundColor: '#fee2e2' }]}>
+                      <Text style={[styles.genreText, { color: '#dc2626' }]}>Archived</Text>
+                    </View>
+                  )}
                 </View>
                 
                 <View style={styles.rightActions}>
@@ -121,14 +128,25 @@ export function BookDetailModal({
                 </View>
 
                 {/* Footer Action Card */}
-                <View style={styles.footerActionCard}>
-                  <View style={styles.qrChip}>
-                    <QrCode color="#6C48C5" size={24} />
+                {book.is_archived ? (
+                  <View style={[styles.footerActionCard, { backgroundColor: '#fef2f2', borderColor: '#fecaca' }]}>
+                    <View style={[styles.qrChip, { backgroundColor: '#fee2e2' }]}>
+                      <Archive color="#dc2626" size={24} />
+                    </View>
+                    <Text style={[styles.footerActionText, { color: '#b91c1c' }]}>
+                      This book has been archived and is not available for borrowing.
+                    </Text>
                   </View>
-                  <Text style={styles.footerActionText}>
-                    Locate this book on its shelf and scan its QR barcode to borrow.
-                  </Text>
-                </View>
+                ) : (
+                  <View style={styles.footerActionCard}>
+                    <View style={styles.qrChip}>
+                      <QrCode color="#6C48C5" size={24} />
+                    </View>
+                    <Text style={styles.footerActionText}>
+                      Locate this book on its shelf and scan its QR barcode to borrow.
+                    </Text>
+                  </View>
+                )}
               </ScrollView>
               
             </View>

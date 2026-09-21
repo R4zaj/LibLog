@@ -191,7 +191,7 @@ export default function Dashboard() {
               <span className="text-white text-sm font-medium">Good Evening</span>
             </div>
             <h2 className="text-2xl lg:text-3xl font-bold mb-1 tracking-tight">Welcome to CCC LIB APP</h2>
-            <p className="text-purple-200/80 text-sm">Your library management dashboard — everything at a glance.</p>
+            <p className="text-purple-200/80 text-sm">Your library management dashboard - everything at a glance.</p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3 shrink-0">
@@ -209,7 +209,7 @@ export default function Dashboard() {
             <div className="flex items-center gap-3 bg-white/10 dark:bg-dark-card/30 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-2.5 shadow-xs">
               <Clock size={18} className="text-white shrink-0" />
               <div className="flex flex-col">
-                <span className="text-xs lg:text-sm font-semibold text-white">07:00 — 21:00</span>
+                <span className="text-xs lg:text-sm font-semibold text-white">07:00 - 21:00</span>
                 <span className="text-[11px] text-white/80">Library Hours</span>
               </div>
             </div>

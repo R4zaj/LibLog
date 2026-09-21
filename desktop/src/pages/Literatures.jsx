@@ -3,7 +3,9 @@ import { useSearchParams } from 'react-router-dom';
 import { 
   Search, Plus, Filter, Download, Printer, Upload, BookCopy, User, 
   Tag, QrCode, BookOpen, CheckCircle, XCircle, Library, FileSpreadsheet, FileText,
-  List, Grid, Edit3, Trash2, ChevronDown, ChevronRight, X, LayoutGrid, CheckSquare, Bell, Sun, Moon, ToggleRight, ToggleLeft, FileCode2, Loader2
+  List, Grid, Edit3, Trash2, ChevronDown, ChevronRight, X, LayoutGrid, CheckSquare, 
+  Bell, Sun, Moon, ToggleRight, ToggleLeft, FileCode2, Loader2,
+  Archive, RotateCcw, Calendar, AlertTriangle, AlertCircle, Info, Check, ArchiveRestore
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
@@ -11,39 +13,30 @@ import * as XLSX from 'xlsx';
 import NotificationDropdown from '../components/NotificationDropdown';
 import QRCode from 'react-qr-code';
 import { useTheme } from '../components/ThemeContext';
-// --- MOCK DATA ---
-const mockBooks = [
-  { id: 1, isbn: '978-0-323-40115-4', title: 'Myles Textbook for Midwives', available: 4, total: 5, author: 'Jayne E. Marshall', lccn: 'RG950 .M87 2020', year: '2020', stocks: '5 copies', genre: 'Midwifery', condition: 'EXCELLENT', shelf: 'MW-01' },
-  { id: 2, isbn: '978-0-7020-7898-2', title: 'Mayes Midwifery', available: 4, total: 5, author: 'Sue Macdonald', lccn: 'RG950 .M39 2019', year: '2019', stocks: '5 copies', genre: 'Midwifery', condition: 'GOOD', shelf: 'MW-01' },
-];
 
-const mockAuthors = [
-  { id: 1, name: 'Adele Pillitteri', books: 1, copies: 5, expanded: true },
-  { id: 2, name: 'Alan Bryman', books: 1, copies: 5 },
-  { id: 3, name: 'Alex B. Brillantes', books: 1, copies: 5 },
-];
-
-const mockGenres = [
-  { id: 1, name: 'Anatomy & Physiology', color: 'bg-cyan-400', colorText: 'text-cyan-600', colorBg: 'bg-cyan-50', books: 2, copies: 10, expanded: true },
-  { id: 2, name: 'Economics', color: 'bg-purple-400', colorText: 'text-purple-600', colorBg: 'bg-purple-50', books: 2, copies: 10 },
-];
-
-// --- COMPONENT ---
 export default function Literatures() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('Literature Catalog');
   const [books, setBooks] = useState([]);
+  const [archivedBooks, setArchivedBooks] = useState([]);
   const [authors, setAuthors] = useState([]);
   const [genres, setGenres] = useState([]);
   
-  // Selection
+  // Selection for Active Books
   const [selectedBooks, setSelectedBooks] = useState([]);
   const [selectedQRs, setSelectedQRs] = useState([]);
+
+  // Selection for Archived Books
+  const [selectedArchivedBooks, setSelectedArchivedBooks] = useState([]);
   
-  // Filtering and Sorting
+  // Filtering and Sorting - Active
   const [sortBy, setSortBy] = useState('Default');
   const [availabilityFilter, setAvailabilityFilter] = useState('All Books');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Filtering and Sorting - Archived
+  const [archivedSearchQuery, setArchivedSearchQuery] = useState('');
+  const [archivedSortBy, setArchivedSortBy] = useState('Recently Archived');
 
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -69,7 +62,28 @@ export default function Literatures() {
   const [booksToDelete, setBooksToDelete] = useState([]);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Global theme context instead of local state
+  // Archive by Year Modal State
+  const currentCalendarYear = new Date().getFullYear();
+  const [isYearArchiveModalOpen, setIsYearArchiveModalOpen] = useState(false);
+  const [archiveCutoffYear, setArchiveCutoffYear] = useState(currentCalendarYear - 10);
+  const [yearPreviewData, setYearPreviewData] = useState(null);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const [isArchivingByYear, setIsArchivingByYear] = useState(false);
+
+  // Archive Confirm Modal State (Single or Bulk)
+  const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
+  const [booksToArchive, setBooksToArchive] = useState([]);
+  const [isArchiving, setIsArchiving] = useState(false);
+
+  // Restore Confirm Modal State (Single or Bulk)
+  const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false);
+  const [booksToRestore, setBooksToRestore] = useState([]);
+  const [isRestoring, setIsRestoring] = useState(false);
+
+  // Notification Banner
+  const [actionAlert, setActionAlert] = useState(null);
+
+  // Global theme context
   const { isDarkMode, toggleDarkMode } = useTheme();
   const [formData, setFormData] = useState({
     isbn: '', title: '', authorName: '', genreName: '', lccn: '', year_published: '', shelf_number: '', total_copies: 1, condition: 'GOOD'
@@ -77,27 +91,36 @@ export default function Literatures() {
   
   const fileInputRef = useRef(null);
 
-  // Fetch real data from backend
-  useEffect(() => {
-    const fetchLiteratures = async () => {
-      try {
-        const [booksRes, authorsRes, genresRes] = await Promise.all([
-          fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/literatures/books`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }).catch(() => ({ ok: false })),
-          fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/literatures/authors`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }).catch(() => ({ ok: false })),
-          fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/literatures/genres`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }).catch(() => ({ ok: false }))
-        ]);
+  const showAlert = (message, type = 'success') => {
+    setActionAlert({ message, type });
+    setTimeout(() => {
+      setActionAlert(prev => (prev?.message === message ? null : prev));
+    }, 5000);
+  };
 
-        if (booksRes.ok) setBooks(await booksRes.json());
-        if (authorsRes.ok) setAuthors(await authorsRes.json());
-        if (genresRes.ok) setGenres(await genresRes.json());
-      } catch (error) {
-        console.error('Failed to fetch literature data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchLiteratures();
+  // Fetch real data from backend
+  const fetchAllData = async () => {
+    try {
+      const [booksRes, archRes, authorsRes, genresRes] = await Promise.all([
+        fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/literatures/books`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }).catch(() => ({ ok: false })),
+        fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/literatures/archived`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }).catch(() => ({ ok: false })),
+        fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/literatures/authors`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }).catch(() => ({ ok: false })),
+        fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/literatures/genres`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }).catch(() => ({ ok: false }))
+      ]);
+
+      if (booksRes.ok) setBooks(await booksRes.json());
+      if (archRes.ok) setArchivedBooks(await archRes.json());
+      if (authorsRes.ok) setAuthors(await authorsRes.json());
+      if (genresRes.ok) setGenres(await genresRes.json());
+    } catch (error) {
+      console.error('Failed to fetch literature data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAllData();
   }, []);
 
   const fetchBooks = async () => {
@@ -109,10 +132,20 @@ export default function Literatures() {
     }
   };
 
+  const fetchArchivedBooks = async () => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/literatures/archived`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
+      if (res.ok) setArchivedBooks(await res.json());
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   // Sync state with URL params
   useEffect(() => {
     const tabParam = searchParams.get('tab');
-    if (tabParam === 'author') setActiveTab('Author Catalog');
+    if (tabParam === 'archived') setActiveTab('Archived Literatures');
+    else if (tabParam === 'author') setActiveTab('Author Catalog');
     else if (tabParam === 'genre') setActiveTab('Genre Catalog');
     else if (tabParam === 'qr') setActiveTab('QR of Literatures');
     else setActiveTab('Literature Catalog');
@@ -121,10 +154,151 @@ export default function Literatures() {
   const handleTabChange = (tabName) => {
     setActiveTab(tabName);
     let tabParam = 'catalog';
-    if (tabName === 'Author Catalog') tabParam = 'author';
+    if (tabName === 'Archived Literatures') tabParam = 'archived';
+    else if (tabName === 'Author Catalog') tabParam = 'author';
     else if (tabName === 'Genre Catalog') tabParam = 'genre';
     else if (tabName === 'QR of Literatures') tabParam = 'qr';
     setSearchParams({ tab: tabParam });
+  };
+
+  // Year-based Archiving
+  const fetchYearPreview = async (year) => {
+    if (!year || isNaN(year)) return;
+    setIsLoadingPreview(true);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/literatures/archive-preview?year=${year}`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setYearPreviewData(data);
+      }
+    } catch (err) {
+      console.error('Error previewing year archive:', err);
+    } finally {
+      setIsLoadingPreview(false);
+    }
+  };
+
+  const handleOpenYearArchiveModal = () => {
+    const initialYear = currentCalendarYear - 10;
+    setArchiveCutoffYear(initialYear);
+    fetchYearPreview(initialYear);
+    setIsYearArchiveModalOpen(true);
+  };
+
+  const handleYearChange = (yearVal) => {
+    const parsed = parseInt(yearVal, 10);
+    setArchiveCutoffYear(yearVal);
+    if (!isNaN(parsed)) {
+      fetchYearPreview(parsed);
+    }
+  };
+
+  const handleConfirmYearArchive = async () => {
+    setIsArchivingByYear(true);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/literatures/archive-by-year`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ year: parseInt(archiveCutoffYear, 10) })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showAlert(data.message || 'Books successfully archived.', 'success');
+        setIsYearArchiveModalOpen(false);
+        fetchAllData();
+      } else {
+        showAlert(data.error || 'Failed to archive books.', 'error');
+      }
+    } catch (err) {
+      showAlert('Network error while archiving books.', 'error');
+    } finally {
+      setIsArchivingByYear(false);
+    }
+  };
+
+  // Individual / Bulk Archive
+  const handleOpenArchiveSingle = (book) => {
+    setBooksToArchive([book]);
+    setIsArchiveModalOpen(true);
+  };
+
+  const handleBulkArchive = () => {
+    const selected = books.filter(b => selectedBooks.includes(b.id));
+    setBooksToArchive(selected);
+    setIsArchiveModalOpen(true);
+  };
+
+  const confirmArchive = async () => {
+    setIsArchiving(true);
+    try {
+      const ids = booksToArchive.map(b => b.id);
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/literatures/archive-batch`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ ids })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showAlert(data.message || 'Books archived successfully.', 'success');
+        setSelectedBooks([]);
+        setIsArchiveModalOpen(false);
+        fetchAllData();
+      } else {
+        showAlert(data.error || 'Failed to archive selected books.', 'error');
+      }
+    } catch (err) {
+      showAlert('Network error while archiving.', 'error');
+    } finally {
+      setIsArchiving(false);
+    }
+  };
+
+  // Individual / Bulk Restore
+  const handleOpenRestoreSingle = (book) => {
+    setBooksToRestore([book]);
+    setIsRestoreModalOpen(true);
+  };
+
+  const handleBulkRestore = () => {
+    const selected = archivedBooks.filter(b => selectedArchivedBooks.includes(b.id));
+    setBooksToRestore(selected);
+    setIsRestoreModalOpen(true);
+  };
+
+  const confirmRestore = async () => {
+    setIsRestoring(true);
+    try {
+      const ids = booksToRestore.map(b => b.id);
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/literatures/restore-batch`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ ids })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showAlert(data.message || 'Books restored successfully.', 'success');
+        setSelectedArchivedBooks([]);
+        setIsRestoreModalOpen(false);
+        fetchAllData();
+      } else {
+        showAlert(data.error || 'Failed to restore selected books.', 'error');
+      }
+    } catch (err) {
+      showAlert('Network error while restoring books.', 'error');
+    } finally {
+      setIsRestoring(false);
+    }
   };
 
   const handleAddClick = () => {
@@ -167,13 +341,14 @@ export default function Literatures() {
       });
       if (res.ok) {
         setIsModalOpen(false);
-        fetchBooks();
+        fetchAllData();
+        showAlert(editingBook ? 'Book updated successfully.' : 'Book added to catalog.', 'success');
       } else {
-        alert('Failed to save book');
+        showAlert('Failed to save book', 'error');
       }
     } catch (error) {
       console.error('Failed to submit form', error);
-      alert('Operation failed');
+      showAlert('Operation failed', 'error');
     }
   };
 
@@ -215,10 +390,10 @@ export default function Literatures() {
     }
     
     setIsImporting(false);
-    alert(`Successfully imported ${successCount} books.`);
+    showAlert(`Successfully imported ${successCount} books.`, 'success');
     setImportText('');
     setIsImportModalOpen(false);
-    fetchBooks(); // Refresh list
+    fetchAllData();
   };
 
   const handleDelete = (id) => {
@@ -228,6 +403,11 @@ export default function Literatures() {
 
   const handleBulkDelete = () => {
     setBooksToDelete(selectedBooks);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleBulkDeleteArchived = () => {
+    setBooksToDelete(selectedArchivedBooks);
     setIsDeleteModalOpen(true);
   };
 
@@ -245,19 +425,22 @@ export default function Literatures() {
           failedCount++;
         } else {
           setSelectedBooks(prev => prev.filter(bId => bId !== id));
+          setSelectedArchivedBooks(prev => prev.filter(bId => bId !== id));
         }
       }));
       
       if (failedCount > 0) {
-        alert(`Failed to delete ${failedCount} book(s). Reason: ${lastError}`);
+        showAlert(`Failed to delete ${failedCount} book(s). Reason: ${lastError}`, 'error');
+      } else {
+        showAlert('Book(s) deleted permanently.', 'success');
       }
       
-      fetchBooks();
+      fetchAllData();
       setIsDeleteModalOpen(false);
       if (failedCount === 0) setBooksToDelete([]);
     } catch (err) {
       console.error(err);
-      alert('An error occurred during deletion.');
+      showAlert('An error occurred during deletion.', 'error');
     } finally {
       setIsDeleting(false);
     }
@@ -268,11 +451,11 @@ export default function Literatures() {
       const bookToEdit = books.find(b => b.id === selectedBooks[0]);
       if (bookToEdit) handleEditClick(bookToEdit);
     } else {
-      alert("Please select exactly one book to edit.");
+      showAlert('Please select exactly one book to edit.', 'error');
     }
   };
 
-  // Actions
+  // Export functions
   const handleExportCSV = () => {
     const headers = ['ISBN', 'Title', 'Author', 'LCCN', 'Year', 'Genre', 'Shelf', 'Total Copies', 'Available'];
     const rows = books.map(b => [b.isbn, `"${b.title}"`, `"${b.author}"`, b.lccn, b.year, b.genre, b.shelf, b.total, b.available]);
@@ -281,7 +464,19 @@ export default function Literatures() {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = 'library_catalog.csv';
+    link.download = 'library_active_catalog.csv';
+    link.click();
+  };
+
+  const handleExportArchivedCSV = () => {
+    const headers = ['ISBN', 'Title', 'Author', 'LCCN', 'Year', 'Genre', 'Shelf', 'Total Copies', 'Archived Date'];
+    const rows = archivedBooks.map(b => [b.isbn, `"${b.title}"`, `"${b.author}"`, b.lccn, b.year, b.genre, b.shelf, b.total, b.updated_at ? new Date(b.updated_at).toLocaleDateString() : 'N/A']);
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'library_archived_books.csv';
     link.click();
   };
 
@@ -341,33 +536,18 @@ export default function Literatures() {
 
   const handleImportFile = (e) => {
     if(e.target.files && e.target.files[0]) {
-      alert(`Simulating import of ${e.target.files[0].name}`);
-      e.target.value = null; // reset
+      showAlert(`Processing import of ${e.target.files[0].name}`, 'info');
+      e.target.value = null;
     }
   };
 
-  // Selection Logic
+  // Selection Logic - Active
   const handleSelectAll = (e) => {
     if (e.target.checked) {
       setSelectedBooks(filteredBooks.map(b => b.id));
     } else {
       setSelectedBooks([]);
     }
-  };
-
-  const handleSelectBook = (id) => {
-    setSelectedBooks(prev => prev.includes(id) ? prev.filter(b => b !== id) : [...prev, id]);
-  };
-
-  const autoFormatISBN = (value) => {
-    const v = value.replace(/\D/g, '');
-    let formatted = '';
-    if (v.length > 0) formatted += v.substring(0, 3);
-    if (v.length > 3) formatted += '-' + v.substring(3, 4);
-    if (v.length > 4) formatted += '-' + v.substring(4, 7);
-    if (v.length > 7) formatted += '-' + v.substring(7, 12);
-    if (v.length > 12) formatted += '-' + v.substring(12, 13);
-    return formatted;
   };
 
   const handleSelectOne = (id) => {
@@ -382,11 +562,44 @@ export default function Literatures() {
     setSelectedBooks([]);
   };
 
-  // Filtering & Sorting Logic
+  // Selection Logic - Archived
+  const handleSelectAllArchived = (e, items) => {
+    if (e.target.checked) {
+      setSelectedArchivedBooks(items.map(b => b.id));
+    } else {
+      setSelectedArchivedBooks([]);
+    }
+  };
+
+  const handleSelectOneArchived = (id) => {
+    if (selectedArchivedBooks.includes(id)) {
+      setSelectedArchivedBooks(selectedArchivedBooks.filter(bid => bid !== id));
+    } else {
+      setSelectedArchivedBooks([...selectedArchivedBooks, id]);
+    }
+  };
+
+  const clearArchivedSelection = () => {
+    setSelectedArchivedBooks([]);
+  };
+
+  const autoFormatISBN = (value) => {
+    const v = value.replace(/\D/g, '');
+    let formatted = '';
+    if (v.length > 0) formatted += v.substring(0, 3);
+    if (v.length > 3) formatted += '-' + v.substring(3, 4);
+    if (v.length > 4) formatted += '-' + v.substring(4, 7);
+    if (v.length > 7) formatted += '-' + v.substring(7, 12);
+    if (v.length > 12) formatted += '-' + v.substring(12, 13);
+    return formatted;
+  };
+
+  // Filtering & Sorting Logic - Active Books
   let filteredBooks = books.filter(b => {
     const matchQuery = (b.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
                        (b.author || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-                       (b.isbn || '').toLowerCase().includes(searchQuery.toLowerCase());
+                       (b.isbn || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                       (b.lccn || '').toLowerCase().includes(searchQuery.toLowerCase());
     
     const matchFilter = availabilityFilter === 'All Books' || 
                         (availabilityFilter === 'Available' && b.available > 0) ||
@@ -403,9 +616,8 @@ export default function Literatures() {
     if (sortBy === 'Year Newest') return parseInt(b.year || 0) - parseInt(a.year || 0);
     if (sortBy === 'Year Oldest') return parseInt(a.year || 0) - parseInt(b.year || 0);
     if (sortBy === 'Most Available') return b.available - a.available;
-    return 0; // Default
+    return 0;
   });
-
 
   const toggleAuthor = (id) => {
     setAuthors(authors.map(a => a.id === id ? { ...a, expanded: !a.expanded } : a));
@@ -417,17 +629,52 @@ export default function Literatures() {
 
   const renderTabs = () => (
     <div className="flex items-center gap-6 border-b border-gray-200 dark:border-dark-border shrink-0">
-      <button onClick={() => handleTabChange('Literature Catalog')} className={`flex items-center gap-2 pb-3 border-b-2 text-sm font-medium transition-colors ${activeTab === 'Literature Catalog' ? 'border-primary-800 text-primary-900 font-semibold' : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700'}`}>
-        <BookCopy size={16} className={activeTab === 'Literature Catalog' ? 'text-primary-800' : ''} /> Literature Catalog
+      <button 
+        onClick={() => handleTabChange('Literature Catalog')} 
+        className={`flex items-center gap-2 pb-3 border-b-2 text-sm font-medium transition-colors ${activeTab === 'Literature Catalog' ? 'border-primary-800 text-primary-900 dark:text-purple-300 font-semibold' : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'}`}
+      >
+        <BookCopy size={16} className={activeTab === 'Literature Catalog' ? 'text-primary-800 dark:text-purple-400' : ''} />
+        <span>Literature Catalog</span>
+        <span className="px-1.5 py-0.2 text-[10px] font-semibold rounded-full bg-gray-100 dark:bg-dark-border text-gray-700 dark:text-slate-300">
+          {books.length}
+        </span>
       </button>
-      <button onClick={() => handleTabChange('Author Catalog')} className={`flex items-center gap-2 pb-3 border-b-2 text-sm font-medium transition-colors ${activeTab === 'Author Catalog' ? 'border-primary-800 text-primary-900 font-semibold' : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700'}`}>
-        <User size={16} className={activeTab === 'Author Catalog' ? 'text-primary-800' : ''} /> Author Catalog
+
+      <button 
+        onClick={() => handleTabChange('Archived Literatures')} 
+        className={`flex items-center gap-2 pb-3 border-b-2 text-sm font-medium transition-colors ${activeTab === 'Archived Literatures' ? 'border-amber-600 text-amber-700 dark:text-amber-400 font-semibold' : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'}`}
+      >
+        <Archive size={16} className={activeTab === 'Archived Literatures' ? 'text-amber-600 dark:text-amber-400' : ''} />
+        <span>Archived Literatures</span>
+        {archivedBooks.length > 0 && (
+          <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300/40">
+            {archivedBooks.length}
+          </span>
+        )}
       </button>
-      <button onClick={() => handleTabChange('Genre Catalog')} className={`flex items-center gap-2 pb-3 border-b-2 text-sm font-medium transition-colors ${activeTab === 'Genre Catalog' ? 'border-primary-800 text-primary-900 font-semibold' : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700'}`}>
-        <Tag size={16} className={activeTab === 'Genre Catalog' ? 'text-primary-800' : ''} /> Genre Catalog
+
+      <button 
+        onClick={() => handleTabChange('Author Catalog')} 
+        className={`flex items-center gap-2 pb-3 border-b-2 text-sm font-medium transition-colors ${activeTab === 'Author Catalog' ? 'border-primary-800 text-primary-900 dark:text-purple-300 font-semibold' : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'}`}
+      >
+        <User size={16} className={activeTab === 'Author Catalog' ? 'text-primary-800 dark:text-purple-400' : ''} />
+        <span>Author Catalog</span>
       </button>
-      <button onClick={() => handleTabChange('QR of Literatures')} className={`flex items-center gap-2 pb-3 border-b-2 text-sm font-medium transition-colors ${activeTab === 'QR of Literatures' ? 'border-primary-800 text-primary-900 font-semibold' : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700'}`}>
-        <QrCode size={16} className={activeTab === 'QR of Literatures' ? 'text-primary-800' : ''} /> QR of Literatures
+
+      <button 
+        onClick={() => handleTabChange('Genre Catalog')} 
+        className={`flex items-center gap-2 pb-3 border-b-2 text-sm font-medium transition-colors ${activeTab === 'Genre Catalog' ? 'border-primary-800 text-primary-900 dark:text-purple-300 font-semibold' : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'}`}
+      >
+        <Tag size={16} className={activeTab === 'Genre Catalog' ? 'text-primary-800 dark:text-purple-400' : ''} />
+        <span>Genre Catalog</span>
+      </button>
+
+      <button 
+        onClick={() => handleTabChange('QR of Literatures')} 
+        className={`flex items-center gap-2 pb-3 border-b-2 text-sm font-medium transition-colors ${activeTab === 'QR of Literatures' ? 'border-primary-800 text-primary-900 dark:text-purple-300 font-semibold' : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'}`}
+      >
+        <QrCode size={16} className={activeTab === 'QR of Literatures' ? 'text-primary-800 dark:text-purple-400' : ''} />
+        <span>QR of Literatures</span>
       </button>
     </div>
   );
@@ -437,39 +684,39 @@ export default function Literatures() {
       {/* Stats Row */}
       <div className="grid grid-cols-4 gap-4">
         <div className="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-lg p-3 flex items-center gap-4">
-          <div className="w-10 h-10 rounded bg-primary-50 text-primary-600 flex items-center justify-center">
+          <div className="w-10 h-10 rounded bg-primary-50 dark:bg-primary-950/40 text-primary-600 dark:text-primary-400 flex items-center justify-center">
             <BookOpen size={20} />
           </div>
           <div className="flex flex-col">
-            <span className="text-lg font-bold text-gray-800 dark:text-slate-300 leading-tight">{books.length}</span>
-            <span className="text-xs text-gray-500 dark:text-slate-400">Total Books</span>
+            <span className="text-lg font-bold text-gray-800 dark:text-slate-200 leading-tight">{books.length}</span>
+            <span className="text-xs text-gray-500 dark:text-slate-400">Active Titles</span>
           </div>
         </div>
         <div className="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-lg p-3 flex items-center gap-4">
-          <div className="w-10 h-10 rounded bg-green-50 text-green-500 flex items-center justify-center">
+          <div className="w-10 h-10 rounded bg-green-50 dark:bg-green-950/40 text-green-500 flex items-center justify-center">
             <CheckCircle size={20} />
           </div>
           <div className="flex flex-col">
-            <span className="text-lg font-bold text-gray-800 dark:text-slate-300 leading-tight">{books.filter(b => b.available > 0).length}</span>
+            <span className="text-lg font-bold text-gray-800 dark:text-slate-200 leading-tight">{books.filter(b => b.available > 0).length}</span>
             <span className="text-xs text-gray-500 dark:text-slate-400">Available Now</span>
           </div>
         </div>
         <div className="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-lg p-3 flex items-center gap-4">
-          <div className="w-10 h-10 rounded bg-red-50 text-red-500 flex items-center justify-center">
-            <XCircle size={20} />
+          <div className="w-10 h-10 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-600 flex items-center justify-center">
+            <Archive size={20} />
           </div>
           <div className="flex flex-col">
-            <span className="text-lg font-bold text-gray-800 dark:text-slate-300 leading-tight">{books.filter(b => b.available === 0).length}</span>
-            <span className="text-xs text-gray-500 dark:text-slate-400">Unavailable</span>
+            <span className="text-lg font-bold text-gray-800 dark:text-slate-200 leading-tight">{archivedBooks.length}</span>
+            <span className="text-xs text-gray-500 dark:text-slate-400">Archived Books</span>
           </div>
         </div>
         <div className="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-lg p-3 flex items-center gap-4">
-          <div className="w-10 h-10 rounded bg-orange-50 text-orange-500 flex items-center justify-center">
+          <div className="w-10 h-10 rounded bg-orange-50 dark:bg-orange-950/40 text-orange-500 flex items-center justify-center">
             <Library size={20} />
           </div>
           <div className="flex flex-col">
-            <span className="text-lg font-bold text-gray-800 dark:text-slate-300 leading-tight">{new Set(books.map(b => b.genre)).size}</span>
-            <span className="text-xs text-gray-500 dark:text-slate-400">Genre Count</span>
+            <span className="text-lg font-bold text-gray-800 dark:text-slate-200 leading-tight">{new Set(books.map(b => b.genre)).size}</span>
+            <span className="text-xs text-gray-500 dark:text-slate-400">Active Genres</span>
           </div>
         </div>
       </div>
@@ -484,17 +731,17 @@ export default function Literatures() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search by title, author, ISBN, or LCCN..." 
-              className="w-full pl-9 pr-4 py-2 border border-gray-200 dark:border-dark-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="w-full pl-9 pr-4 py-2 border border-gray-200 dark:border-dark-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-dark-bg dark:text-slate-200"
             />
           </div>
           <div className="flex items-center gap-3">
-            <span className="px-2 py-1 bg-primary-50 text-primary-700 text-xs font-bold rounded">{filteredBooks.length}</span>
+            <span className="px-2 py-1 bg-primary-50 text-primary-700 text-xs font-bold rounded dark:bg-primary-950/50 dark:text-primary-300">{filteredBooks.length}</span>
             
             {/* Sort Dropdown */}
             <select 
               value={sortBy} 
               onChange={e => setSortBy(e.target.value)}
-              className="border border-gray-200 dark:border-dark-border rounded-md text-sm px-3 py-2 text-gray-600 dark:text-slate-300 outline-none focus:ring-2 focus:ring-primary-500"
+              className="border border-gray-200 dark:border-dark-border rounded-md text-sm px-3 py-2 text-gray-600 dark:text-slate-300 outline-none focus:ring-2 focus:ring-primary-500 dark:bg-dark-card"
             >
               <option value="Default">Sort: Default</option>
               <option value="Title A-Z">Title A-Z</option>
@@ -508,7 +755,7 @@ export default function Literatures() {
             <select 
               value={availabilityFilter}
               onChange={e => setAvailabilityFilter(e.target.value)}
-              className="border border-gray-200 dark:border-dark-border rounded-md text-sm px-3 py-2 text-gray-600 dark:text-slate-300 outline-none focus:ring-2 focus:ring-primary-500"
+              className="border border-gray-200 dark:border-dark-border rounded-md text-sm px-3 py-2 text-gray-600 dark:text-slate-300 outline-none focus:ring-2 focus:ring-primary-500 dark:bg-dark-card"
             >
               <option value="All Books">All Books</option>
               <option value="Available">Available</option>
@@ -518,20 +765,28 @@ export default function Literatures() {
             </select>
 
             <div className="flex border border-gray-200 dark:border-dark-border rounded-md overflow-hidden">
-              <button className="px-3 py-2 bg-gray-100 text-gray-600 dark:text-slate-300 border-r border-gray-200 dark:border-dark-border"><List size={16} /></button>
-              <button className="px-3 py-2 bg-white dark:bg-dark-card text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:text-slate-300"><Grid size={16} /></button>
+              <button className="px-3 py-2 bg-gray-100 text-gray-600 dark:text-slate-300 dark:bg-dark-bg border-r border-gray-200 dark:border-dark-border" title="List View"><List size={16} /></button>
+              <button className="px-3 py-2 bg-white dark:bg-dark-card text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:text-slate-300" title="Grid View"><Grid size={16} /></button>
             </div>
           </div>
         </div>
       </div>
 
-      <span className="text-xs text-gray-500 dark:text-slate-400 font-medium">Showing {filteredBooks.length} of {books.length} books</span>
+      <div className="flex items-center justify-between text-xs text-gray-500 dark:text-slate-400">
+        <span className="font-medium">Showing {filteredBooks.length} of {books.length} active books</span>
+        <button 
+          onClick={handleOpenYearArchiveModal}
+          className="text-amber-700 dark:text-amber-400 font-semibold hover:underline flex items-center gap-1"
+        >
+          <Archive size={13} /> Need to archive older editions? Run year-based archive
+        </button>
+      </div>
 
       {/* Data Table */}
       <div className="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-lg overflow-hidden shadow-sm">
         <table className="w-full text-left border-collapse whitespace-nowrap">
           <thead>
-            <tr className="border-b border-gray-200 dark:border-dark-border text-xs font-semibold text-gray-600 dark:text-slate-300">
+            <tr className="border-b border-gray-200 dark:border-dark-border text-xs font-semibold text-gray-600 dark:text-slate-300 bg-gray-50/50 dark:bg-dark-bg">
               <th className="px-4 py-3 w-8">
                 <input 
                   type="checkbox" 
@@ -552,9 +807,9 @@ export default function Literatures() {
               <th className="px-4 py-3 text-center">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100 text-xs">
+          <tbody className="divide-y divide-gray-100 dark:divide-dark-border text-xs">
             {filteredBooks.map((book, idx) => (
-              <tr key={book.id} className={`hover:bg-gray-50 dark:bg-dark-bg ${selectedBooks.includes(book.id) ? 'bg-primary-50/50' : ''}`}>
+              <tr key={book.id} className={`hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors ${selectedBooks.includes(book.id) ? 'bg-primary-50/50 dark:bg-purple-950/20' : ''}`}>
                 <td className="px-4 py-3">
                   <input 
                     type="checkbox" 
@@ -564,22 +819,22 @@ export default function Literatures() {
                   />
                 </td>
                 <td className="px-4 py-3 text-gray-400 dark:text-slate-500">{idx + 1}</td>
-                <td className="px-4 py-3 font-medium text-gray-700">{book.isbn}</td>
+                <td className="px-4 py-3 font-medium text-gray-700 dark:text-slate-300">{book.isbn}</td>
                 <td className="px-4 py-3 whitespace-normal min-w-[200px]">
                   <div className="flex flex-col">
                     <span className="font-bold text-gray-900 dark:text-slate-200 line-clamp-2">{book.title}</span>
-                    <span className={`text-[10px] font-medium ${book.available > 0 ? 'text-yellow-600' : 'text-red-500'}`}>
+                    <span className={`text-[10px] font-medium ${book.available > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
                       {book.available}/{book.total} available
                     </span>
                   </div>
                 </td>
                 <td className="px-4 py-3 text-gray-600 dark:text-slate-300 whitespace-normal min-w-[150px]">{book.author}</td>
-                <td className="px-4 py-3 text-primary-600 font-medium">{book.lccn}</td>
+                <td className="px-4 py-3 text-primary-600 dark:text-primary-400 font-medium">{book.lccn}</td>
                 <td className="px-4 py-3 text-gray-600 dark:text-slate-300">{book.year}</td>
                 <td className="px-4 py-3 text-gray-600 dark:text-slate-300">{book.stocks}</td>
                 <td className="px-4 py-3">
-                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold bg-red-50 text-red-600 border border-red-100">
-                    <div className="w-1.5 h-1.5 rounded-full bg-red-500"></div> {book.genre}
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                    <div className="w-1.5 h-1.5 rounded-full bg-purple-500"></div> {book.genre}
                   </span>
                 </td>
                 <td className="px-4 py-3">
@@ -588,38 +843,58 @@ export default function Literatures() {
                   </span>
                 </td>
                 <td className="px-4 py-3">
-                  <div className="flex justify-center gap-2">
-                    <button onClick={() => handleViewQRCode(book)} className="text-gray-400 dark:text-slate-500 hover:text-primary-600"><QrCode size={14} /></button>
-                    <button onClick={() => handleEditClick(book)} className="text-gray-400 dark:text-slate-500 hover:text-primary-600"><Edit3 size={14} /></button>
-                    <button onClick={() => handleDelete(book.id)} className="text-gray-400 dark:text-slate-500 hover:text-red-600"><Trash2 size={14} /></button>
+                  <div className="flex justify-center items-center gap-2">
+                    <button onClick={() => handleViewQRCode(book)} className="text-gray-400 dark:text-slate-500 hover:text-primary-600 dark:hover:text-primary-400 p-1 rounded" title="View QR Code">
+                      <QrCode size={14} />
+                    </button>
+                    <button onClick={() => handleEditClick(book)} className="text-gray-400 dark:text-slate-500 hover:text-primary-600 dark:hover:text-primary-400 p-1 rounded" title="Edit Literature">
+                      <Edit3 size={14} />
+                    </button>
+                    <button onClick={() => handleOpenArchiveSingle(book)} className="text-gray-400 dark:text-slate-500 hover:text-amber-600 dark:hover:text-amber-400 p-1 rounded" title="Archive Literature">
+                      <Archive size={14} />
+                    </button>
+                    <button onClick={() => handleDelete(book.id)} className="text-gray-400 dark:text-slate-500 hover:text-red-600 p-1 rounded" title="Delete Literature">
+                      <Trash2 size={14} />
+                    </button>
                   </div>
                 </td>
               </tr>
             ))}
             {filteredBooks.length === 0 && (
-              <tr><td colSpan="11" className="p-8 text-center text-gray-400 dark:text-slate-500">No books found.</td></tr>
+              <tr>
+                <td colSpan="11" className="p-12 text-center text-gray-400 dark:text-slate-500">
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <BookOpen size={36} className="text-gray-300 dark:text-slate-600 stroke-[1.5]" />
+                    <p className="font-semibold text-gray-600 dark:text-slate-400">No active books found</p>
+                    <p className="text-xs text-gray-400 dark:text-slate-500">Try changing your search query or filters.</p>
+                  </div>
+                </td>
+              </tr>
             )}
           </tbody>
         </table>
       </div>
 
-      {/* Floating Toolbar for Selection */}
+      {/* Floating Toolbar for Active Selection */}
       {selectedBooks.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-full shadow-lg px-2 py-1.5 flex items-center gap-2 z-50 animate-fade-in">
-          <div className="flex items-center gap-2 px-3 py-1 bg-primary-50 text-primary-800 rounded-full text-sm font-semibold">
-            <CheckSquare size={16} /> {selectedBooks.length} selected <span className="text-[10px] bg-primary-200 px-1.5 py-0.5 rounded ml-1">of {filteredBooks.length}</span>
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-full shadow-lg px-3 py-1.5 flex items-center gap-2 z-50 animate-fade-in">
+          <div className="flex items-center gap-2 px-3 py-1 bg-primary-50 dark:bg-primary-950/60 text-primary-800 dark:text-primary-300 rounded-full text-sm font-semibold">
+            <CheckSquare size={16} /> {selectedBooks.length} selected <span className="text-[10px] bg-primary-200 dark:bg-primary-800 text-primary-900 dark:text-white px-1.5 py-0.5 rounded ml-1">of {filteredBooks.length}</span>
           </div>
-          <div className="w-px h-5 bg-gray-200 mx-1"></div>
-          <button onClick={handleEditSelected} className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:bg-dark-bg rounded-full transition-colors">
+          <div className="w-px h-5 bg-gray-200 dark:bg-dark-border mx-1"></div>
+          <button onClick={handleEditSelected} className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-dark-hover rounded-full transition-colors">
             <Edit3 size={16} /> Edit Selected
           </button>
-          <button onClick={handleExportCSV} className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:bg-dark-bg rounded-full transition-colors">
+          <button onClick={handleBulkArchive} className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40 rounded-full transition-colors">
+            <Archive size={16} /> Archive Selected
+          </button>
+          <button onClick={handleExportCSV} className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-dark-hover rounded-full transition-colors">
             <Download size={16} /> Export
           </button>
-          <button onClick={handleBulkDelete} className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 rounded-full transition-colors">
+          <button onClick={handleBulkDelete} className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-full transition-colors">
             <Trash2 size={16} /> Delete
           </button>
-          <div className="w-px h-5 bg-gray-200 mx-1"></div>
+          <div className="w-px h-5 bg-gray-200 dark:bg-dark-border mx-1"></div>
           <button onClick={clearSelection} className="p-1.5 text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:text-slate-300 rounded-full hover:bg-gray-100 dark:hover:bg-dark-hover">
             <X size={16} />
           </button>
@@ -628,12 +903,269 @@ export default function Literatures() {
     </div>
   );
 
+  const renderArchivedCatalog = () => {
+    const oldestYear = archivedBooks.reduce((min, b) => {
+      const y = parseInt(b.year, 10);
+      if (!isNaN(y) && y > 0) return min === null ? y : Math.min(min, y);
+      return min;
+    }, null);
+
+    const totalArchivedCopies = archivedBooks.reduce((sum, b) => sum + (parseInt(b.total, 10) || 0), 0);
+
+    let filteredArchived = archivedBooks.filter(b => {
+      const q = archivedSearchQuery.toLowerCase();
+      const matchQuery = !q || (b.title || '').toLowerCase().includes(q) ||
+                         (b.author || '').toLowerCase().includes(q) ||
+                         (b.isbn || '').toLowerCase().includes(q) ||
+                         (b.lccn || '').toLowerCase().includes(q) ||
+                         String(b.year || '').includes(q);
+      return matchQuery;
+    });
+
+    filteredArchived.sort((a, b) => {
+      if (archivedSortBy === 'Title A-Z') return (a.title || '').localeCompare(b.title || '');
+      if (archivedSortBy === 'Title Z-A') return (b.title || '').localeCompare(a.title || '');
+      if (archivedSortBy === 'Year Newest') return parseInt(b.year || 0) - parseInt(a.year || 0);
+      if (archivedSortBy === 'Year Oldest') return parseInt(a.year || 0) - parseInt(b.year || 0);
+      if (archivedSortBy === 'Recently Archived') {
+        return new Date(b.updated_at || 0) - new Date(a.updated_at || 0);
+      }
+      return 0;
+    });
+
+    return (
+      <div className="flex flex-col gap-5 animate-fade-in pb-20 relative">
+        {/* Stats Row */}
+        <div className="grid grid-cols-4 gap-4">
+          <div className="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-lg p-3 flex items-center gap-4">
+            <div className="w-10 h-10 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+              <Archive size={20} />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-lg font-bold text-gray-800 dark:text-slate-200 leading-tight">{archivedBooks.length}</span>
+              <span className="text-xs text-gray-500 dark:text-slate-400">Archived Titles</span>
+            </div>
+          </div>
+          <div className="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-lg p-3 flex items-center gap-4">
+            <div className="w-10 h-10 rounded bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+              <BookCopy size={20} />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-lg font-bold text-gray-800 dark:text-slate-200 leading-tight">{totalArchivedCopies}</span>
+              <span className="text-xs text-gray-500 dark:text-slate-400">Archived Copies</span>
+            </div>
+          </div>
+          <div className="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-lg p-3 flex items-center gap-4">
+            <div className="w-10 h-10 rounded bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+              <Calendar size={20} />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-lg font-bold text-gray-800 dark:text-slate-200 leading-tight">{oldestYear ? oldestYear : 'N/A'}</span>
+              <span className="text-xs text-gray-500 dark:text-slate-400">Oldest Published</span>
+            </div>
+          </div>
+          <div className="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-lg p-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-400 flex items-center justify-center">
+                <ArchiveRestore size={20} />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xs font-bold text-gray-700 dark:text-slate-300">Batch Archive</span>
+                <span className="text-[11px] text-gray-500 dark:text-slate-400">Filter by year</span>
+              </div>
+            </div>
+            <button 
+              onClick={handleOpenYearArchiveModal}
+              className="px-3 py-1.5 bg-amber-600 text-white rounded text-xs font-semibold hover:bg-amber-700 transition-colors shadow-sm"
+            >
+              Run Archive
+            </button>
+          </div>
+        </div>
+
+        {/* Info Callout */}
+        <div className="bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-lg p-3.5 flex items-center gap-3 text-xs text-amber-900 dark:text-amber-200">
+          <Info size={18} className="text-amber-600 dark:text-amber-400 shrink-0" />
+          <span>
+            <strong>Archived Books Repository:</strong> Items listed here are safely excluded from active circulation, student catalog search, and checkout scanning. They can be restored back to the active catalog at any time without losing historical borrow records.
+          </span>
+        </div>
+
+        {/* Toolbar */}
+        <div className="flex flex-col gap-3 mt-1">
+          <div className="flex items-center justify-between">
+            <div className="relative w-96">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500" size={16} />
+              <input 
+                type="text" 
+                value={archivedSearchQuery}
+                onChange={(e) => setArchivedSearchQuery(e.target.value)}
+                placeholder="Search archived books by title, author, ISBN..." 
+                className="w-full pl-9 pr-4 py-2 border border-gray-200 dark:border-dark-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 dark:bg-dark-bg dark:text-slate-200"
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="px-2 py-1 bg-amber-50 text-amber-700 text-xs font-bold rounded dark:bg-amber-950/50 dark:text-amber-300">{filteredArchived.length}</span>
+              
+              <select 
+                value={archivedSortBy} 
+                onChange={e => setArchivedSortBy(e.target.value)}
+                className="border border-gray-200 dark:border-dark-border rounded-md text-sm px-3 py-2 text-gray-600 dark:text-slate-300 outline-none focus:ring-2 focus:ring-amber-500 dark:bg-dark-card"
+              >
+                <option value="Recently Archived">Sort: Recently Archived</option>
+                <option value="Title A-Z">Title A-Z</option>
+                <option value="Title Z-A">Title Z-A</option>
+                <option value="Year Newest">Year Newest</option>
+                <option value="Year Oldest">Year Oldest</option>
+              </select>
+
+              <button 
+                onClick={handleExportArchivedCSV}
+                className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 dark:border-dark-border rounded-md text-sm font-medium text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-dark-hover"
+                title="Download archived books CSV"
+              >
+                <FileSpreadsheet size={16} /> Export List
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <span className="text-xs text-gray-500 dark:text-slate-400 font-medium">Showing {filteredArchived.length} of {archivedBooks.length} archived books</span>
+
+        {/* Data Table */}
+        <div className="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-lg overflow-hidden shadow-sm">
+          <table className="w-full text-left border-collapse whitespace-nowrap">
+            <thead>
+              <tr className="border-b border-gray-200 dark:border-dark-border text-xs font-semibold text-gray-600 dark:text-slate-300 bg-gray-50/50 dark:bg-dark-bg">
+                <th className="px-4 py-3 w-8">
+                  <input 
+                    type="checkbox" 
+                    checked={selectedArchivedBooks.length === filteredArchived.length && filteredArchived.length > 0}
+                    onChange={(e) => handleSelectAllArchived(e, filteredArchived)}
+                    className="rounded border-gray-300" 
+                  />
+                </th>
+                <th className="px-4 py-3 w-12">#</th>
+                <th className="px-4 py-3">ISBN</th>
+                <th className="px-4 py-3">Title</th>
+                <th className="px-4 py-3">Author</th>
+                <th className="px-4 py-3">LCCN / Call No.</th>
+                <th className="px-4 py-3">Year</th>
+                <th className="px-4 py-3">Copies</th>
+                <th className="px-4 py-3">Genre</th>
+                <th className="px-4 py-3">Date Archived</th>
+                <th className="px-4 py-3 text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-dark-border text-xs">
+              {filteredArchived.map((book, idx) => (
+                <tr key={book.id} className={`hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors ${selectedArchivedBooks.includes(book.id) ? 'bg-amber-50/50 dark:bg-amber-950/20' : ''}`}>
+                  <td className="px-4 py-3">
+                    <input 
+                      type="checkbox" 
+                      checked={selectedArchivedBooks.includes(book.id)}
+                      onChange={() => handleSelectOneArchived(book.id)}
+                      className="rounded border-gray-300 accent-amber-600" 
+                    />
+                  </td>
+                  <td className="px-4 py-3 text-gray-400 dark:text-slate-500">{idx + 1}</td>
+                  <td className="px-4 py-3 font-medium text-gray-700 dark:text-slate-300">{book.isbn}</td>
+                  <td className="px-4 py-3 whitespace-normal min-w-[200px]">
+                    <div className="flex flex-col">
+                      <span className="font-bold text-gray-900 dark:text-slate-200 line-clamp-2">{book.title}</span>
+                      <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">Archived</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-gray-600 dark:text-slate-300 whitespace-normal min-w-[150px]">{book.author}</td>
+                  <td className="px-4 py-3 text-gray-600 dark:text-slate-400 font-medium">{book.lccn}</td>
+                  <td className="px-4 py-3 font-semibold text-gray-700 dark:text-slate-300">{book.year}</td>
+                  <td className="px-4 py-3 text-gray-600 dark:text-slate-300">{book.total}</td>
+                  <td className="px-4 py-3">
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 dark:bg-dark-border text-gray-700 dark:text-slate-300 border border-gray-200 dark:border-slate-700">
+                      {book.genre}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-gray-500 dark:text-slate-400">
+                    {book.updated_at ? new Date(book.updated_at).toLocaleDateString() : 'N/A'}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex justify-center items-center gap-2">
+                      <button 
+                        onClick={() => handleOpenRestoreSingle(book)} 
+                        className="flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-900/60 border border-emerald-200 dark:border-emerald-800 rounded font-medium transition-colors"
+                        title="Restore Book to Active Catalog"
+                      >
+                        <RotateCcw size={13} />
+                        <span>Restore</span>
+                      </button>
+                      <button 
+                        onClick={() => handleDelete(book.id)} 
+                        className="text-gray-400 dark:text-slate-500 hover:text-red-600 p-1 rounded transition-colors"
+                        title="Delete Permanently"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {filteredArchived.length === 0 && (
+                <tr>
+                  <td colSpan="11" className="p-12 text-center text-gray-400 dark:text-slate-500">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <Archive size={36} className="text-gray-300 dark:text-slate-600 stroke-[1.5]" />
+                      <p className="font-semibold text-gray-600 dark:text-slate-400">No archived books found</p>
+                      <p className="text-xs text-gray-400 dark:text-slate-500">
+                        {archivedBooks.length === 0 
+                          ? "You have not archived any books yet. Use 'Archive by Year' or the row archive action to retire older items." 
+                          : "No archived books match your search filters."}
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Floating Toolbar for Archived Selection */}
+        {selectedArchivedBooks.length > 0 && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-full shadow-lg px-3 py-1.5 flex items-center gap-2 z-50 animate-fade-in">
+            <div className="flex items-center gap-2 px-3 py-1 bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 rounded-full text-sm font-semibold">
+              <CheckSquare size={16} /> {selectedArchivedBooks.length} selected <span className="text-[10px] bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-white px-1.5 py-0.5 rounded ml-1">of {filteredArchived.length}</span>
+            </div>
+            <div className="w-px h-5 bg-gray-200 dark:bg-dark-border mx-1"></div>
+            <button 
+              onClick={handleBulkRestore} 
+              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-full transition-colors"
+            >
+              <RotateCcw size={16} /> Restore Selected
+            </button>
+            <button 
+              onClick={handleBulkDeleteArchived} 
+              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-full transition-colors"
+            >
+              <Trash2 size={16} /> Delete Selected
+            </button>
+            <div className="w-px h-5 bg-gray-200 dark:bg-dark-border mx-1"></div>
+            <button 
+              onClick={clearArchivedSelection} 
+              className="p-1.5 text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:text-slate-300 rounded-full hover:bg-gray-100 dark:hover:bg-dark-hover"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderAuthorCatalog = () => (
     <div className="flex flex-col gap-4 animate-fade-in relative pb-20">
       <div className="flex items-center justify-between mb-2">
         <div className="relative w-96">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500" size={16} />
-          <input type="text" placeholder="Search by author name..." className="w-full pl-9 pr-4 py-2 border border-gray-200 dark:border-dark-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+          <input type="text" placeholder="Search by author name..." className="w-full pl-9 pr-4 py-2 border border-gray-200 dark:border-dark-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-dark-bg dark:text-slate-200" />
         </div>
         <span className="text-sm text-gray-500 dark:text-slate-400 flex items-center gap-2"><User size={16} /> {authors.length} authors</span>
       </div>
@@ -642,7 +1174,7 @@ export default function Literatures() {
         <div key={author.id} className="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-xl shadow-sm overflow-hidden transition-all">
           <div className="p-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-hover" onClick={() => toggleAuthor(author.id)}>
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-full bg-primary-100 text-primary-800 font-bold flex items-center justify-center text-sm">
+              <div className="w-10 h-10 rounded-full bg-primary-100 text-primary-800 dark:bg-purple-900 dark:text-purple-200 font-bold flex items-center justify-center text-sm">
                 {author.name.charAt(0)}
               </div>
               <div className="flex flex-col">
@@ -680,7 +1212,7 @@ export default function Literatures() {
                     </tr>
                   ))}
                   {books.filter(b => b.author === author.name).length === 0 && (
-                    <tr><td colSpan="6" className="px-6 py-4 text-center text-gray-500 text-xs">No books available for this author.</td></tr>
+                    <tr><td colSpan="6" className="px-6 py-4 text-center text-gray-500 text-xs">No active books available for this author.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -696,7 +1228,7 @@ export default function Literatures() {
       <div className="flex items-center justify-between mb-2">
         <div className="relative w-96">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500" size={16} />
-          <input type="text" placeholder="Search by genre name..." className="w-full pl-9 pr-4 py-2 border border-gray-200 dark:border-dark-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+          <input type="text" placeholder="Search by genre name..." className="w-full pl-9 pr-4 py-2 border border-gray-200 dark:border-dark-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-dark-bg dark:text-slate-200" />
         </div>
         <span className="text-sm text-gray-500 dark:text-slate-400 flex items-center gap-2"><Tag size={16} /> {genres.length} genres</span>
       </div>
@@ -732,7 +1264,7 @@ export default function Literatures() {
                       <th className="px-4 py-3 font-semibold">Shelf</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-50">
+                  <tbody className="divide-y divide-gray-50 dark:divide-dark-border">
                     {books.filter(b => b.genre === genre.name).map(book => (
                       <tr key={book.id} className="hover:bg-gray-50 dark:hover:bg-dark-hover">
                         <td className="px-4 py-3 font-bold text-gray-800 dark:text-slate-300">{book.title}</td>
@@ -743,7 +1275,7 @@ export default function Literatures() {
                       </tr>
                     ))}
                     {books.filter(b => b.genre === genre.name).length === 0 && (
-                      <tr><td colSpan="5" className="px-4 py-4 text-center text-gray-500 text-xs">No books available for this genre.</td></tr>
+                      <tr><td colSpan="5" className="px-4 py-4 text-center text-gray-500 text-xs">No active books available for this genre.</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -760,10 +1292,10 @@ export default function Literatures() {
       <div className="flex items-center justify-between">
         <div className="relative w-96">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500" size={16} />
-          <input type="text" placeholder="Search by title, author, ISBN, or LCCN..." className="w-full pl-9 pr-4 py-2 border border-gray-200 dark:border-dark-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+          <input type="text" placeholder="Search by title, author, ISBN, or LCCN..." className="w-full pl-9 pr-4 py-2 border border-gray-200 dark:border-dark-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-dark-bg dark:text-slate-200" />
         </div>
         <div className="flex gap-3">
-          <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 dark:border-dark-border rounded bg-white dark:bg-dark-card text-sm font-medium text-gray-700 hover:bg-gray-50 dark:bg-dark-bg shadow-sm">
+          <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 dark:border-dark-border rounded bg-white dark:bg-dark-card text-sm font-medium text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-dark-hover shadow-sm">
             <QrCode size={16} /> Generate QR Codes
           </button>
           <div className={`overflow-hidden transition-all duration-300 transform origin-left ${selectedQRs.length > 0 ? 'max-w-[200px] opacity-100 scale-100' : 'max-w-0 opacity-0 scale-50 -ml-3'}`}>
@@ -775,10 +1307,10 @@ export default function Literatures() {
       </div>
 
       {selectedQRs.length > 0 && (
-        <div className="flex items-center gap-4 bg-purple-50 dark:bg-purple-900/20 rounded-md px-4 py-2 text-sm font-medium text-purple-800 dark:text-purple-300">
+        <div className="flex items-center gap-4 bg-purple-50 dark:bg-purple-950/40 rounded-md px-4 py-2 text-sm font-medium text-purple-800 dark:text-purple-300">
           <span>{selectedQRs.length} selected</span>
-          <button onClick={() => setSelectedQRs([])} className="text-purple-600 dark:text-purple-400 hover:text-purple-900 dark:hover:text-purple-300">Clear</button>
-          <button onClick={() => setSelectedQRs(books.map(b => b.id))} className="text-purple-600 dark:text-purple-400 hover:text-purple-900 dark:hover:text-purple-300">Select All</button>
+          <button onClick={() => setSelectedQRs([])} className="text-purple-600 dark:text-purple-400 hover:text-purple-900">Clear</button>
+          <button onClick={() => setSelectedQRs(books.map(b => b.id))} className="text-purple-600 dark:text-purple-400 hover:text-purple-900">Select All</button>
         </div>
       )}
 
@@ -821,6 +1353,23 @@ export default function Literatures() {
         onChange={handleImportFile} 
       />
 
+      {/* Global Action Toast / Alert */}
+      {actionAlert && (
+        <div className={`fixed top-4 right-6 z-50 flex items-center gap-2 px-4 py-2.5 rounded-lg shadow-lg border text-sm font-medium animate-fade-in ${
+          actionAlert.type === 'error' 
+            ? 'bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200' 
+            : actionAlert.type === 'info'
+            ? 'bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200'
+            : 'bg-emerald-50 dark:bg-emerald-950 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200'
+        }`}>
+          {actionAlert.type === 'error' ? <AlertCircle size={16} /> : <Check size={16} />}
+          <span>{actionAlert.message}</span>
+          <button onClick={() => setActionAlert(null)} className="ml-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
       <header className={`h-16 flex items-center justify-between px-8 bg-white dark:bg-dark-card border-b border-gray-200 dark:border-dark-border shrink-0 relative z-30 ${activeTab === 'QR of Literatures' ? 'print:hidden' : ''}`}>
         <div className="flex items-center gap-3">
           <div className="p-1.5 border border-gray-200 dark:border-dark-border rounded text-gray-500 dark:text-slate-400">
@@ -828,7 +1377,7 @@ export default function Literatures() {
           </div>
           <div className="flex flex-col">
             <h1 className="text-base font-bold text-gray-900 dark:text-slate-200 leading-none">Literatures</h1>
-            <span className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Manage books, catalogs, and literature resources</span>
+            <span className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Manage books, archives, catalogs, and literature resources</span>
           </div>
         </div>
         
@@ -848,20 +1397,41 @@ export default function Literatures() {
 
           {activeTab === 'Literature Catalog' && (
             <div className="flex items-center gap-2">
-              <button onClick={handleExportCSV} className="flex items-center gap-2 px-3 py-1.5 border border-gray-200 dark:border-dark-border rounded text-xs font-medium text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-dark-hover">
+              <button onClick={handleExportCSV} className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 dark:border-dark-border rounded text-xs font-medium text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-dark-hover">
                 <FileSpreadsheet size={14} /> Export Excel
               </button>
-              <button onClick={handleExportPDF} className="flex items-center gap-2 px-3 py-1.5 border border-gray-200 dark:border-dark-border rounded text-xs font-medium text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-dark-hover">
+              <button onClick={handleExportPDF} className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 dark:border-dark-border rounded text-xs font-medium text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-dark-hover">
                 <FileText size={14} /> Export PDF
               </button>
-              <button onClick={handlePrint} className="flex items-center gap-2 px-3 py-1.5 border border-gray-200 dark:border-dark-border rounded text-xs font-medium text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-dark-hover">
+              <button onClick={handlePrint} className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 dark:border-dark-border rounded text-xs font-medium text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-dark-hover">
                 <Printer size={14} /> Print
               </button>
-              <button onClick={triggerImport} className="flex items-center gap-2 px-3 py-1.5 border border-gray-200 dark:border-dark-border rounded text-xs font-medium text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-dark-hover">
+              <button onClick={triggerImport} className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 dark:border-dark-border rounded text-xs font-medium text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-dark-hover">
                 <Upload size={14} /> Import
               </button>
-              <button onClick={handleAddClick} className="flex items-center gap-2 px-4 py-1.5 bg-primary-800 text-white rounded text-xs font-medium hover:bg-primary-900 shadow-sm ml-2">
+              <button 
+                onClick={handleOpenYearArchiveModal} 
+                className="flex items-center gap-1.5 px-3 py-1.5 border border-amber-300 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 rounded text-xs font-semibold hover:bg-amber-100 dark:hover:bg-amber-900/60 shadow-xs transition-colors"
+                title="Archive older books based on publication year"
+              >
+                <Archive size={14} /> Archive by Year
+              </button>
+              <button onClick={handleAddClick} className="flex items-center gap-2 px-4 py-1.5 bg-primary-800 text-white rounded text-xs font-medium hover:bg-primary-900 shadow-sm ml-1">
                 <Plus size={14} /> Add Book
+              </button>
+            </div>
+          )}
+
+          {activeTab === 'Archived Literatures' && (
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={handleOpenYearArchiveModal} 
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 text-white rounded text-xs font-semibold hover:bg-amber-700 shadow-sm transition-colors"
+              >
+                <Archive size={14} /> Archive by Year
+              </button>
+              <button onClick={handleExportArchivedCSV} className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 dark:border-dark-border rounded text-xs font-medium text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-dark-hover">
+                <FileSpreadsheet size={14} /> Export Archive CSV
               </button>
             </div>
           )}
@@ -880,6 +1450,7 @@ export default function Literatures() {
         ) : (
           <>
             {activeTab === 'Literature Catalog' && renderLiteratureCatalog()}
+            {activeTab === 'Archived Literatures' && renderArchivedCatalog()}
             {activeTab === 'Author Catalog' && renderAuthorCatalog()}
             {activeTab === 'Genre Catalog' && renderGenreCatalog()}
             {activeTab === 'QR of Literatures' && renderQRCatalog()}
@@ -913,7 +1484,7 @@ export default function Literatures() {
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-dark-card rounded-xl shadow-xl w-full max-w-2xl overflow-hidden animate-fade-in flex flex-col max-h-[90vh]">
-            <div className="px-6 py-4 border-b border-gray-200 dark:border-dark-border flex justify-between items-center bg-gray-50/50">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-dark-border flex justify-between items-center bg-gray-50/50 dark:bg-dark-bg">
               <h2 className="text-lg font-bold text-gray-900 dark:text-slate-200">{editingBook ? 'Edit Literature' : 'Add New Literature'}</h2>
               <button onClick={() => setIsModalOpen(false)} className="text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:text-slate-300"><X size={20} /></button>
             </div>
@@ -921,40 +1492,40 @@ export default function Literatures() {
             <form onSubmit={handleModalSubmit} className="flex flex-col flex-1 overflow-y-auto">
               <div className="p-6 grid grid-cols-2 gap-6">
                 <div className="flex flex-col gap-1.5 col-span-2">
-                  <label className="text-sm font-semibold text-gray-700">Title <span className="text-red-500">*</span></label>
-                  <input required value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} type="text" className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="e.g. Fundamentals of Nursing" />
+                  <label className="text-sm font-semibold text-gray-700 dark:text-slate-300">Title <span className="text-red-500">*</span></label>
+                  <input required value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} type="text" className="border border-gray-300 dark:border-dark-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-dark-bg dark:text-slate-200" placeholder="e.g. Fundamentals of Nursing" />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-semibold text-gray-700">Author</label>
-                  <input value={formData.authorName} onChange={e => setFormData({...formData, authorName: e.target.value})} type="text" className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="e.g. Potter & Perry" />
+                  <label className="text-sm font-semibold text-gray-700 dark:text-slate-300">Author</label>
+                  <input value={formData.authorName} onChange={e => setFormData({...formData, authorName: e.target.value})} type="text" className="border border-gray-300 dark:border-dark-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-dark-bg dark:text-slate-200" placeholder="e.g. Potter & Perry" />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-semibold text-gray-700">Genre</label>
-                  <input value={formData.genreName} onChange={e => setFormData({...formData, genreName: e.target.value})} type="text" className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="e.g. Nursing" />
+                  <label className="text-sm font-semibold text-gray-700 dark:text-slate-300">Genre</label>
+                  <input value={formData.genreName} onChange={e => setFormData({...formData, genreName: e.target.value})} type="text" className="border border-gray-300 dark:border-dark-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-dark-bg dark:text-slate-200" placeholder="e.g. Nursing" />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-semibold text-gray-700">ISBN <span className="text-red-500">*</span></label>
-                  <input required value={formData.isbn} onChange={e => setFormData({...formData, isbn: autoFormatISBN(e.target.value)})} type="text" className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="e.g. 978-0-323-40115-4" />
+                  <label className="text-sm font-semibold text-gray-700 dark:text-slate-300">ISBN <span className="text-red-500">*</span></label>
+                  <input required value={formData.isbn} onChange={e => setFormData({...formData, isbn: autoFormatISBN(e.target.value)})} type="text" className="border border-gray-300 dark:border-dark-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-dark-bg dark:text-slate-200" placeholder="e.g. 978-0-323-40115-4" />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-semibold text-gray-700">LCCN / Call No.</label>
-                  <input value={formData.lccn} onChange={e => setFormData({...formData, lccn: e.target.value})} type="text" className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="e.g. RT41 .P67 2020" />
+                  <label className="text-sm font-semibold text-gray-700 dark:text-slate-300">LCCN / Call No.</label>
+                  <input value={formData.lccn} onChange={e => setFormData({...formData, lccn: e.target.value})} type="text" className="border border-gray-300 dark:border-dark-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-dark-bg dark:text-slate-200" placeholder="e.g. RT41 .P67 2020" />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-semibold text-gray-700">Year Published</label>
-                  <input value={formData.year_published} onChange={e => setFormData({...formData, year_published: e.target.value})} type="number" className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="YYYY" />
+                  <label className="text-sm font-semibold text-gray-700 dark:text-slate-300">Year Published</label>
+                  <input value={formData.year_published} onChange={e => setFormData({...formData, year_published: e.target.value})} type="number" className="border border-gray-300 dark:border-dark-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-dark-bg dark:text-slate-200" placeholder="YYYY" />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-semibold text-gray-700">Shelf Number</label>
-                  <input value={formData.shelf_number} onChange={e => setFormData({...formData, shelf_number: e.target.value})} type="text" className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="e.g. NS-01" />
+                  <label className="text-sm font-semibold text-gray-700 dark:text-slate-300">Shelf Number</label>
+                  <input value={formData.shelf_number} onChange={e => setFormData({...formData, shelf_number: e.target.value})} type="text" className="border border-gray-300 dark:border-dark-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-dark-bg dark:text-slate-200" placeholder="e.g. NS-01" />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-semibold text-gray-700">Total Copies <span className="text-red-500">*</span></label>
-                  <input required value={formData.total_copies} onChange={e => setFormData({...formData, total_copies: e.target.value})} type="number" min="1" className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                  <label className="text-sm font-semibold text-gray-700 dark:text-slate-300">Total Copies <span className="text-red-500">*</span></label>
+                  <input required value={formData.total_copies} onChange={e => setFormData({...formData, total_copies: e.target.value})} type="number" min="1" className="border border-gray-300 dark:border-dark-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-dark-bg dark:text-slate-200" />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-semibold text-gray-700">Condition</label>
-                  <select value={formData.condition} onChange={e => setFormData({...formData, condition: e.target.value})} className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-dark-card">
+                  <label className="text-sm font-semibold text-gray-700 dark:text-slate-300">Condition</label>
+                  <select value={formData.condition} onChange={e => setFormData({...formData, condition: e.target.value})} className="border border-gray-300 dark:border-dark-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-dark-card dark:text-slate-200">
                     <option value="EXCELLENT">EXCELLENT</option>
                     <option value="GOOD">GOOD</option>
                     <option value="FAIR">FAIR</option>
@@ -963,7 +1534,7 @@ export default function Literatures() {
                 </div>
               </div>
               <div className="px-6 py-4 border-t border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-bg flex justify-end gap-3 mt-auto shrink-0">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-dark-hover">Cancel</button>
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 border border-gray-300 dark:border-dark-border text-gray-700 dark:text-slate-300 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-dark-hover">Cancel</button>
                 <button type="submit" className="px-4 py-2 bg-primary-800 text-white rounded-md text-sm font-medium hover:bg-primary-900 shadow-sm">{editingBook ? 'Save Changes' : 'Add Literature'}</button>
               </div>
             </form>
@@ -1014,7 +1585,6 @@ export default function Literatures() {
                           const sheetName = workbook.SheetNames[0];
                           const worksheet = workbook.Sheets[sheetName];
                           const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-                          // Filter out empty rows and join by slash
                           const slashFormat = json
                             .filter(row => row.length > 0)
                             .map(row => row.map(cell => String(cell || '').trim()).join(' / '))
@@ -1031,7 +1601,7 @@ export default function Literatures() {
                   }} 
                 />
                 <Upload size={24} className="text-gray-400 dark:text-slate-500 mb-2" />
-                <span className="text-sm font-bold text-gray-800 dark:text-slate-300">Or drag & drop an Excel / .txt / .csv file here</span>
+                <span className="text-sm font-bold text-gray-800 dark:text-slate-300">Or drag and drop an Excel / .txt / .csv file here</span>
               </div>
             </div>
             
@@ -1068,7 +1638,7 @@ export default function Literatures() {
                   <select 
                     value={printConfig.type} 
                     onChange={e => setPrintConfig({...printConfig, type: e.target.value})}
-                    className="w-full appearance-none border border-gray-200 dark:border-dark-border rounded-lg px-4 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white dark:bg-dark-card"
+                    className="w-full appearance-none border border-gray-200 dark:border-dark-border rounded-lg px-4 py-2.5 text-sm text-gray-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white dark:bg-dark-card"
                   >
                     <option>Book Catalog</option>
                     <option>Author List</option>
@@ -1080,35 +1650,35 @@ export default function Literatures() {
 
               <div className="flex flex-col gap-4 py-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-gray-700">Include Header</span>
+                  <span className="text-sm font-semibold text-gray-700 dark:text-slate-300">Include Header</span>
                   <button onClick={() => setPrintConfig({...printConfig, header: !printConfig.header})} className={`${printConfig.header ? 'text-purple-600' : 'text-gray-300'}`}>
                     {printConfig.header ? <ToggleRight size={32} /> : <ToggleLeft size={32} />}
                   </button>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-gray-700">Include Timestamp</span>
+                  <span className="text-sm font-semibold text-gray-700 dark:text-slate-300">Include Timestamp</span>
                   <button onClick={() => setPrintConfig({...printConfig, timestamp: !printConfig.timestamp})} className={`${printConfig.timestamp ? 'text-purple-600' : 'text-gray-300'}`}>
                     {printConfig.timestamp ? <ToggleRight size={32} /> : <ToggleLeft size={32} />}
                   </button>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-gray-700">Landscape Orientation</span>
+                  <span className="text-sm font-semibold text-gray-700 dark:text-slate-300">Landscape Orientation</span>
                   <button onClick={() => setPrintConfig({...printConfig, landscape: !printConfig.landscape})} className={`${printConfig.landscape ? 'text-purple-600' : 'text-gray-300'}`}>
                     {printConfig.landscape ? <ToggleRight size={32} /> : <ToggleLeft size={32} />}
                   </button>
                 </div>
               </div>
 
-              <div className="bg-purple-50 rounded-lg p-3 flex items-start gap-3">
+              <div className="bg-purple-50 dark:bg-purple-950/40 rounded-lg p-3 flex items-start gap-3">
                 <FileText className="text-purple-500 shrink-0 mt-0.5" size={16} />
-                <p className="text-xs font-medium text-purple-900 leading-relaxed">
+                <p className="text-xs font-medium text-purple-900 dark:text-purple-300 leading-relaxed">
                   A new window will open with the print preview. Use Ctrl+P to print.
                 </p>
               </div>
             </div>
             
-            <div className="px-6 py-4 flex justify-end gap-3 shrink-0">
-              <button onClick={() => setIsPrintModalOpen(false)} className="px-4 py-2 border border-gray-200 dark:border-dark-border text-gray-700 bg-white dark:bg-dark-card rounded-lg text-sm font-bold hover:bg-gray-50 dark:hover:bg-dark-hover">Cancel</button>
+            <div className="px-6 py-4 flex justify-end gap-3 shrink-0 border-t border-gray-100 dark:border-dark-border">
+              <button onClick={() => setIsPrintModalOpen(false)} className="px-4 py-2 border border-gray-200 dark:border-dark-border text-gray-700 dark:text-slate-300 bg-white dark:bg-dark-card rounded-lg text-sm font-bold hover:bg-gray-50 dark:hover:bg-dark-hover">Cancel</button>
               <button onClick={executePrint} className="px-4 py-2 bg-purple-700 text-white rounded-lg text-sm font-bold hover:bg-purple-800 shadow-sm flex items-center gap-2">
                 <Printer size={16} /> Generate Print View
               </button>
@@ -1123,16 +1693,16 @@ export default function Literatures() {
           <div className="bg-white dark:bg-dark-card rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-fade-in flex flex-col">
             <div className="px-6 py-4 flex justify-between items-center relative border-b border-gray-100 dark:border-dark-border">
               <div className="flex items-center gap-3">
-                <QrCode className="text-purple-800" size={20} />
+                <QrCode className="text-purple-800 dark:text-purple-400" size={20} />
                 <h2 className="text-base font-bold text-gray-900 dark:text-slate-200">Book QR Code</h2>
               </div>
               <button onClick={() => setIsQRModalOpen(false)} className="text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:text-slate-300"><X size={18} /></button>
             </div>
             
             <div className="p-6 flex flex-col items-center gap-4 text-center">
-              <p className="text-sm text-gray-600 dark:text-slate-300">"{selectedQRBook.title}" — {selectedQRBook.isbn}</p>
+              <p className="text-sm text-gray-600 dark:text-slate-300">"{selectedQRBook.title}" - {selectedQRBook.isbn}</p>
               
-              <div className="bg-white dark:bg-dark-card p-4 border border-gray-200 dark:border-dark-border rounded-xl shadow-sm inline-block">
+              <div className="bg-white p-4 border border-gray-200 rounded-xl shadow-sm inline-block">
                 {(() => {
                   const QR = QRCode.default || QRCode.QRCode || QRCode;
                   return <QR id="qr-code-svg" value={String(selectedQRBook.qr_code || selectedQRBook.isbn || selectedQRBook.id || 'UNKNOWN')} size={180} fgColor="#006644" />;
@@ -1140,8 +1710,8 @@ export default function Literatures() {
               </div>
               
               <div className="flex flex-col gap-1">
-                <p className="text-sm font-bold text-purple-900">QR Code: {selectedQRBook.qr_code || selectedQRBook.isbn || selectedQRBook.id}</p>
-                <p className="text-xs text-gray-500 dark:text-slate-400">Scan this code to identify the book during borrowing/returning</p>
+                <p className="text-sm font-bold text-purple-900 dark:text-purple-300">QR Code: {selectedQRBook.qr_code || selectedQRBook.isbn || selectedQRBook.id}</p>
+                <p className="text-xs text-gray-500 dark:text-slate-400">Scan this code to identify the book during borrowing or returning</p>
               </div>
             </div>
             
@@ -1149,19 +1719,20 @@ export default function Literatures() {
               <button onClick={handleDownloadQR} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-800 text-white rounded-lg text-sm font-bold hover:bg-primary-900 shadow-sm transition-colors">
                 <Download size={16} /> Download QR Code
               </button>
-              <button onClick={() => setIsQRModalOpen(false)} className="w-full px-4 py-2.5 border border-gray-200 dark:border-dark-border text-gray-700 bg-white dark:bg-dark-card rounded-lg text-sm font-semibold hover:bg-gray-50 dark:bg-dark-bg transition-colors">
+              <button onClick={() => setIsQRModalOpen(false)} className="w-full px-4 py-2.5 border border-gray-200 dark:border-dark-border text-gray-700 dark:text-slate-300 bg-white dark:bg-dark-card rounded-lg text-sm font-semibold hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors">
                 Close
               </button>
             </div>
           </div>
         </div>
       )}
+
       {/* Delete Confirmation Modal */}
       {isDeleteModalOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center animate-fade-in">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center animate-fade-in p-4">
           <div className="bg-white dark:bg-dark-card w-full max-w-sm rounded-xl shadow-xl overflow-hidden">
             <div className="p-6 flex flex-col items-center text-center">
-              <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mb-4">
+              <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 dark:bg-red-950 dark:text-red-400 flex items-center justify-center mb-4">
                 <Trash2 size={24} />
               </div>
               <h3 className="text-lg font-bold text-gray-900 dark:text-slate-200 mb-2">Delete {booksToDelete.length > 1 ? `${booksToDelete.length} Books` : 'Book'}?</h3>
@@ -1171,7 +1742,7 @@ export default function Literatures() {
               <div className="flex items-center gap-3 w-full">
                 <button 
                   onClick={() => setIsDeleteModalOpen(false)}
-                  className="flex-1 py-2.5 bg-gray-100 text-gray-700 dark:bg-dark-bg dark:text-slate-300 font-semibold rounded-lg hover:bg-gray-200 transition-colors"
+                  className="flex-1 py-2.5 bg-gray-100 text-gray-700 dark:bg-dark-bg dark:text-slate-300 font-semibold rounded-lg hover:bg-gray-200 dark:hover:bg-dark-hover transition-colors"
                   disabled={isDeleting}
                 >
                   Cancel
@@ -1181,7 +1752,265 @@ export default function Literatures() {
                   className="flex-1 py-2.5 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-colors flex justify-center items-center gap-2"
                   disabled={isDeleting}
                 >
-                  {isDeleting ? 'Deleting...' : 'Delete'}
+                  {isDeleting ? <Loader2 size={16} className="animate-spin" /> : 'Delete'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Archive by Year Modal */}
+      {isYearArchiveModalOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white dark:bg-dark-card rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="px-6 py-4 border-b border-gray-100 dark:border-dark-border flex justify-between items-center bg-amber-50/50 dark:bg-amber-950/20">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 flex items-center justify-center">
+                  <Archive size={20} />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-gray-900 dark:text-slate-100 leading-tight">Archive by Publication Year</h2>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">Move older books from circulation to the archive</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsYearArchiveModalOpen(false)} 
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-200"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-6 flex flex-col gap-5 overflow-y-auto">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-slate-300 mb-1.5">
+                  Cutoff Publication Year
+                </label>
+                <p className="text-xs text-gray-500 dark:text-slate-400 mb-3">
+                  All active books published in or before this year will be archived.
+                </p>
+                
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="number" 
+                    min="1800" 
+                    max={currentCalendarYear} 
+                    value={archiveCutoffYear} 
+                    onChange={(e) => handleYearChange(e.target.value)}
+                    className="w-32 px-3 py-2 border border-gray-300 dark:border-dark-border rounded-lg text-base font-bold text-gray-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500 dark:bg-dark-bg"
+                  />
+                  <div className="flex flex-wrap gap-1.5">
+                    {[2000, 2010, 2015, 2018].map(year => (
+                      <button
+                        key={year}
+                        type="button"
+                        onClick={() => handleYearChange(year)}
+                        className={`px-2.5 py-1.5 text-xs font-semibold rounded-md border transition-colors ${
+                          parseInt(archiveCutoffYear, 10) === year
+                            ? 'bg-amber-600 text-white border-amber-600'
+                            : 'border-gray-200 dark:border-dark-border text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-dark-hover'
+                        }`}
+                      >
+                        ≤ {year}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Preview Card */}
+              <div className="bg-gray-50 dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-xl p-4 flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wide text-gray-600 dark:text-slate-300">Archive Impact Preview</span>
+                  {isLoadingPreview && (
+                    <span className="flex items-center gap-1 text-xs text-gray-500">
+                      <Loader2 size={12} className="animate-spin" /> Calculating...
+                    </span>
+                  )}
+                </div>
+
+                {yearPreviewData ? (
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div className="bg-white dark:bg-dark-card p-2.5 rounded-lg border border-gray-100 dark:border-dark-border">
+                      <div className="text-base font-bold text-gray-900 dark:text-slate-200">{yearPreviewData.totalMatching}</div>
+                      <div className="text-[10px] text-gray-500 dark:text-slate-400">Total Matching</div>
+                    </div>
+                    <div className="bg-white dark:bg-dark-card p-2.5 rounded-lg border border-emerald-100 dark:border-emerald-950/60">
+                      <div className="text-base font-bold text-emerald-600 dark:text-emerald-400">{yearPreviewData.eligibleCount}</div>
+                      <div className="text-[10px] text-gray-500 dark:text-slate-400">Eligible to Archive</div>
+                    </div>
+                    <div className="bg-white dark:bg-dark-card p-2.5 rounded-lg border border-amber-100 dark:border-amber-950/60">
+                      <div className="text-base font-bold text-amber-600 dark:text-amber-400">{yearPreviewData.borrowedCount}</div>
+                      <div className="text-[10px] text-gray-500 dark:text-slate-400">Borrowed (Protected)</div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-500">Enter a year to preview matching books.</p>
+                )}
+
+                {yearPreviewData && yearPreviewData.borrowedCount > 0 && (
+                  <div className="flex items-start gap-2 text-[11px] text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 p-2.5 rounded-md border border-amber-200 dark:border-amber-900/50">
+                    <AlertTriangle size={14} className="shrink-0 mt-0.5 text-amber-600" />
+                    <span>
+                      {yearPreviewData.borrowedCount} book(s) currently have active loans and will be skipped to protect active borrowing.
+                    </span>
+                  </div>
+                )}
+
+                {yearPreviewData && yearPreviewData.eligible && yearPreviewData.eligible.length > 0 && (
+                  <div className="mt-1">
+                    <span className="text-[11px] font-semibold text-gray-600 dark:text-slate-400 mb-1 block">
+                      Sample books to be archived:
+                    </span>
+                    <div className="max-h-32 overflow-y-auto space-y-1 pr-1">
+                      {yearPreviewData.eligible.slice(0, 5).map(b => (
+                        <div key={b.id} className="text-xs flex items-center justify-between py-1 px-2 rounded bg-white dark:bg-dark-card border border-gray-100 dark:border-dark-border">
+                          <span className="truncate max-w-[260px] text-gray-800 dark:text-slate-200">{b.title}</span>
+                          <span className="text-[10px] font-medium text-gray-500 dark:text-slate-400">Year {b.year}</span>
+                        </div>
+                      ))}
+                      {yearPreviewData.eligible.length > 5 && (
+                        <p className="text-[10px] text-gray-500 text-center pt-1">+ {yearPreviewData.eligible.length - 5} more books</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Safety notice */}
+              <p className="text-[11px] text-gray-500 dark:text-slate-400 leading-relaxed">
+                Archived books are instantly hidden from student mobile search and cannot be checked out. All past borrow logs remain intact. You can view or restore these books anytime in the Archived Literatures tab.
+              </p>
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-100 dark:border-dark-border bg-gray-50/50 dark:bg-dark-bg flex justify-end gap-3 shrink-0">
+              <button 
+                type="button" 
+                onClick={() => setIsYearArchiveModalOpen(false)}
+                className="px-4 py-2 border border-gray-200 dark:border-dark-border text-gray-700 dark:text-slate-300 bg-white dark:bg-dark-card rounded-lg text-sm font-semibold hover:bg-gray-50 dark:hover:bg-dark-hover"
+                disabled={isArchivingByYear}
+              >
+                Cancel
+              </button>
+              <button 
+                type="button" 
+                onClick={handleConfirmYearArchive}
+                disabled={isArchivingByYear || !yearPreviewData || yearPreviewData.eligibleCount === 0}
+                className="px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-bold hover:bg-amber-700 shadow-sm transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isArchivingByYear ? <Loader2 size={16} className="animate-spin" /> : <Archive size={16} />}
+                <span>Archive {yearPreviewData?.eligibleCount || 0} Books</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Single / Multi-Archive Confirmation Modal */}
+      {isArchiveModalOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white dark:bg-dark-card w-full max-w-md rounded-xl shadow-xl overflow-hidden flex flex-col">
+            <div className="p-6 flex flex-col">
+              <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 flex items-center justify-center mb-4 self-center">
+                <Archive size={24} />
+              </div>
+              
+              <h3 className="text-lg font-bold text-center text-gray-900 dark:text-slate-100 mb-2">
+                {booksToArchive.length > 1 ? `Archive ${booksToArchive.length} Selected Books?` : `Archive "${booksToArchive[0]?.title}"?`}
+              </h3>
+
+              <p className="text-xs text-center text-gray-500 dark:text-slate-400 mb-4">
+                Archived books are removed from active circulation, student search, and new borrowing checkouts. You can restore them at any time.
+              </p>
+
+              {/* Check if any book has active loans */}
+              {booksToArchive.some(b => b.available < b.total) && (
+                <div className="mb-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-lg p-3 text-xs text-amber-900 dark:text-amber-300 flex items-start gap-2">
+                  <AlertTriangle size={15} className="shrink-0 mt-0.5 text-amber-600" />
+                  <div>
+                    <span className="font-bold">Notice: </span>
+                    Some selected books currently have copies on loan. Books with active loans will be automatically skipped to prevent circulation errors.
+                  </div>
+                </div>
+              )}
+
+              {booksToArchive.length > 1 && (
+                <div className="max-h-40 overflow-y-auto space-y-1 mb-4 border border-gray-100 dark:border-dark-border rounded-lg p-2 bg-gray-50 dark:bg-dark-bg">
+                  {booksToArchive.map(b => (
+                    <div key={b.id} className="text-xs flex justify-between items-center py-1 px-2 border-b border-gray-100 dark:border-dark-border last:border-0">
+                      <span className="truncate max-w-[240px] text-gray-800 dark:text-slate-200">{b.title}</span>
+                      <span className="text-[10px] text-gray-500">Year {b.year}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex items-center gap-3 mt-2">
+                <button 
+                  onClick={() => setIsArchiveModalOpen(false)}
+                  className="flex-1 py-2.5 border border-gray-200 dark:border-dark-border text-gray-700 dark:text-slate-300 font-semibold rounded-lg hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors text-sm"
+                  disabled={isArchiving}
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={confirmArchive}
+                  className="flex-1 py-2.5 bg-amber-600 text-white font-semibold rounded-lg hover:bg-amber-700 transition-colors flex justify-center items-center gap-2 text-sm"
+                  disabled={isArchiving}
+                >
+                  {isArchiving ? <Loader2 size={16} className="animate-spin" /> : <Archive size={16} />}
+                  <span>Confirm Archive</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Single / Multi-Restore Confirmation Modal */}
+      {isRestoreModalOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white dark:bg-dark-card w-full max-w-md rounded-xl shadow-xl overflow-hidden flex flex-col">
+            <div className="p-6 flex flex-col">
+              <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 flex items-center justify-center mb-4 self-center">
+                <RotateCcw size={24} />
+              </div>
+              
+              <h3 className="text-lg font-bold text-center text-gray-900 dark:text-slate-100 mb-2">
+                {booksToRestore.length > 1 ? `Restore ${booksToRestore.length} Books to Catalog?` : `Restore "${booksToRestore[0]?.title}"?`}
+              </h3>
+
+              <p className="text-xs text-center text-gray-500 dark:text-slate-400 mb-4">
+                Restoring will return these books to the active literature catalog. They will immediately become visible to students in search and available for checkout.
+              </p>
+
+              {booksToRestore.length > 1 && (
+                <div className="max-h-40 overflow-y-auto space-y-1 mb-4 border border-gray-100 dark:border-dark-border rounded-lg p-2 bg-gray-50 dark:bg-dark-bg">
+                  {booksToRestore.map(b => (
+                    <div key={b.id} className="text-xs flex justify-between items-center py-1 px-2 border-b border-gray-100 dark:border-dark-border last:border-0">
+                      <span className="truncate max-w-[240px] text-gray-800 dark:text-slate-200">{b.title}</span>
+                      <span className="text-[10px] text-gray-500">Year {b.year}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex items-center gap-3 mt-2">
+                <button 
+                  onClick={() => setIsRestoreModalOpen(false)}
+                  className="flex-1 py-2.5 border border-gray-200 dark:border-dark-border text-gray-700 dark:text-slate-300 font-semibold rounded-lg hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors text-sm"
+                  disabled={isRestoring}
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={confirmRestore}
+                  className="flex-1 py-2.5 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 transition-colors flex justify-center items-center gap-2 text-sm"
+                  disabled={isRestoring}
+                >
+                  {isRestoring ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}
+                  <span>Restore Now</span>
                 </button>
               </div>
             </div>

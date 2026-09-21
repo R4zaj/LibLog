@@ -13,7 +13,8 @@ import {
   ChevronDown,
   Wifi,
   WifiOff,
-  RefreshCw
+  RefreshCw,
+  GraduationCap
 } from 'lucide-react';
 import { AttendanceScannerProvider } from './context/AttendanceScannerContext';
 import { BorrowingProvider } from './context/BorrowingContext';
@@ -168,6 +169,7 @@ export default function MainLayout() {
           <NavItem to="/literatures" icon={BookCopy} label="Literatures" subItems={literaturesSubItems} />
           <NavItem to="/borrowing" icon={ArrowRightLeft} label="Borrowing" badge={stats.overdue > 0 ? stats.overdue.toString() : null} />
           <NavItem to="/attendance" icon={UserCheck} label="Attendance" />
+          <NavItem to="/student-activities" icon={GraduationCap} label="Student Activities" />
           <NavItem to="/reports" icon={BarChart3} label="Reports" />
           <NavItem to="/settings" icon={Settings} label="Settings" />
         </div>

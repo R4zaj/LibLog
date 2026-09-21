@@ -53,7 +53,9 @@ export default function Search() {
     setLoading(true);
     try {
       const res = await api.get<LiteratureBook[]>('/literatures/books');
-      const formatted: CatalogBook[] = res.data.map((b) => ({
+      const formatted: CatalogBook[] = (res.data || [])
+        .filter((b) => !b.is_archived)
+        .map((b) => ({
         id: b.id,
         title: b.title,
         author: b.author,

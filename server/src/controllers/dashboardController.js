@@ -9,6 +9,7 @@ const getOverview = async (req, res) => {
     const [
       totalTitles,
       booksAgg,
+      totalArchived,
       totalBorrowed,
       overdueCount,
       todayLogs,
@@ -22,8 +23,9 @@ const getOverview = async (req, res) => {
       recentBorrows,
       recentAttendance,
     ] = await Promise.all([
-      prisma.book.count(),
-      prisma.book.aggregate({ _sum: { total_copies: true } }),
+      prisma.book.count({ where: { is_archived: false } }),
+      prisma.book.aggregate({ _sum: { total_copies: true }, where: { is_archived: false } }),
+      prisma.book.count({ where: { is_archived: true } }),
       prisma.borrowRecord.count({ where: { status: 'BORROWED' } }),
       prisma.borrowRecord.count({ where: { status: 'OVERDUE' } }),
       prisma.attendanceLog.findMany({
@@ -156,6 +158,7 @@ const getOverview = async (req, res) => {
     res.json({
       totalTitles,
       totalCopies,
+      totalArchived,
       totalBorrowed,
       overdueCount,
       studentsInside: Math.max(0, studentsInside),

@@ -78,7 +78,7 @@ export default function Home() {
       ]);
 
       setActiveBorrows(borrowRes.data);
-      setBooks(booksRes.data);
+      setBooks((booksRes.data || []).filter((b) => !b.is_archived));
       setAttendanceLogs(attendanceRes.data);
 
       const rawAnnouncements = annRes.data || [];
