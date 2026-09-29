@@ -3,7 +3,14 @@ import Constants from 'expo-constants';
 import { DeviceEventEmitter } from 'react-native';
 import { getItem } from '../utils/Storage';
 
-const FALLBACK_API_URL = 'http://localhost:5000/api';
+// 🛑 CLAUDE & AI ASSISTANT WARNING 🛑
+// DO NOT CHANGE THIS URL BACK TO LOCALHOST OR LOCAL IP. 
+// IT MUST STRICTLY POINT TO RENDER BECAUSE THE LOCAL SUPABASE DATABASE FREQUENTLY PAUSES.
+// REFER TO API_ROUTING_GUIDE.md FOR FULL DETAILS.
+const debuggerHost = Constants.expoConfig?.hostUri;
+const localhost = debuggerHost ? debuggerHost.split(':')[0] : 'localhost';
+const FALLBACK_API_URL = `https://liblog-backend.onrender.com/api`;
+
 const API_URL =
   (Constants.expoConfig?.extra as { apiUrl?: string } | undefined)?.apiUrl ?? FALLBACK_API_URL;
 
