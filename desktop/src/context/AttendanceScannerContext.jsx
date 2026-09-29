@@ -80,8 +80,8 @@ export function AttendanceScannerProvider({ children }) {
       } else {
         // A failed scan used to be a console.warn only, so at the desk it just
         // looked like the camera had stopped reading QR codes.
-        const message = res.status === 401 || res.status === 403
-          ? 'Session expired - please log in again'
+        const message = (res.status === 401 || res.status === 403)
+          ? (data.error === 'Invalid or expired QR token' ? data.error : 'Session expired - please log in again')
           : (data.error || `Scan failed (${res.status})`);
         console.warn('Scan failed:', message);
         pushToast({ user: message, error: true, time: new Date().toLocaleTimeString() });
