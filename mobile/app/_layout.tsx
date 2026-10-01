@@ -35,11 +35,7 @@ export default function RootLayout() {
     if (error) throw error;
   }, [error]);
 
-  useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [loaded]);
+  // Splash screen is now hidden by AuthContext once authentication state loads
 
   if (!loaded) {
     return null;

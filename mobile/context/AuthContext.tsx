@@ -3,6 +3,7 @@ import { useRouter, useSegments } from 'expo-router';
 import { DeviceEventEmitter } from 'react-native';
 import { getItem, setItem, removeItem } from '../utils/Storage';
 import api from '../api';
+import * as SplashScreen from 'expo-splash-screen';
 import type { User } from '../types/api';
 
 interface AuthContextType {
@@ -71,6 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await removeItem('cached_user');
       } finally {
         setIsLoading(false);
+        SplashScreen.hideAsync();
       }
     };
     loadToken();
