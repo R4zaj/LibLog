@@ -217,6 +217,16 @@ const checkout = async (req, res) => {
 const getUserActiveBorrow = async (req, res) => {
   try {
     const { bookIdentifier, userIdentifier } = req.params;
+    let studentId = userIdentifier;
+
+    if (userIdentifier.length > 100) {
+      try {
+        const decoded = jwt.verify(userIdentifier, process.env.JWT_SECRET);
+        studentId = decoded.student_id;
+      } catch (err) {
+        return res.status(401).json({ error: 'Invalid or expired QR token' });
+      }
+    }
 
     const record = await prisma.borrowRecord.findFirst({
       where: {
@@ -228,8 +238,8 @@ const getUserActiveBorrow = async (req, res) => {
         },
         user: {
           OR: [
-            { student_id: userIdentifier },
-            { card_no: userIdentifier }
+            { student_id: studentId },
+            { card_no: studentId }
           ]
         },
         status: {
