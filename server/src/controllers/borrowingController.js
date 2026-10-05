@@ -291,7 +291,7 @@ const returnBook = async (req, res) => {
 
       // Secure penalty calculation
       if (new Date() > new Date(record.due_date)) {
-        const settings = await tx.settings.findFirst();
+        const settings = await tx.librarySettings.findFirst();
         const penaltyFee = settings && settings.penalty_fee_per_day 
           ? parseFloat(settings.penalty_fee_per_day) 
           : 10.0;
