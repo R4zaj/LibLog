@@ -43,20 +43,21 @@ export default function HistoryScreen() {
 
       // Process attendance
       (attendanceRes.data || []).forEach((log: any) => {
-        newEvents.push({
-          id: `att-in-${log.id}`,
-          type: 'ATTENDANCE_IN',
-          timestamp: log.logged_at,
-          title: 'Checked in to Library',
-          subtitle: new Date(log.logged_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        });
-        if (log.logged_out_at) {
+        if (log.action === 'CHECK_IN') {
+          newEvents.push({
+            id: `att-in-${log.id}`,
+            type: 'ATTENDANCE_IN',
+            timestamp: log.logged_at,
+            title: 'Time in',
+            subtitle: new Date(log.logged_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          });
+        } else if (log.action === 'CHECK_OUT') {
           newEvents.push({
             id: `att-out-${log.id}`,
             type: 'ATTENDANCE_OUT',
-            timestamp: log.logged_out_at,
-            title: 'Checked out of Library',
-            subtitle: `Duration: ${log.duration_minutes} min`
+            timestamp: log.logged_at,
+            title: 'Time out',
+            subtitle: log.duration_minutes ? `Duration: ${log.duration_minutes} min` : new Date(log.logged_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           });
         }
       });
@@ -67,7 +68,7 @@ export default function HistoryScreen() {
           id: `bor-${b.id}`,
           type: 'BORROW',
           timestamp: b.borrowed_date,
-          title: 'Borrowed Book',
+          title: 'Checked Out',
           subtitle: b.book?.title
         });
         if (b.returned_date) {
@@ -75,7 +76,7 @@ export default function HistoryScreen() {
             id: `ret-${b.id}`,
             type: 'RETURN',
             timestamp: b.returned_date,
-            title: 'Returned Book',
+            title: 'Checked In',
             subtitle: b.book?.title
           });
         }

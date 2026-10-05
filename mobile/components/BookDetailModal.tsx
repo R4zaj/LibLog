@@ -30,10 +30,9 @@ export function BookDetailModal({
       animationType="fade"
       onRequestClose={onClose}
     >
-      <Pressable onPress={onClose}>
-        <View style={[styles.overlay, { paddingTop: insets.top + 16 }]}>
-          <Pressable>
-            <View style={styles.card}>
+      <View style={[styles.overlay, { paddingTop: insets.top + 16 }]}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <View style={styles.card}>
               
               {/* Cover Placeholder Hero Well */}
               <View style={styles.coverWell}>
@@ -149,10 +148,8 @@ export function BookDetailModal({
                 )}
               </ScrollView>
               
-            </View>
-          </Pressable>
         </View>
-      </Pressable>
+      </View>
     </Modal>
   );
 }
