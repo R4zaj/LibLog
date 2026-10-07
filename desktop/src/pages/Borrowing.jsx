@@ -41,6 +41,7 @@ export default function Borrowing() {
   const [stats, setStats] = useState({ active: 0, overdue: 0, returned: 0 });
   const [successMessage, setSuccessMessage] = useState(null);
   const [confirmPenaltyId, setConfirmPenaltyId] = useState(null);
+  const [penaltyCondition, setPenaltyCondition] = useState('RETURNED');
   
   // Borrow Option State
   const [borrowType, setBorrowType] = useState('TAKE_OUT');
@@ -140,7 +141,14 @@ export default function Borrowing() {
     const id = confirmPenaltyId;
     setConfirmPenaltyId(null);
     try {
-      const res = await fetchWithOfflineSupport(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/borrowing/penalties/${id}/pay`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }, method: 'POST' });
+      const res = await fetchWithOfflineSupport(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/borrowing/penalties/${id}/pay`, { 
+        headers: { 
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }, 
+        method: 'POST',
+        body: JSON.stringify({ condition: penaltyCondition })
+      });
       if (res.ok) {
         setSuccessMessage('Penalty Marked as Paid!');
         fetchPenalties();
@@ -541,15 +549,15 @@ export default function Borrowing() {
                 to { transform: scale(1); opacity: 1; }
               }
             `}</style>
-            <div className="bg-emerald-100 dark:bg-emerald-900/30 p-4 rounded-full mb-6">
-              <CheckCircle className="text-emerald-500 dark:text-emerald-400 w-16 h-16" />
+            <div className="bg-primary-100 dark:bg-primary-900/30 p-4 rounded-full mb-6">
+              <CheckCircle className="text-primary-600 dark:text-primary-400 w-16 h-16" />
             </div>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-8 text-center">
               {successMessage}
             </h2>
             <button 
               onClick={() => setSuccessMessage(null)}
-              className="bg-emerald-500 text-white px-10 py-3 rounded-xl font-bold text-lg hover:bg-emerald-600 transition-colors shadow-lg shadow-emerald-500/30 w-full"
+              className="bg-primary-800 text-white px-10 py-3 rounded-xl font-bold text-lg hover:bg-primary-900 transition-colors shadow-lg shadow-primary-800/30 w-full"
             >
               Done
             </button>
@@ -564,15 +572,27 @@ export default function Borrowing() {
             className="bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-2xl flex flex-col items-center justify-center"
             style={{ minWidth: '340px', animation: 'scaleUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}
           >
-            <div className="bg-amber-100 dark:bg-amber-900/30 p-4 rounded-full mb-6">
-              <DollarSign className="text-amber-500 dark:text-amber-400 w-14 h-14" />
+            <div className="bg-primary-100 dark:bg-primary-900/30 p-4 rounded-full mb-6">
+              <DollarSign className="text-primary-600 dark:text-primary-400 w-14 h-14" />
             </div>
             <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2 text-center">
               Mark as Paid?
             </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-8 text-center">
-              Are you sure you want to mark this penalty as paid?
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 text-center">
+              Confirm the book condition and mark this penalty as paid.
             </p>
+            <div className="w-full mb-6">
+              <label className="block text-sm font-bold text-gray-700 dark:text-slate-300 mb-2">Book Condition</label>
+              <select 
+                value={penaltyCondition}
+                onChange={(e) => setPenaltyCondition(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 dark:border-dark-border rounded-lg text-sm focus:ring-1 focus:ring-primary-500 bg-white dark:bg-dark-bg dark:text-slate-200"
+              >
+                <option value="RETURNED">Returned</option>
+                <option value="DAMAGED">Damaged</option>
+                <option value="LOST">Lost</option>
+              </select>
+            </div>
             <div className="flex gap-3 w-full">
               <button 
                 onClick={() => setConfirmPenaltyId(null)}
@@ -582,7 +602,7 @@ export default function Borrowing() {
               </button>
               <button 
                 onClick={confirmPayPenalty}
-                className="flex-1 bg-amber-500 text-white py-3 rounded-xl font-bold text-base hover:bg-amber-600 transition-colors shadow-lg shadow-amber-500/30"
+                className="flex-1 bg-primary-800 text-white py-3 rounded-xl font-bold text-base hover:bg-primary-900 transition-colors shadow-lg shadow-primary-800/30"
               >
                 Confirm
               </button>

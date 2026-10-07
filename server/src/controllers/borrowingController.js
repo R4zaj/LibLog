@@ -164,6 +164,10 @@ const checkout = async (req, res) => {
       return res.status(400).json({ error: 'Book is not available' });
     }
 
+    if (book.available_copies <= 2 && borrowType === 'TAKE_OUT') {
+      return res.status(400).json({ error: 'This book has 2 or fewer copies available and can only be read inside the library.' });
+    }
+
     const user = await prisma.user.findUnique({ where: { id: uId } });
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -410,19 +414,61 @@ const getPenalties = async (req, res) => {
 const payPenalty = async (req, res) => {
   try {
     const { id } = req.params;
+    const { condition = 'RETURNED' } = req.body;
 
-    const penalty = await prisma.penalty.update({
+    const penalty = await prisma.penalty.findUnique({ 
       where: { id: parseInt(id) },
-      data: { status: 'PAID', paid_at: new Date() }
+      include: { borrow: true }
     });
+    
+    if (!penalty) {
+      return res.status(404).json({ error: 'Penalty not found' });
+    }
 
-    await prisma.notification.create({
-      data: {
-        category: 'PENALTIES',
-        title: 'Penalty Paid',
-        message: `Your penalty of $${penalty.amount} was marked as paid.`,
-        target_user_id: penalty.user_id,
+    await prisma.$transaction(async (tx) => {
+      let finalAmount = parseFloat(penalty.amount);
+      const settings = await tx.librarySettings.findFirst();
+
+      if (condition === 'DAMAGED') {
+        finalAmount += parseFloat(settings?.damage_fee || 5.00);
+        await tx.borrowRecord.update({
+          where: { id: penalty.borrow_id },
+          data: { status: 'RETURNED' }
+        });
+        await tx.book.update({
+          where: { id: penalty.borrow.book_id },
+          data: { condition: 'POOR' }
+        });
+      } else if (condition === 'LOST') {
+        finalAmount += parseFloat(settings?.lost_book_fee || 5.00);
+        await tx.borrowRecord.update({
+          where: { id: penalty.borrow_id },
+          data: { status: 'LOST' }
+        });
+        await tx.book.update({
+          where: { id: penalty.borrow.book_id },
+          data: { total_copies: { decrement: 1 } }
+        });
       }
+
+      await tx.penalty.update({
+        where: { id: parseInt(id) },
+        data: { 
+          status: 'PAID', 
+          paid_at: new Date(),
+          type: condition === 'LOST' ? 'LOST' : (condition === 'DAMAGED' ? 'DAMAGE' : penalty.type),
+          amount: finalAmount
+        }
+      });
+
+      await tx.notification.create({
+        data: {
+          category: 'PENALTIES',
+          title: 'Penalty Paid',
+          message: `Your penalty of $${finalAmount.toFixed(2)} was marked as paid.`,
+          target_user_id: penalty.user_id,
+        }
+      });
     });
 
     res.json({ message: 'Penalty paid' });
