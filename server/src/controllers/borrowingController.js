@@ -425,6 +425,10 @@ const payPenalty = async (req, res) => {
       return res.status(404).json({ error: 'Penalty not found' });
     }
 
+    if (condition === 'RETURNED' && penalty.borrow && penalty.borrow.status !== 'RETURNED') {
+      return res.status(400).json({ error: 'Cannot process payment: The book must be returned first.' });
+    }
+
     await prisma.$transaction(async (tx) => {
       let finalAmount = parseFloat(penalty.amount);
       const settings = await tx.librarySettings.findFirst();

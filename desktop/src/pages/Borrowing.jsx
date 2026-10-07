@@ -42,6 +42,7 @@ export default function Borrowing() {
   const [successMessage, setSuccessMessage] = useState(null);
   const [confirmPenaltyId, setConfirmPenaltyId] = useState(null);
   const [penaltyCondition, setPenaltyCondition] = useState('RETURNED');
+  const [penaltyError, setPenaltyError] = useState(null);
   
   // Borrow Option State
   const [borrowType, setBorrowType] = useState('TAKE_OUT');
@@ -134,12 +135,13 @@ export default function Borrowing() {
   };
 
   const handlePayPenalty = async (id) => {
+    setPenaltyError(null);
     setConfirmPenaltyId(id);
   };
 
   const confirmPayPenalty = async () => {
     const id = confirmPenaltyId;
-    setConfirmPenaltyId(null);
+    setPenaltyError(null);
     try {
       const res = await fetchWithOfflineSupport(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/borrowing/penalties/${id}/pay`, { 
         headers: { 
@@ -150,12 +152,17 @@ export default function Borrowing() {
         body: JSON.stringify({ condition: penaltyCondition })
       });
       if (res.ok) {
+        setConfirmPenaltyId(null);
         setSuccessMessage('Penalty Marked as Paid!');
         fetchPenalties();
         fetchStats();
+      } else {
+        const data = await res.json();
+        setPenaltyError(data.error || 'Failed to pay penalty');
       }
     } catch (e) {
       console.error('Failed to pay penalty');
+      setPenaltyError('Server error while processing penalty');
     }
   };
 
@@ -540,15 +547,9 @@ export default function Borrowing() {
       {successMessage && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
           <div 
-            className="bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-2xl flex flex-col items-center justify-center"
-            style={{ minWidth: '320px', animation: 'scaleUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}
+            className="bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-2xl flex flex-col items-center justify-center animate-fade-in"
+            style={{ minWidth: '320px' }}
           >
-            <style>{`
-              @keyframes scaleUp {
-                from { transform: scale(0.5); opacity: 0; }
-                to { transform: scale(1); opacity: 1; }
-              }
-            `}</style>
             <div className="bg-primary-100 dark:bg-primary-900/30 p-4 rounded-full mb-6">
               <CheckCircle className="text-primary-600 dark:text-primary-400 w-16 h-16" />
             </div>
@@ -569,8 +570,8 @@ export default function Borrowing() {
       {confirmPenaltyId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
           <div 
-            className="bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-2xl flex flex-col items-center justify-center"
-            style={{ minWidth: '340px', animation: 'scaleUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}
+            className="bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-2xl flex flex-col items-center justify-center animate-fade-in"
+            style={{ minWidth: '340px' }}
           >
             <div className="bg-primary-100 dark:bg-primary-900/30 p-4 rounded-full mb-6">
               <DollarSign className="text-primary-600 dark:text-primary-400 w-14 h-14" />
@@ -581,6 +582,11 @@ export default function Borrowing() {
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 text-center">
               Confirm the book condition and mark this penalty as paid.
             </p>
+            {penaltyError && (
+              <div className="w-full p-3 mb-4 rounded-lg bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-sm font-medium border border-red-100 dark:border-red-800">
+                {penaltyError}
+              </div>
+            )}
             <div className="w-full mb-6">
               <label className="block text-sm font-bold text-gray-700 dark:text-slate-300 mb-2">Book Condition</label>
               <select 
