@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Key, Info } from 'lucide-react';
+import { Eye, EyeOff, Key, Info, Loader2 } from 'lucide-react';
 import { setSession } from '../auth';
 import backdropLight from '../assets/backdrop-light.png';
 
@@ -11,10 +11,12 @@ export default function Login() {
 
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setErrorMsg('');
+    setIsLoading(true);
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
@@ -27,6 +29,8 @@ export default function Login() {
       navigate('/', { replace: true });
     } catch (err) {
       setErrorMsg(err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -111,9 +115,17 @@ export default function Login() {
             {/* Submit Button */}
             <button 
               type="submit"
-              className="w-full bg-[#4B226E] hover:bg-[#3d1b5a] text-white font-semibold py-3 rounded-lg text-[13px] transition-colors mt-2"
+              disabled={isLoading}
+              className="w-full bg-[#4B226E] hover:bg-[#3d1b5a] disabled:bg-[#4B226E]/70 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-lg text-[13px] transition-colors mt-2 flex items-center justify-center gap-2"
             >
-              Sign in
+              {isLoading ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  <span>Signing in...</span>
+                </>
+              ) : (
+                'Sign in'
+              )}
             </button>
           </form>
         </div>

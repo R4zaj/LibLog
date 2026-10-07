@@ -413,7 +413,7 @@ const payPenalty = async (req, res) => {
 
     const penalty = await prisma.penalty.update({
       where: { id: parseInt(id) },
-      data: { status: 'PAID', paid_date: new Date() }
+      data: { status: 'PAID', paid_at: new Date() }
     });
 
     await prisma.notification.create({

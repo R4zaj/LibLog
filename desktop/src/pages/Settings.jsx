@@ -303,6 +303,43 @@ export default function Settings() {
     setSavingRoles(false);
   };
 
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [passwordStatus, setPasswordStatus] = useState({ type: '', message: '' });
+  const [changingPassword, setChangingPassword] = useState(false);
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordStatus({ type: 'error', message: 'New passwords do not match' });
+      return;
+    }
+    setChangingPassword(true);
+    setPasswordStatus({ type: '', message: '' });
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/auth/change-password`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          currentPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setPasswordStatus({ type: 'success', message: 'Password changed successfully' });
+        setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      } else {
+        setPasswordStatus({ type: 'error', message: data.error || 'Failed to change password' });
+      }
+    } catch (error) {
+      setPasswordStatus({ type: 'error', message: 'An error occurred' });
+    }
+    setChangingPassword(false);
+  };
+
   return (
     <div className="flex flex-col h-full animate-fade-in">
       <header className="h-16 flex items-center justify-between px-8 bg-white dark:bg-transparent border-b border-gray-200 dark:border-dark-border shrink-0 relative z-30">
@@ -479,7 +516,76 @@ export default function Settings() {
           >
             <GraduationCap size={16} /> Manage Courses
           </button>
+          <button 
+            onClick={() => setActiveTab('account')}
+            className={`px-4 py-2.5 text-sm font-bold flex items-center gap-2 rounded-t-lg transition-colors border-b-0 ${activeTab === 'account' ? 'bg-primary-800 dark:bg-transparent dark:border dark:border-gray-500 text-white' : 'text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-dark-hover'}`}
+          >
+            <User size={16} /> Account
+          </button>
         </div>
+
+        {/* Tab Content: Account */}
+        {activeTab === 'account' && (
+          <div className="bg-white dark:bg-transparent border border-gray-200 dark:border-dark-border rounded-xl shadow-sm overflow-hidden p-6 max-w-2xl mx-auto">
+            <div className="mb-6">
+              <h3 className="font-bold text-gray-800 dark:text-slate-300 text-lg mb-1">Change Password</h3>
+              <p className="text-sm text-gray-500 dark:text-slate-400">Ensure your account is using a long, random password to stay secure.</p>
+            </div>
+
+            <form onSubmit={handleChangePassword} className="flex flex-col gap-5">
+              {passwordStatus.message && (
+                <div className={`p-3 rounded-lg text-sm font-medium ${passwordStatus.type === 'error' ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-green-50 text-green-600 border border-green-100'}`}>
+                  {passwordStatus.message}
+                </div>
+              )}
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-bold text-gray-700 dark:text-slate-300">Current Password</label>
+                <input 
+                  type="password"
+                  required
+                  value={passwordForm.currentPassword}
+                  onChange={(e) => setPasswordForm({...passwordForm, currentPassword: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-200 dark:border-dark-border rounded-lg text-sm focus:ring-1 focus:ring-primary-500 bg-white dark:bg-dark-bg dark:text-slate-200"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-bold text-gray-700 dark:text-slate-300">New Password</label>
+                <input 
+                  type="password"
+                  required
+                  minLength={8}
+                  value={passwordForm.newPassword}
+                  onChange={(e) => setPasswordForm({...passwordForm, newPassword: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-200 dark:border-dark-border rounded-lg text-sm focus:ring-1 focus:ring-primary-500 bg-white dark:bg-dark-bg dark:text-slate-200"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-bold text-gray-700 dark:text-slate-300">Confirm New Password</label>
+                <input 
+                  type="password"
+                  required
+                  minLength={8}
+                  value={passwordForm.confirmPassword}
+                  onChange={(e) => setPasswordForm({...passwordForm, confirmPassword: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-200 dark:border-dark-border rounded-lg text-sm focus:ring-1 focus:ring-primary-500 bg-white dark:bg-dark-bg dark:text-slate-200"
+                />
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <button 
+                  type="submit" 
+                  disabled={changingPassword}
+                  className="flex items-center gap-2 px-6 py-2 bg-primary-800 text-white rounded-lg text-sm font-bold hover:bg-primary-900 shadow-sm transition-colors disabled:opacity-50"
+                >
+                  {changingPassword ? 'Saving...' : 'Save Password'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
 
         {/* Tab Content: Manage Users */}
         {activeTab === 'manage-users' && (

@@ -422,4 +422,44 @@ const getQrToken = async (req, res) => {
   }
 };
 
-module.exports = { register, login, getMe, updateProfile, getQrToken, requestOtp, resetPassword };
+const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Current and new passwords are required.' });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: 'New password must be at least 8 characters long.' });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password_hash);
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Incorrect current password.' });
+    }
+
+    const salt = await bcrypt.genSalt(12);
+    const password_hash = await bcrypt.hash(newPassword, salt);
+
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data: { password_hash }
+    });
+
+    res.json({ message: 'Password updated successfully.' });
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({ error: 'Server error updating password.' });
+  }
+};
+
+module.exports = { register, login, getMe, updateProfile, getQrToken, requestOtp, resetPassword, changePassword };
