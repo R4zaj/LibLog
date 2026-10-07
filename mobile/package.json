@@ -9,6 +9,7 @@
     "@tamagui/core": "^2.5.0",
     "@tamagui/lucide-icons": "^1.144.4",
     "axios": "^1.17.0",
+    "crypto-js": "^4.2.0",
     "expo": "~56.0.20",
     "expo-blur": "~56.0.4",
     "expo-constants": "~56.0.17",

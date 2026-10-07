@@ -54,10 +54,28 @@ const validateUser = async (req, res) => {
 
     let searchId = identifier;
 
-    // Check if identifier is a JWT
-    if (identifier.split('.').length === 3) {
+    if (identifier.startsWith('OFFLINE:')) {
+      const parts = identifier.split(':');
+      if (parts.length === 4) {
+        const [, stId, ts, hmac] = parts;
+        const timestamp = parseInt(ts, 10);
+        if (Date.now() - timestamp > 15000 || Date.now() - timestamp < -5000) {
+           return res.status(401).json({ error: 'Expired offline QR token' });
+        }
+        const crypto = require('crypto');
+        const offlineSecret = crypto.createHmac('sha256', process.env.JWT_SECRET).update(stId).digest('hex');
+        const expectedHmac = crypto.createHmac('sha256', offlineSecret).update(ts).digest('hex');
+        if (hmac === expectedHmac) {
+           searchId = stId;
+        } else {
+           return res.status(401).json({ error: 'Invalid offline QR signature' });
+        }
+      } else {
+        return res.status(401).json({ error: 'Malformed offline QR token' });
+      }
+    } else if (identifier.split('.').length === 3) {
       try {
-        const decoded = jwt.verify(identifier, process.env.JWT_SECRET || 'fallback_secret_key');
+        const decoded = jwt.verify(identifier, process.env.JWT_SECRET);
         if (decoded && decoded.student_id) {
           searchId = decoded.student_id;
         }
@@ -219,10 +237,31 @@ const getUserActiveBorrow = async (req, res) => {
     const { bookIdentifier, userIdentifier } = req.params;
     let studentId = userIdentifier;
 
-    if (userIdentifier.length > 100) {
+    if (userIdentifier.startsWith('OFFLINE:')) {
+      const parts = userIdentifier.split(':');
+      if (parts.length === 4) {
+        const [, stId, ts, hmac] = parts;
+        const timestamp = parseInt(ts, 10);
+        if (Date.now() - timestamp > 15000 || Date.now() - timestamp < -5000) {
+           return res.status(401).json({ error: 'Expired offline QR token' });
+        }
+        const crypto = require('crypto');
+        const offlineSecret = crypto.createHmac('sha256', process.env.JWT_SECRET).update(stId).digest('hex');
+        const expectedHmac = crypto.createHmac('sha256', offlineSecret).update(ts).digest('hex');
+        if (hmac === expectedHmac) {
+           studentId = stId;
+        } else {
+           return res.status(401).json({ error: 'Invalid offline QR signature' });
+        }
+      } else {
+        return res.status(401).json({ error: 'Malformed offline QR token' });
+      }
+    } else if (userIdentifier.split('.').length === 3) {
       try {
         const decoded = jwt.verify(userIdentifier, process.env.JWT_SECRET);
-        studentId = decoded.student_id;
+        if (decoded && decoded.student_id) {
+          studentId = decoded.student_id;
+        }
       } catch (err) {
         return res.status(401).json({ error: 'Invalid or expired QR token' });
       }
@@ -432,10 +471,13 @@ const getUserBorrowHistory = async (req, res) => {
       return res.status(400).json({ error: 'Invalid user ID' });
     }
 
+    const limit = parseInt(req.query.limit) || 50;
+
     const records = await prisma.borrowRecord.findMany({
       where: {
         user_id: userId
       },
+      take: limit,
       include: {
         book: {
           include: {

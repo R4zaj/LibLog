@@ -191,7 +191,7 @@ const computeUserStats = async (userId) => {
 const generateToken = (user) => {
   return jwt.sign(
     { id: user.id, role: user.role, student_id: user.student_id },
-    process.env.JWT_SECRET || 'fallback_secret_key',
+    process.env.JWT_SECRET,
     { expiresIn: '7d' }
   );
 };
@@ -330,6 +330,8 @@ const login = async (req, res) => {
     const token = generateToken(user);
     const { password_hash, ...userWithoutPassword } = user;
     userWithoutPassword.stats = await computeUserStats(user.id);
+    const crypto = require('crypto');
+    userWithoutPassword.offline_secret = crypto.createHmac('sha256', process.env.JWT_SECRET).update(user.student_id).digest('hex');
     res.json({ user: userWithoutPassword, token });
   } catch (error) {
     console.error('Login error:', error);
@@ -350,6 +352,8 @@ const getMe = async (req, res) => {
 
     const { password_hash, ...userWithoutPassword } = user;
     userWithoutPassword.stats = await computeUserStats(req.user.id);
+    const crypto = require('crypto');
+    userWithoutPassword.offline_secret = crypto.createHmac('sha256', process.env.JWT_SECRET).update(user.student_id).digest('hex');
 
     res.json({ user: userWithoutPassword });
   } catch (error) {
@@ -409,8 +413,8 @@ const getQrToken = async (req, res) => {
   try {
     const token = jwt.sign(
       { student_id: req.user.student_id, type: 'qr_auth' },
-      process.env.JWT_SECRET || 'fallback_secret_key',
-      { expiresIn: '30s' }
+      process.env.JWT_SECRET,
+      { expiresIn: '15s' }
     );
     res.json({ token });
   } catch (error) {

@@ -2,6 +2,7 @@ import { createContext, useState, useRef, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { BookUp, X } from 'lucide-react';
+import { useNetwork } from '../contexts/NetworkContext';
 
 export const BorrowingContext = createContext(null);
 
@@ -31,6 +32,7 @@ function StreamVideo({ stream, className }) {
 export function BorrowingProvider({ children }) {
   const location = useLocation();
   const isBorrowingRoute = location.pathname === '/borrowing';
+  const { isOnline } = useNetwork();
 
   // --- CAMERA STATE ---
   const [isScanning, setIsScanning] = useState(false);
@@ -61,6 +63,7 @@ export function BorrowingProvider({ children }) {
   const hiddenVideoRef = useRef(null);
   const cleanupIdRef = useRef(0);
   const handleScanRef = useRef(null);
+  const processingRef = useRef(false);
 
   // --- NOTIFICATIONS ---
   const triggerToast = useCallback((title, message, isError = false) => {
@@ -73,74 +76,105 @@ export function BorrowingProvider({ children }) {
 
   // --- ACTIONS ---
   const handleScan = useCallback(async (identifier) => {
-    setError(null);
-    if (!identifier) return;
+    if (processingRef.current) return;
+    processingRef.current = true;
+    try {
+      setError(null);
+      if (!identifier) return;
 
-    if (activeTab === 'Borrow') {
-      if (step === 1) {
-        try {
-          const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/borrowing/validate-book/${identifier}`);
-          const data = await res.json();
-          if (res.ok) {
-            setScannedBook(data);
+      if (activeTab === 'Borrow') {
+        if (step === 1) {
+          if (!isOnline) {
+            setScannedBook({ id: `offline-${identifier}`, title: `Book (${identifier})`, qr_code: identifier, isbn: identifier });
             setStep(2);
-            if (!isBorrowingRoute) triggerToast('Book Scanned', `${data.title} ready for checkout. Now scan student ID.`);
-          } else {
-            setError(data.error || 'Book validation failed');
-            if (!isBorrowingRoute) triggerToast('Scan Failed', data.error || 'Invalid book', true);
+            if (!isBorrowingRoute) triggerToast('Book Scanned', `Offline Mode: Book (${identifier}) ready. Now scan student ID.`);
+            return;
           }
-        } catch (e) {
-          setError('Server error during validation');
-        }
-      } else if (step === 2) {
-        try {
-          const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/borrowing/validate-user/${identifier}`);
-          const data = await res.json();
-          if (res.ok) {
-            setScannedUser(data);
+          try {
+            const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/borrowing/validate-book/${identifier}`);
+            const data = await res.json();
+            if (res.ok) {
+              setScannedBook(data);
+              setStep(2);
+              if (!isBorrowingRoute) triggerToast('Book Scanned', `${data.title} ready for checkout. Now scan student ID.`);
+            } else {
+              setError(data.error || 'Book validation failed');
+              if (!isBorrowingRoute) triggerToast('Scan Failed', data.error || 'Invalid book', true);
+            }
+          } catch (e) {
+            setError('Server error during validation');
+          }
+        } else if (step === 2) {
+          if (!isOnline) {
+            setScannedUser({ id: `offline-${identifier}`, first_name: 'Student', last_name: `(${identifier})`, student_id: identifier });
             setStep(3);
-            if (!isBorrowingRoute) triggerToast('Student Verified', `${data.first_name} ${data.last_name}. Please confirm checkout on Borrowing tab.`);
-          } else {
-            setError(data.error || 'User validation failed');
-            if (!isBorrowingRoute) triggerToast('Scan Failed', data.error || 'Invalid student', true);
+            if (!isBorrowingRoute) triggerToast('Student Verified', `Offline Mode: Student (${identifier}). Please confirm checkout on Borrowing tab.`);
+            return;
           }
-        } catch (e) {
-          setError('Server error during validation');
+          try {
+            const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/borrowing/validate-user/${identifier}`);
+            const data = await res.json();
+            if (res.ok) {
+              setScannedUser(data);
+              setStep(3);
+              if (!isBorrowingRoute) triggerToast('Student Verified', `${data.first_name} ${data.last_name}. Please confirm checkout on Borrowing tab.`);
+            } else {
+              setError(data.error || 'User validation failed');
+              if (!isBorrowingRoute) triggerToast('Scan Failed', data.error || 'Invalid student', true);
+            }
+          } catch (e) {
+            setError('Server error during validation');
+          }
         }
-      }
-    } else if (activeTab === 'Return') {
-      if (returnStep === 1) {
-        try {
-          const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/borrowing/validate-book/${identifier}?action=return`);
-          const data = await res.json();
-          if (res.ok) {
+      } else if (activeTab === 'Return') {
+        if (returnStep === 1) {
+          if (!isOnline) {
             setReturnBookIdentifier(identifier);
             setReturnStep(2);
-            if (!isBorrowingRoute) triggerToast('Book Scanned', 'Now scan the returning student ID.');
-          } else {
-            setError(data.error || 'Could not find book');
-            if (!isBorrowingRoute) triggerToast('Scan Failed', data.error || 'Could not find book', true);
+            if (!isBorrowingRoute) triggerToast('Book Scanned', 'Offline Mode: Now scan the returning student ID.');
+            return;
           }
-        } catch (e) {
-          setError('Server error during scan');
-        }
-      } else if (returnStep === 2) {
-        try {
-          const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/borrowing/user-active-borrow/${returnBookIdentifier}/${identifier}`);
-          const data = await res.json();
-          if (res.ok) {
-            setReturnRecord(data);
-            setReturnScannedUser(data.user);
+          try {
+            const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/borrowing/validate-book/${identifier}?action=return`);
+            const data = await res.json();
+            if (res.ok) {
+              setReturnBookIdentifier(identifier);
+              setReturnStep(2);
+              if (!isBorrowingRoute) triggerToast('Book Scanned', 'Now scan the returning student ID.');
+            } else {
+              setError(data.error || 'Could not find book');
+              if (!isBorrowingRoute) triggerToast('Scan Failed', data.error || 'Could not find book', true);
+            }
+          } catch (e) {
+            setError('Server error during scan');
+          }
+        } else if (returnStep === 2) {
+          if (!isOnline) {
+            setReturnRecord({ id: 'offline-record', book: { title: `Book (${returnBookIdentifier})` } });
+            setReturnScannedUser({ id: `offline-${identifier}`, first_name: 'Student', last_name: `(${identifier})`, student_id: identifier });
             setReturnStep(3);
-            if (!isBorrowingRoute) triggerToast('Return Ready', 'Please confirm return on Borrowing tab.');
-          } else {
-            setError(data.error || 'No active borrow record.');
-            if (!isBorrowingRoute) triggerToast('Scan Failed', data.error || 'No active borrow record.', true);
+            if (!isBorrowingRoute) triggerToast('Return Ready', 'Offline Mode: Please confirm return on Borrowing tab.');
+            return;
           }
-        } catch (e) {
-          setError('Server error');
+          try {
+            const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/borrowing/user-active-borrow/${returnBookIdentifier}/${identifier}`);
+            const data = await res.json();
+            if (res.ok) {
+              setReturnRecord(data);
+              setReturnScannedUser(data.user);
+              setReturnStep(3);
+              if (!isBorrowingRoute) triggerToast('Return Ready', 'Please confirm return on Borrowing tab.');
+            } else {
+              setError(data.error || 'No active borrow record.');
+              if (!isBorrowingRoute) triggerToast('Scan Failed', data.error || 'No active borrow record.', true);
+            }
+          } catch (e) {
+            setError('Server error');
+          }
         }
       }
+    } finally {
+      processingRef.current = false;
     }
   }, [activeTab, step, returnStep, returnBookIdentifier, isBorrowingRoute, triggerToast]);
 

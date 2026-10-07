@@ -23,6 +23,7 @@ import { useState, useEffect } from 'react';
 import { useNetwork } from './contexts/NetworkContext';
 import { clearSession, getDisplayName, getInitials, getRoleLabel } from './auth';
 import { useTheme } from './components/ThemeContext';
+import { AlertCircle, X } from 'lucide-react';
 import backdropLight from './assets/backdrop-light.png';
 import backdropDark from './assets/backdrop-dark.png';
 
@@ -133,7 +134,7 @@ export default function MainLayout() {
     return () => clearInterval(interval);
   }, []);
 
-  const { isOnline, syncQueue, isSyncing, processSyncQueue } = useNetwork();
+  const { isOnline, syncQueue, isSyncing, processSyncQueue, syncErrors, dismissSyncError } = useNetwork();
 
   const handleLogout = () => {
     clearSession();
@@ -151,6 +152,28 @@ export default function MainLayout() {
     <AttendanceScannerProvider>
     <BorrowingProvider>
       <div className="flex h-screen bg-gray-50 dark:bg-dark-bg font-sans text-gray-900 dark:text-slate-200">
+      
+      {/* Global Sync Error Notifications */}
+      {syncErrors.length > 0 && (
+        <div className="absolute top-4 right-4 z-50 flex flex-col gap-2">
+          {syncErrors.map(error => (
+            <div key={error.id} className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-lg shadow-lg flex items-start gap-3 w-80 animate-fade-in">
+              <AlertCircle className="shrink-0 mt-0.5" size={18} />
+              <div className="flex-1">
+                <h4 className="font-bold text-sm mb-1">Offline Sync Failed</h4>
+                <p className="text-xs opacity-90">{error.message}</p>
+              </div>
+              <button 
+                onClick={() => dismissSyncError(error.id)}
+                className="text-red-400 hover:text-red-700 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Light Sidebar */}
       <aside className="w-64 bg-sidebar-bg dark:bg-dark-sidebar border-r border-gray-200 dark:border-dark-border flex flex-col shadow-sm z-10 shrink-0 print:hidden">
         {/* Logo Area */}

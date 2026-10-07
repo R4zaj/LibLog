@@ -51,8 +51,17 @@ export default function Borrowed() {
   const daysLeftFor = (dueDate: string) =>
     Math.ceil((new Date(dueDate).getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
-  const activeBorrows = borrows.filter((b) => b.status === 'BORROWED' || b.status === 'OVERDUE');
-  const historyBorrows = borrows.filter((b) => b.status === 'RETURNED');
+  const uniqueByBookId = (list: BorrowRecordWithBook[]) => {
+    const seen = new Set();
+    return list.filter((b) => {
+      if (seen.has(b.book_id)) return false;
+      seen.add(b.book_id);
+      return true;
+    });
+  };
+
+  const activeBorrows = uniqueByBookId(borrows.filter((b) => b.status === 'BORROWED' || b.status === 'OVERDUE'));
+  const historyBorrows = uniqueByBookId(borrows.filter((b) => b.status === 'RETURNED'));
   const overdueCount = activeBorrows.filter(
     (b) => b.status === 'OVERDUE' || (b.due_date && daysLeftFor(b.due_date) < 0)
   ).length;

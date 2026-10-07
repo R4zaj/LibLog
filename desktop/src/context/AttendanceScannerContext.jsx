@@ -49,6 +49,8 @@ export function AttendanceScannerProvider({ children }) {
 
   const { fetchWithOfflineSupport } = useOfflineApi();
 
+  const processingRef = useRef(false);
+
   const pushToast = useCallback((toast) => {
     const id = Date.now() + Math.random();
     setToasts(prev => [...prev, { id, ...toast }]);
@@ -56,6 +58,8 @@ export function AttendanceScannerProvider({ children }) {
   }, []);
 
   const handleScan = useCallback(async (identifier) => {
+    if (processingRef.current) return;
+    processingRef.current = true;
     try {
       const res = await fetchWithOfflineSupport(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/attendance/scan`, { 
         method: 'POST', 
@@ -89,6 +93,8 @@ export function AttendanceScannerProvider({ children }) {
     } catch (e) {
       console.error('Network error connecting to server', e);
       pushToast({ user: 'Cannot reach the server', error: true, time: new Date().toLocaleTimeString() });
+    } finally {
+      processingRef.current = false;
     }
   }, [fetchWithOfflineSupport, pushToast]);
 

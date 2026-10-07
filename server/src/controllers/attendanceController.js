@@ -81,10 +81,28 @@ const scanQR = async (req, res) => {
     
     let searchId = identifier;
 
-    // Check if identifier is a JWT
-    if (identifier.split('.').length === 3) {
+    if (identifier.startsWith('OFFLINE:')) {
+      const parts = identifier.split(':');
+      if (parts.length === 4) {
+        const [, stId, ts, hmac] = parts;
+        const timestamp = parseInt(ts, 10);
+        if (Date.now() - timestamp > 15000 || Date.now() - timestamp < -5000) {
+           return res.status(401).json({ error: 'Expired offline QR token' });
+        }
+        const crypto = require('crypto');
+        const offlineSecret = crypto.createHmac('sha256', process.env.JWT_SECRET).update(stId).digest('hex');
+        const expectedHmac = crypto.createHmac('sha256', offlineSecret).update(ts).digest('hex');
+        if (hmac === expectedHmac) {
+           searchId = stId;
+        } else {
+           return res.status(401).json({ error: 'Invalid offline QR signature' });
+        }
+      } else {
+        return res.status(401).json({ error: 'Malformed offline QR token' });
+      }
+    } else if (identifier.split('.').length === 3) {
       try {
-        const decoded = jwt.verify(identifier, process.env.JWT_SECRET || 'fallback_secret_key');
+        const decoded = jwt.verify(identifier, process.env.JWT_SECRET);
         if (decoded && decoded.student_id) {
           searchId = decoded.student_id;
         }

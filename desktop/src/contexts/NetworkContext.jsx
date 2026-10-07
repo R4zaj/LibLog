@@ -6,6 +6,11 @@ export const NetworkProvider = ({ children }) => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [syncQueue, setSyncQueue] = useState([]);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [syncErrors, setSyncErrors] = useState([]);
+
+  const dismissSyncError = (id) => {
+    setSyncErrors(prev => prev.filter(e => e.id !== id));
+  };
 
   // Load sync queue from localStorage on boot
   useEffect(() => {
@@ -77,6 +82,13 @@ export const NetworkProvider = ({ children }) => {
         // scan, expired token) that retrying will never fix. Both leave the queue.
         if (!response.ok) {
           console.warn('Sync job rejected with', response.status, '- discarding', job.url);
+          const errorData = await response.json().catch(() => ({}));
+          setSyncErrors(prev => [...prev, {
+            id: Date.now().toString(),
+            url: job.url,
+            status: response.status,
+            message: errorData.error || 'A queued offline action was rejected by the server.'
+          }]);
         }
         queue.shift();
         setSyncQueue([...queue]); // Update state incrementally
@@ -90,7 +102,7 @@ export const NetworkProvider = ({ children }) => {
   };
 
   return (
-    <NetworkContext.Provider value={{ isOnline, syncQueue, addToSyncQueue, processSyncQueue, isSyncing }}>
+    <NetworkContext.Provider value={{ isOnline, syncQueue, addToSyncQueue, processSyncQueue, isSyncing, syncErrors, dismissSyncError }}>
       {children}
     </NetworkContext.Provider>
   );

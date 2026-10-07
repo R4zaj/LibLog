@@ -5,17 +5,19 @@ import { Text, XStack, YStack } from 'tamagui';
 import * as Haptics from 'expo-haptics';
 import api from '../api';
 import type { QrTokenResponse } from '../types/api';
+import CryptoJS from 'crypto-js';
 
-const TOKEN_TTL_SECONDS = 30; // must match authController.js getQrToken expiresIn
-const REFRESH_MARGIN_SECONDS = 5; // refresh before expiry so the QR never visibly hits 0
+const TOKEN_TTL_SECONDS = 15; // must match authController.js getQrToken expiresIn
+const REFRESH_MARGIN_SECONDS = 3; // refresh before expiry so the QR never visibly hits 0
 
 interface DynamicQrCodeProps {
   /** user.student_id — shown whenever /auth/qr-token can't be reached, so the QR stays scannable. */
   fallbackId: string;
+  offlineSecret?: string;
   size?: number;
 }
 
-export function DynamicQrCode({ fallbackId, size = 200 }: DynamicQrCodeProps) {
+export function DynamicQrCode({ fallbackId, offlineSecret, size = 200 }: DynamicQrCodeProps) {
   const [value, setValue] = useState(fallbackId);
   const [secondsLeft, setSecondsLeft] = useState(TOKEN_TTL_SECONDS);
   // false once /auth/qr-token has failed at least once — the QR is still scannable
@@ -31,7 +33,13 @@ export function DynamicQrCode({ fallbackId, size = 200 }: DynamicQrCodeProps) {
       setIsLive(true);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch {
-      setValue(fallbackId); // scanQR on the server accepts the raw student_id too
+      if (offlineSecret) {
+        const ts = Date.now().toString();
+        const hmac = CryptoJS.HmacSHA256(ts, offlineSecret).toString(CryptoJS.enc.Hex);
+        setValue(`OFFLINE:${fallbackId}:${ts}:${hmac}`);
+      } else {
+        setValue(fallbackId); // fallback if no offline secret
+      }
       setIsLive(false);
     } finally {
       setSecondsLeft(TOKEN_TTL_SECONDS);

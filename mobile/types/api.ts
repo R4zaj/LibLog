@@ -21,6 +21,7 @@ export interface User {
   created_at: string;
   updated_at: string;
   stats?: { borrowed: number; visits: number; streak: number };
+  offline_secret?: string;
 }
 
 export type BorrowStatus = 'BORROWED' | 'RETURNED' | 'OVERDUE' | 'LOST';

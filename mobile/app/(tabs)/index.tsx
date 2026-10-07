@@ -84,17 +84,23 @@ export default function Home() {
       const rawAnnouncements = annRes.data || [];
       const rawBorrows = borrowRes.data || [];
       const now = new Date();
-      const overdueNotifications: DashboardNotification[] = rawBorrows
+      const overdueNotifications: DashboardNotification[] = [];
+      const seenOverdueBookIds = new Set();
+      
+      rawBorrows
         .filter((b) => b.status === 'OVERDUE' || (b.status === 'BORROWED' && new Date(b.due_date) < now))
-        .map((b) => {
-          const daysOverdue = Math.abs(Math.ceil((new Date(b.due_date).getTime() - now.getTime()) / (1000 * 3600 * 24)));
-          return {
-            id: `overdue-${b.id}`,
-            title: 'Book Overdue',
-            body: `"${b.book?.title}" is ${daysOverdue} day${daysOverdue !== 1 ? 's' : ''} overdue. Please return it immediately.`,
-            created_at: b.due_date,
-            is_overdue: true,
-          };
+        .forEach((b) => {
+          if (!seenOverdueBookIds.has(b.book_id)) {
+            seenOverdueBookIds.add(b.book_id);
+            const daysOverdue = Math.abs(Math.ceil((new Date(b.due_date).getTime() - now.getTime()) / (1000 * 3600 * 24)));
+            overdueNotifications.push({
+              id: `overdue-${b.id}`,
+              title: 'Book Overdue',
+              body: `"${b.book?.title}" is ${daysOverdue} day${daysOverdue !== 1 ? 's' : ''} overdue. Please return it immediately.`,
+              created_at: b.due_date,
+              is_overdue: true,
+            });
+          }
         });
 
       setAnnouncements([...overdueNotifications, ...rawAnnouncements]);
@@ -554,14 +560,14 @@ export default function Home() {
 
       {/* Announcements Modal */}
       <Modal
-        animationType="slide"
+        animationType="fade"
         transparent={true}
         visible={notificationsOpen}
         onRequestClose={() => setNotificationsOpen(false)}
       >
         <Pressable style={styles.modalOverlay} onPress={() => setNotificationsOpen(false)}>
-          <View style={[styles.modalContent, { paddingBottom: Math.max(insets.bottom + 16, 16) }]}>
-            <Pressable>
+          <View style={[styles.modalContent, { paddingBottom: 16 }]} onStartShouldSetResponder={() => true}>
+            <View style={{ flex: 1 }}>
               
               {/* Header */}
               <View style={styles.modalHeader}>
@@ -616,7 +622,7 @@ export default function Home() {
                   })
                   )}
                 </ScrollView>
-            </Pressable>
+            </View>
           </View>
         </Pressable>
       </Modal>
@@ -725,8 +731,8 @@ const styles = StyleSheet.create({
   trendingCount: { marginLeft: 12, flexDirection: 'row', alignItems: 'center', gap: 4 },
   countText: { fontSize: 12, fontWeight: '500', color: '#9ca3af' },
 
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(30, 30, 46, 0.45)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: '#ffffff', width: '100%', maxHeight: '85%', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 24, paddingHorizontal: 16, elevation: 10 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(30, 30, 46, 0.45)', justifyContent: 'center', alignItems: 'center' },
+  modalContent: { backgroundColor: '#ffffff', width: '90%', maxHeight: '80%', borderRadius: 24, paddingTop: 24, paddingHorizontal: 16, elevation: 10 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   modalTitle: { fontSize: 24, fontWeight: '800', color: '#1e1e2e' },
   markAllBtn: { flexDirection: 'row', alignItems: 'center' },
