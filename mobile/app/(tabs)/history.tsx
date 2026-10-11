@@ -1,5 +1,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Animated, TextInput } from 'react-native';
+import { useAppTheme } from '../../context/ThemeContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { LogIn, LogOut, BookOpen, Receipt, RefreshCcw, Activity, Search, Calendar, ListFilter, MoreVertical, ChevronRight, ChevronDown, Wind } from 'lucide-react-native';
@@ -18,6 +20,9 @@ type ActivityEvent = {
 };
 
 export default function HistoryScreen() {
+  const { theme } = useAppTheme();
+  const { t } = useLanguage();
+  const styles = typeof getStyles === 'function' ? getStyles(theme) : {};
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const [filter, setFilter] = useState<'All' | 'Attendance' | 'Borrows' | 'Penalties'>('All');
@@ -145,40 +150,40 @@ export default function HistoryScreen() {
     switch (type) {
       case 'ATTENDANCE_IN': return <LogIn color="#10b981" size={16} />;
       case 'ATTENDANCE_OUT': return <LogOut color="#ef4444" size={16} />;
-      case 'BORROW': return <BookOpen color="#6C48C5" size={16} />;
-      case 'RETURN': return <RefreshCcw color="#6C48C5" size={16} />;
+      case 'BORROW': return <BookOpen color={theme.primary} size={16} />;
+      case 'RETURN': return <RefreshCcw color={theme.primary} size={16} />;
       case 'PENALTY': return <Receipt color="#ef4444" size={16} />;
-      default: return <Activity color="#9ca3af" size={16} />;
+      default: return <Activity color={theme.textSecondary} size={16} />;
     }
   };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <XStack paddingHorizontal={24} paddingTop={16} paddingBottom={8} justifyContent="space-between" alignItems="center">
-        <Text style={{ fontSize: 24, fontWeight: '800', color: '#1e1e2e', flex: 1, paddingRight: 16 }}>
+        <Text style={{ fontSize: 24, fontWeight: '800', color: theme.text, flex: 1, paddingRight: 16 }}>
           You have {filteredEvents.length} history event{filteredEvents.length !== 1 ? 's' : ''}
         </Text>
         <XStack gap={8}>
           <TouchableOpacity 
-            style={[styles.utilityChip, isSearchVisible && { borderColor: '#6C48C5' }]} 
+            style={[styles.utilityChip, isSearchVisible && { borderColor: theme.primary }]} 
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             onPress={() => setIsSearchVisible(!isSearchVisible)}
           >
-            <Search color={isSearchVisible ? "#6C48C5" : "#4b5563"} size={20} />
+            <Search color={isSearchVisible ? theme.primary : theme.textSecondary} size={20} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.utilityChip} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Calendar color="#4b5563" size={20} />
+            <Calendar color={theme.textSecondary} size={20} />
           </TouchableOpacity>
         </XStack>
       </XStack>
 
       {isSearchVisible && (
         <View style={{ paddingHorizontal: 24, paddingBottom: 16 }}>
-          <View style={{ height: 48, backgroundColor: '#faf9fe', borderRadius: 16, borderWidth: 1, borderColor: '#ede9f6', flexDirection: 'row', alignItems: 'center', paddingLeft: 14, paddingRight: 8 }}>
+          <View style={{ height: 48, backgroundColor: theme.background, borderRadius: 16, borderWidth: 1, borderColor: theme.border, flexDirection: 'row', alignItems: 'center', paddingLeft: 14, paddingRight: 8 }}>
             <TextInput 
-              style={{ flex: 1, fontSize: 14, color: '#1e1e2e' }}
+              style={{ flex: 1, fontSize: 14, color: theme.text }}
               placeholder="Search history..."
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={theme.textSecondary}
               value={searchQuery}
               onChangeText={setSearchQuery}
               autoFocus
@@ -190,7 +195,7 @@ export default function HistoryScreen() {
                 setIsSearchVisible(false);
               }}
             >
-              <Text style={{ fontSize: 13, fontWeight: '600', color: '#6C48C5', padding: 8 }}>Cancel</Text>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: theme.primary, padding: 8 }}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -215,7 +220,7 @@ export default function HistoryScreen() {
 
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#6C48C5" />
+          <ActivityIndicator size="large" color={theme.primary} />
         </View>
       ) : (
         <Animated.ScrollView
@@ -236,8 +241,8 @@ export default function HistoryScreen() {
         >
           {filteredEvents.length === 0 ? (
             <YStack padding={32} alignItems="center" justifyContent="center" flex={1} marginTop={40}>
-              <Wind color="#9ca3af" size={48} style={{ marginBottom: 16 }} />
-              <Text style={{ fontSize: 14, fontWeight: '500', color: '#7c7c8a', textAlign: 'center' }}>
+              <Wind color={theme.textSecondary} size={48} style={{ marginBottom: 16 }} />
+              <Text style={{ fontSize: 14, fontWeight: '500', color: theme.textSecondary, textAlign: 'center' }}>
                 No {filter.toLowerCase() === 'all' ? 'history' : filter.toLowerCase()} events found
               </Text>
             </YStack>
@@ -258,27 +263,27 @@ export default function HistoryScreen() {
                   <XStack paddingVertical={12} alignItems="center" justifyContent="space-between">
                     <XStack alignItems="center" gap={8}>
                       {collapsedDays[section.dayStr + '|' + section.dateStr] ? (
-                        <ChevronRight size={20} color="#4b5563" />
+                        <ChevronRight size={20} color={theme.textSecondary} />
                       ) : (
-                        <ChevronDown size={20} color="#4b5563" />
+                        <ChevronDown size={20} color={theme.textSecondary} />
                       )}
                       <YStack>
-                        <Text style={{ fontSize: 18, fontWeight: '600', color: '#1e1e2e' }}>{section.dayStr}</Text>
-                        <Text style={{ fontSize: 12, fontWeight: '500', color: '#9ca3af', letterSpacing: 0.5, textTransform: 'uppercase' }}>{section.dateStr}</Text>
+                        <Text style={{ fontSize: 18, fontWeight: '600', color: theme.text }}>{section.dayStr}</Text>
+                        <Text style={{ fontSize: 12, fontWeight: '500', color: theme.textSecondary, letterSpacing: 0.5, textTransform: 'uppercase' }}>{section.dateStr}</Text>
                       </YStack>
                     </XStack>
-                    <XStack backgroundColor="#f4f1fa" paddingHorizontal={12} paddingVertical={6} borderRadius={9999} alignItems="center">
-                      <Text style={{ color: '#6C48C5', fontSize: 12, fontWeight: '600' }}>{section.events.length} Event{section.events.length !== 1 ? 's' : ''}</Text>
+                    <XStack backgroundColor={theme.pillContainer} paddingHorizontal={12} paddingVertical={6} borderRadius={9999} alignItems="center">
+                      <Text style={{ color: theme.primary, fontSize: 12, fontWeight: '600' }}>{section.events.length} Event{section.events.length !== 1 ? 's' : ''}</Text>
                     </XStack>
                   </XStack>
                 </TouchableOpacity>
                 
                 {!collapsedDays[section.dayStr + '|' + section.dateStr] && (
-                  <YStack backgroundColor="#ffffff" borderRadius={24} borderWidth={1} borderColor="#ede9f6" overflow="hidden">
+                  <YStack backgroundColor={theme.card} borderRadius={24} borderWidth={1} borderColor={theme.border} overflow="hidden">
                     {section.events.map((evt, evtIdx) => {
                       const isLast = evtIdx === section.events.length - 1;
-                      const dotColor = evt.type === 'ATTENDANCE_IN' ? '#10b981' : evt.type === 'ATTENDANCE_OUT' ? '#ef4444' : (evt.type === 'BORROW' || evt.type === 'RETURN') ? '#6C48C5' : '#ef4444';
-                      const iconBgColor = evt.type === 'ATTENDANCE_OUT' ? '#fef2f2' : '#f4f1fa';
+                      const dotColor = evt.type === 'ATTENDANCE_IN' ? '#10b981' : evt.type === 'ATTENDANCE_OUT' ? '#ef4444' : (evt.type === 'BORROW' || evt.type === 'RETURN') ? theme.primary : '#ef4444';
+                      const iconBgColor = evt.type === 'ATTENDANCE_OUT' ? '#fef2f2' : theme.pillContainer;
                       
                       return (
                         <XStack 
@@ -286,19 +291,19 @@ export default function HistoryScreen() {
                           padding={16} 
                           alignItems="center" 
                           borderBottomWidth={isLast ? 0 : 1} 
-                          borderBottomColor="#f3f4f6"
+                          borderBottomColor={theme.border}
                         >
                           <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: iconBgColor, justifyContent: 'center', alignItems: 'center', marginRight: 16 }}>
                             {renderIcon(evt.type)}
                           </View>
                           <YStack flex={1}>
                             <XStack justifyContent="space-between" alignItems="center" marginBottom={2}>
-                              <Text style={{ fontSize: 16, fontWeight: '600', color: '#1e1e2e' }} numberOfLines={1}>{evt.title}</Text>
+                              <Text style={{ fontSize: 16, fontWeight: '600', color: theme.text }} numberOfLines={1}>{evt.title}</Text>
                               <Text style={{ fontSize: 12, fontWeight: '600', color: dotColor, marginLeft: 8 }}>
                                 {new Date(evt.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                               </Text>
                             </XStack>
-                            {evt.subtitle && <Text style={{ fontSize: 14, fontWeight: '500', color: '#7c7c8a' }} numberOfLines={1}>{evt.subtitle}</Text>}
+                            {evt.subtitle && <Text style={{ fontSize: 14, fontWeight: '500', color: theme.textSecondary }} numberOfLines={1}>{evt.subtitle}</Text>}
                           </YStack>
                         </XStack>
                       );
@@ -314,10 +319,10 @@ export default function HistoryScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme: any) => ({
   container: {
     flex: 1,
-    backgroundColor: '#faf9fe',
+    backgroundColor: theme.background,
   },
   header: {
     paddingHorizontal: 24,
@@ -327,15 +332,15 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#1e1e2e',
+    color: theme.text,
   },
   utilityChip: {
     width: 44,
     height: 44,
     borderRadius: 16,
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.card,
     borderWidth: 1,
-    borderColor: '#ede9f6',
+    borderColor: theme.border,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -347,7 +352,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   filterChip: {
-    backgroundColor: '#f4f1fa',
+    backgroundColor: theme.pillContainer,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
@@ -356,15 +361,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   filterChipActive: {
-    backgroundColor: '#6C48C5',
+    backgroundColor: theme.primary,
   },
   filterText: {
-    color: '#6C48C5',
+    color: theme.primary,
     fontWeight: '500',
     fontSize: 14,
   },
   filterTextActive: {
-    color: '#ffffff',
+    color: theme.pillTextActive,
   },
   loadingContainer: {
     flex: 1,
@@ -376,18 +381,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyText: {
-    color: '#9ca3af',
+    color: theme.textSecondary,
     fontSize: 15,
   },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.card,
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#ede9f6',
+    borderColor: theme.border,
     boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.05)',
     elevation: 2,
   },
@@ -395,7 +400,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 16,
-    backgroundColor: '#faf9fe',
+    backgroundColor: theme.background,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
@@ -407,17 +412,17 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1e1e2e',
+    color: theme.text,
     marginBottom: 4,
   },
   cardSubtitle: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#7c7c8a',
+    color: theme.textSecondary,
   },
   dateText: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#9ca3af',
+    color: theme.textSecondary,
   },
 });

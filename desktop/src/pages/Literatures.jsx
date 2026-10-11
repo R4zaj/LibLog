@@ -21,6 +21,8 @@ export default function Literatures() {
   const [archivedBooks, setArchivedBooks] = useState([]);
   const [authors, setAuthors] = useState([]);
   const [genres, setGenres] = useState([]);
+  const [genreSearch, setGenreSearch] = useState('');
+  const [authorSearch, setAuthorSearch] = useState('');
   
   // Selection for Active Books
   const [selectedBooks, setSelectedBooks] = useState([]);
@@ -1160,17 +1162,35 @@ export default function Literatures() {
     );
   };
 
-  const renderAuthorCatalog = () => (
-    <div className="flex flex-col gap-4 animate-fade-in relative pb-20">
-      <div className="flex items-center justify-between mb-2">
-        <div className="relative w-96">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500" size={16} />
-          <input type="text" placeholder="Search by author name..." className="w-full pl-9 pr-4 py-2 border border-gray-200 dark:border-dark-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-dark-bg dark:text-slate-200" />
-        </div>
-        <span className="text-sm text-gray-500 dark:text-slate-400 flex items-center gap-2"><User size={16} /> {authors.length} authors</span>
-      </div>
+  const renderAuthorCatalog = () => {
+    const filteredAuthors = authors.filter(a =>
+      !authorSearch || a.name?.toLowerCase().includes(authorSearch.toLowerCase())
+    );
 
-      {authors.map(author => (
+    return (
+      <div className="flex flex-col gap-4 animate-fade-in relative pb-20">
+        <div className="flex items-center justify-between mb-2">
+          <div className="relative w-96">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500" size={16} />
+            <input 
+              type="text" 
+              placeholder="Search by author name..." 
+              value={authorSearch}
+              onChange={(e) => setAuthorSearch(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 border border-gray-200 dark:border-dark-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-dark-bg dark:text-slate-200" 
+            />
+          </div>
+          <span className="text-sm text-gray-500 dark:text-slate-400 flex items-center gap-2">
+            <User size={16} /> {filteredAuthors.length} authors
+          </span>
+        </div>
+
+        {filteredAuthors.length === 0 ? (
+          <div className="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-xl p-8 text-center text-gray-500 dark:text-slate-400 text-sm">
+            No authors found matching &quot;{authorSearch}&quot;.
+          </div>
+        ) : (
+          filteredAuthors.map(author => (
         <div key={author.id} className="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-xl shadow-sm overflow-hidden transition-all">
           <div className="p-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-hover" onClick={() => toggleAuthor(author.id)}>
             <div className="flex items-center gap-4">
@@ -1219,73 +1239,105 @@ export default function Literatures() {
             </div>
           )}
         </div>
-      ))}
-    </div>
-  );
-
-  const renderGenreCatalog = () => (
-    <div className="flex flex-col gap-4 animate-fade-in pb-20">
-      <div className="flex items-center justify-between mb-2">
-        <div className="relative w-96">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500" size={16} />
-          <input type="text" placeholder="Search by genre name..." className="w-full pl-9 pr-4 py-2 border border-gray-200 dark:border-dark-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-dark-bg dark:text-slate-200" />
-        </div>
-        <span className="text-sm text-gray-500 dark:text-slate-400 flex items-center gap-2"><Tag size={16} /> {genres.length} genres</span>
+      ))
+    )}
       </div>
+    );
+  };
 
-      <div className="grid grid-cols-2 gap-6">
-        {genres.map(genre => (
-          <div key={genre.id} className="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-xl shadow-sm overflow-hidden h-fit transition-all">
-            <div className="p-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-hover" onClick={() => toggleGenre(genre.id)}>
-              <div className="flex items-center gap-3">
-                <div className={`w-2.5 h-2.5 rounded-full ${genre.color}`}></div>
-                <span className="font-bold text-gray-900 dark:text-slate-200">{genre.name}</span>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${genre.colorBg} ${genre.colorText} border-current/20`}>
-                  {genre.books} books
-                </span>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-xs text-gray-400 dark:text-slate-500">{genre.copies} total copies</span>
-                <button className="text-gray-400 dark:text-slate-500">
-                  {genre.expanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                </button>
-              </div>
-            </div>
+  const renderGenreCatalog = () => {
+    const filteredGenres = genres.filter(g =>
+      !genreSearch || g.name?.toLowerCase().includes(genreSearch.toLowerCase())
+    );
 
-            {genre.expanded && (
-              <div className="border-t border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card">
-                <table className="w-full text-left text-xs">
-                  <thead>
-                    <tr className="border-b border-gray-100 dark:border-dark-border text-gray-500 dark:text-slate-400">
-                      <th className="px-4 py-3 font-semibold">Title</th>
-                      <th className="px-4 py-3 font-semibold">Author</th>
-                      <th className="px-4 py-3 font-semibold">LCCN / Call No.</th>
-                      <th className="px-4 py-3 font-semibold">Copies</th>
-                      <th className="px-4 py-3 font-semibold">Shelf</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50 dark:divide-dark-border">
-                    {books.filter(b => b.genre === genre.name).map(book => (
-                      <tr key={book.id} className="hover:bg-gray-50 dark:hover:bg-dark-hover">
-                        <td className="px-4 py-3 font-bold text-gray-800 dark:text-slate-300">{book.title}</td>
-                        <td className="px-4 py-3 text-gray-600 dark:text-slate-300">{book.author}</td>
-                        <td className="px-4 py-3 text-gray-600 dark:text-slate-300">{book.lccn}</td>
-                        <td className="px-4 py-3 text-gray-600 dark:text-slate-300">{book.available}/{book.total}</td>
-                        <td className="px-4 py-3 text-gray-600 dark:text-slate-300 font-medium">{book.shelf}</td>
-                      </tr>
-                    ))}
-                    {books.filter(b => b.genre === genre.name).length === 0 && (
-                      <tr><td colSpan="5" className="px-4 py-4 text-center text-gray-500 text-xs">No active books available for this genre.</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            )}
+    const leftGenres = filteredGenres.filter((_, idx) => idx % 2 === 0);
+    const rightGenres = filteredGenres.filter((_, idx) => idx % 2 === 1);
+
+    const renderGenreCard = (genre) => (
+      <div key={genre.id} className="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-xl shadow-sm overflow-hidden transition-all">
+        <div className="p-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-hover" onClick={() => toggleGenre(genre.id)}>
+          <div className="flex items-center gap-3">
+            <div className={`w-2.5 h-2.5 rounded-full ${genre.color}`}></div>
+            <span className="font-bold text-gray-900 dark:text-slate-200">{genre.name}</span>
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${genre.colorBg} ${genre.colorText} border-current/20`}>
+              {genre.books} books
+            </span>
           </div>
-        ))}
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-gray-400 dark:text-slate-500">{genre.copies} total copies</span>
+            <button className="text-gray-400 dark:text-slate-500" type="button">
+              {genre.expanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+            </button>
+          </div>
+        </div>
+
+        {genre.expanded && (
+          <div className="border-t border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-gray-100 dark:border-dark-border text-gray-500 dark:text-slate-400">
+                  <th className="px-4 py-3 font-semibold">Title</th>
+                  <th className="px-4 py-3 font-semibold">Author</th>
+                  <th className="px-4 py-3 font-semibold">LCCN / Call No.</th>
+                  <th className="px-4 py-3 font-semibold">Copies</th>
+                  <th className="px-4 py-3 font-semibold">Shelf</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50 dark:divide-dark-border">
+                {books.filter(b => b.genre === genre.name).map(book => (
+                  <tr key={book.id} className="hover:bg-gray-50 dark:hover:bg-dark-hover">
+                    <td className="px-4 py-3 font-bold text-gray-800 dark:text-slate-300">{book.title}</td>
+                    <td className="px-4 py-3 text-gray-600 dark:text-slate-300">{book.author}</td>
+                    <td className="px-4 py-3 text-gray-600 dark:text-slate-300">{book.lccn}</td>
+                    <td className="px-4 py-3 text-gray-600 dark:text-slate-300">{book.available}/{book.total}</td>
+                    <td className="px-4 py-3 text-gray-600 dark:text-slate-300 font-medium">{book.shelf}</td>
+                  </tr>
+                ))}
+                {books.filter(b => b.genre === genre.name).length === 0 && (
+                  <tr><td colSpan="5" className="px-4 py-4 text-center text-gray-500 text-xs">No active books available for this genre.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
-    </div>
-  );
+    );
+
+    return (
+      <div className="flex flex-col gap-4 animate-fade-in pb-20">
+        <div className="flex items-center justify-between mb-2">
+          <div className="relative w-96">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500" size={16} />
+            <input 
+              type="text" 
+              placeholder="Search by genre name..." 
+              value={genreSearch}
+              onChange={(e) => setGenreSearch(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 border border-gray-200 dark:border-dark-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-dark-bg dark:text-slate-200" 
+            />
+          </div>
+          <span className="text-sm text-gray-500 dark:text-slate-400 flex items-center gap-2">
+            <Tag size={16} /> {filteredGenres.length} genres
+          </span>
+        </div>
+
+        {filteredGenres.length === 0 ? (
+          <div className="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-xl p-8 text-center text-gray-500 dark:text-slate-400 text-sm">
+            No genres found matching &quot;{genreSearch}&quot;.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+            <div className="flex flex-col gap-6">
+              {leftGenres.map(renderGenreCard)}
+            </div>
+            <div className="flex flex-col gap-6">
+              {rightGenres.map(renderGenreCard)}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const renderQRCatalog = () => (
     <div className="flex flex-col gap-6 animate-fade-in pb-20">

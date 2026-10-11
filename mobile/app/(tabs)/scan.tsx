@@ -1,5 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { Animated, TouchableOpacity, Vibration, StyleSheet } from 'react-native';
+import { useAppTheme } from '../../context/ThemeContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -15,6 +17,8 @@ import { DynamicQrCode } from '../../components/DynamicQrCode';
 const FRESH_LOG_WINDOW_MS = 15000;
 
 export default function ScanScreen() {
+  const { theme } = useAppTheme();
+  const { t } = useLanguage();
   const { user } = useAuth();
   const router = useRouter();
   const [history, setHistory] = useState<any[]>([]);
@@ -80,7 +84,7 @@ export default function ScanScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#f4f1fa' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.pillContainer }}>
       <ScrollView showsVerticalScrollIndicator={false}>
         <YStack alignItems="center" paddingHorizontal="$5" paddingTop="$5" paddingBottom="$8">
 
@@ -88,16 +92,16 @@ export default function ScanScreen() {
           <View style={{ width: '100%', flexDirection: 'row', alignItems: 'center', marginBottom: 4, position: 'relative' }}>
             <TouchableOpacity 
               onPress={() => router.canGoBack() ? router.back() : router.replace('/')} 
-              style={{ position: 'absolute', left: 0, zIndex: 10, padding: 8, backgroundColor: '#fff', borderRadius: 20, borderWidth: 1, borderColor: '#ede9f6' }}
+              style={{ position: 'absolute', left: 0, zIndex: 10, padding: 8, backgroundColor: theme.card, borderRadius: 20, borderWidth: 1, borderColor: theme.border }}
               hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
             >
-              <ArrowLeft color="#1e1e2e" size={24} />
+              <ArrowLeft color={theme.text} size={24} />
             </TouchableOpacity>
             <Text
               flex={1}
               fontSize={24}
               fontWeight="800"
-              color="#1e1e2e"
+              color={theme.text}
               textAlign="center"
             >
               Your Library ID
@@ -106,7 +110,7 @@ export default function ScanScreen() {
           <Text
             fontSize={14}
             fontWeight="500"
-            color="#7c7c8a"
+            color={theme.textSecondary}
             textAlign="center"
             lineHeight={20}
             marginBottom="$5"
@@ -141,7 +145,7 @@ export default function ScanScreen() {
                 hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
                 style={{ minHeight: 48, justifyContent: 'center' }}
               >
-                <Text fontSize={12} color="#6C48C5" fontWeight="700">
+                <Text fontSize={12} color={theme.primary} fontWeight="700">
                   Retry
                 </Text>
               </TouchableOpacity>
@@ -150,12 +154,12 @@ export default function ScanScreen() {
 
           {/* ── QR Card ── */}
           <YStack
-            backgroundColor="white"
+            backgroundColor={theme.card}
             borderRadius={16}
             padding={24}
             alignItems="center"
             borderWidth={1}
-            borderColor="#ede9f6"
+            borderColor={theme.border}
             style={{ boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.05)' }}
             elevation={2}
             marginBottom="$5"
@@ -166,7 +170,7 @@ export default function ScanScreen() {
             <View
               height={4}
               width={48}
-              backgroundColor="#6C48C5"
+              backgroundColor={theme.primary}
               borderRadius={2}
               marginBottom="$4"
               opacity={0.6}
@@ -177,7 +181,7 @@ export default function ScanScreen() {
               <DynamicQrCode fallbackId={user.student_id} offlineSecret={user.offline_secret} size={200} />
             ) : (
               <YStack width={200} height={200} alignItems="center" justifyContent="center">
-                <Text color="#9ca3af" fontSize={14}>Loading QR...</Text>
+                <Text color={theme.textSecondary} fontSize={14}>Loading QR...</Text>
               </YStack>
             )}
 
@@ -187,7 +191,7 @@ export default function ScanScreen() {
                 fontSize={20}
                 fontWeight="700"
                 letterSpacing={3}
-                color="#6C48C5"
+                color={theme.primary}
               >
                 {user?.student_id}
               </Text>
@@ -200,11 +204,11 @@ export default function ScanScreen() {
           {/* ── History Section ── */}
           <YStack width="100%" marginTop="$2">
             <XStack alignItems="center" justifyContent="space-between" marginBottom="$3">
-              <Text fontSize={12} fontWeight="700" color="#7c7c8a" letterSpacing={1}>
+              <Text fontSize={12} fontWeight="700" color={theme.textSecondary} letterSpacing={1}>
                 RECENT SCANS
               </Text>
               {history.length > 0 && (
-                <Text fontSize={12} color="#9ca3af" fontWeight="500">
+                <Text fontSize={12} color={theme.textSecondary} fontWeight="500">
                   {history.length} record{history.length !== 1 ? 's' : ''}
                 </Text>
               )}
@@ -212,18 +216,18 @@ export default function ScanScreen() {
 
             {history.length === 0 ? (
               <YStack
-                backgroundColor="white"
+                backgroundColor={theme.card}
                 borderRadius={16}
                 padding="$5"
                 alignItems="center"
                 justifyContent="center"
                 borderWidth={1}
-                borderColor="#f0eef5"
+                borderColor={theme.border}
               >
                 <YStack marginBottom="$2">
-                  <Clock color="#9ca3af" size={32} strokeWidth={1.5} />
+                  <Clock color={theme.textSecondary} size={32} strokeWidth={1.5} />
                 </YStack>
-                <Text color="#9ca3af" fontSize={14} fontWeight="500">
+                <Text color={theme.textSecondary} fontSize={14} fontWeight="500">
                   No recent scans found
                 </Text>
                 <Text color="#c4c4cc" fontSize={12} fontWeight="500" marginTop="$1">
@@ -247,13 +251,13 @@ export default function ScanScreen() {
                   <XStack
                     key={log.id}
                     alignItems="center"
-                    backgroundColor="white"
+                    backgroundColor={theme.card}
                     width="100%"
                     padding="$3.5"
                     borderRadius={16}
                     marginBottom="$2.5"
                     borderWidth={1}
-                    borderColor="#f0eef5"
+                    borderColor={theme.border}
                     style={{ boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.05)' }}
                     elevation={2}
                   >
@@ -279,12 +283,12 @@ export default function ScanScreen() {
                       <Text
                         fontSize={18}
                         fontWeight="600"
-                        color="#1e1e2e"
+                        color={theme.text}
                         marginBottom={2}
                       >
                         {isCheckIn ? 'Checked In' : 'Checked Out'}
                       </Text>
-                      <Text fontSize={12} color="#9ca3af" fontWeight="500">
+                      <Text fontSize={12} color={theme.textSecondary} fontWeight="500">
                         {dateString}
                       </Text>
                     </YStack>
@@ -339,7 +343,7 @@ export default function ScanScreen() {
                 <Check color="#FFFFFF" size={48} strokeWidth={3} />
               </YStack>
               <Text
-                color="white"
+                color={theme.pillTextActive}
                 fontSize={18}
                 fontWeight="700"
                 marginTop="$4"

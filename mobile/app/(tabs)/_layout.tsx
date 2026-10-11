@@ -3,6 +3,8 @@ import React, { useRef, useEffect, useState } from 'react';
 import { View, Platform, Text, Animated, Pressable, TouchableOpacity } from 'react-native';
 import { Home, Search, QrCode, BookCopy, User, History } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
+import { useAppTheme } from '../../context/ThemeContext';
 import api from '../../api';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { XStack, YStack } from 'tamagui';
@@ -58,6 +60,7 @@ function CustomTabBar({ state, descriptors, navigation, translateY }: any) {
   const dockRoutes = state.routes.filter((r: any) => r.name !== 'scan' && r.name !== 'profile');
   const qrRoute = state.routes.find((r: any) => r.name === 'scan');
   const insets = useSafeAreaInsets();
+  const { theme } = useAppTheme();
 
   return (
     <Animated.View style={{ transform: [{ translateY }], zIndex: 100, position: 'absolute', bottom: 0, left: 0, right: 0 }} pointerEvents="box-none">
@@ -74,10 +77,10 @@ function CustomTabBar({ state, descriptors, navigation, translateY }: any) {
         <XStack
         flex={1}
         marginRight={12}
-        backgroundColor="#ffffff"
+        backgroundColor={theme.tabBar}
         borderRadius={30}
         borderWidth={1}
-        borderColor="#ede9f6"
+        borderColor={theme.border}
         paddingHorizontal={8}
         paddingVertical={10}
         elevation={8}
@@ -86,7 +89,7 @@ function CustomTabBar({ state, descriptors, navigation, translateY }: any) {
         {dockRoutes.map((route: any) => {
           const { options } = descriptors[route.key];
           const isFocused = state.index === state.routes.findIndex((r: any) => r.key === route.key);
-          const color = isFocused ? '#6C48C5' : '#9ca3af';
+          const color = isFocused ? theme.primary : theme.tabBarInactive;
 
           const onPress = () => {
             const event = navigation.emit({
@@ -133,6 +136,8 @@ function CustomTabBar({ state, descriptors, navigation, translateY }: any) {
 
 export default function TabLayout() {
   const { user } = useAuth();
+  const { t } = useLanguage();
+  const { theme } = useAppTheme();
   const pathname = usePathname();
   const [borrowCount, setBorrowCount] = useState(0);
   const [tabBarVisible, setTabBarVisible] = useState(true);
@@ -164,7 +169,7 @@ export default function TabLayout() {
         headerShown: false,
         animation: 'fade',
         sceneStyle: {
-          backgroundColor: '#ffffff',
+          backgroundColor: theme.background,
         },
         tabBarStyle: {
           position: 'absolute',
@@ -179,12 +184,12 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
+          title: t('Home'),
           tabBarLabel: ({ focused, color }) => (
             <YStack alignItems="center">
-              <Text style={{ color, fontSize: 11, fontWeight: focused ? '700' : '500', marginTop: 3, textAlign: 'center' }}>Home</Text>
+              <Text style={{ color, fontSize: 11, fontWeight: focused ? '700' : '500', marginTop: 3, textAlign: 'center' }}>{t('Home')}</Text>
               <YStack alignItems="center" height={6} justifyContent="center" marginTop={2}>
-                {focused ? <YStack backgroundColor="#6C48C5" borderRadius={2} height={4} width={4}/> : null}
+                {focused ? <YStack backgroundColor={theme.primary} borderRadius={2} height={4} width={4}/> : null}
               </YStack>
             </YStack>
           ),
@@ -198,13 +203,13 @@ export default function TabLayout() {
       <Tabs.Screen
         name="search"
         options={{
-          title: 'Search',
+          title: t('Search'),
           tabBarButton: (props) => <TabButton {...props} />,
           tabBarLabel: ({ focused, color }) => (
             <YStack alignItems="center">
-              <Text style={{ color, fontSize: 11, fontWeight: focused ? '700' : '500', marginTop: 3, textAlign: 'center' }}>Search</Text>
+              <Text style={{ color, fontSize: 11, fontWeight: focused ? '700' : '500', marginTop: 3, textAlign: 'center' }}>{t('Search')}</Text>
               <YStack alignItems="center" height={6} justifyContent="center" marginTop={2}>
-                {focused ? <YStack backgroundColor="#6C48C5" borderRadius={2} height={4} width={4}/> : null}
+                {focused ? <YStack backgroundColor={theme.primary} borderRadius={2} height={4} width={4}/> : null}
               </YStack>
             </YStack>
           ),
@@ -227,13 +232,13 @@ export default function TabLayout() {
       <Tabs.Screen
         name="borrowed"
         options={{
-          title: 'Borrowed',
+          title: t('Borrowed'),
           tabBarButton: (props) => <TabButton {...props} />,
           tabBarLabel: ({ focused, color }) => (
             <YStack alignItems="center">
-              <Text style={{ color, fontSize: 11, fontWeight: focused ? '700' : '500', marginTop: 3, textAlign: 'center' }}>Borrowed</Text>
+              <Text style={{ color, fontSize: 11, fontWeight: focused ? '700' : '500', marginTop: 3, textAlign: 'center' }}>{t('Borrowed')}</Text>
               <YStack alignItems="center" height={6} justifyContent="center" marginTop={2}>
-                {focused ? <YStack backgroundColor="#6C48C5" borderRadius={2} height={4} width={4}/> : null}
+                {focused ? <YStack backgroundColor={theme.primary} borderRadius={2} height={4} width={4}/> : null}
               </YStack>
             </YStack>
           ),
@@ -262,13 +267,13 @@ export default function TabLayout() {
       <Tabs.Screen
         name="history"
         options={{
-          title: 'History',
+          title: t('History'),
           tabBarButton: (props) => <TabButton {...props} />,
           tabBarLabel: ({ focused, color }) => (
             <YStack alignItems="center">
-              <Text style={{ color, fontSize: 11, fontWeight: focused ? '700' : '500', marginTop: 3, textAlign: 'center' }}>History</Text>
+              <Text style={{ color, fontSize: 11, fontWeight: focused ? '700' : '500', marginTop: 3, textAlign: 'center' }}>{t('History')}</Text>
               <YStack alignItems="center" height={6} justifyContent="center" marginTop={2}>
-                {focused ? <YStack backgroundColor="#6C48C5" borderRadius={2} height={4} width={4}/> : null}
+                {focused ? <YStack backgroundColor={theme.primary} borderRadius={2} height={4} width={4}/> : null}
               </YStack>
             </YStack>
           ),
@@ -282,7 +287,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profile',
+          title: t('Profile'),
           href: null,
         }}
       />

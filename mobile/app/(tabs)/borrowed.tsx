@@ -1,5 +1,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { TouchableOpacity, ActivityIndicator, FlatList, ListRenderItem } from 'react-native';
+import { useAppTheme } from '../../context/ThemeContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AlertCircle, Book, ChevronRight, Clock, Info, QrCode, BookX, Wind } from 'lucide-react-native';
 import { YStack, XStack, Text, View } from 'tamagui';
@@ -11,6 +13,8 @@ import { TabBarVisibilityContext } from './_layout';
 import type { BorrowRecordWithBook } from '../../types/api';
 
 export default function Borrowed() {
+  const { theme } = useAppTheme();
+  const { t } = useLanguage();
   const { user } = useAuth();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'active' | 'history'>('active');
@@ -79,31 +83,31 @@ export default function Borrowed() {
 
     return (
       <YStack
-        backgroundColor="white"
+        backgroundColor={theme.card}
         borderBottomWidth={isLast ? 0 : 1}
-        borderBottomColor="#f3f4f6"
+        borderBottomColor={theme.border}
       >
         {/* Book Info */}
         <XStack padding={16} marginBottom={!isReturned ? 0 : "$2"}>
           <YStack
             width={64}
             height={84}
-            backgroundColor="#faf9fe"
+            backgroundColor={theme.background}
             borderRadius={12}
             justifyContent="center"
             alignItems="center"
             marginRight="$3"
           >
-            <Book color={isOverdue ? '#ef4444' : '#6C48C5'} size={22} opacity={isOverdue ? 0.95 : 0.8} />
+            <Book color={isOverdue ? '#ef4444' : theme.primary} size={22} opacity={isOverdue ? 0.95 : 0.8} />
           </YStack>
           <YStack flex={1} justifyContent="center">
-            <Text fontSize={18} fontWeight="600" color="#1e1e2e" marginBottom={3} numberOfLines={2}>
+            <Text fontSize={18} fontWeight="600" color={theme.text} marginBottom={3} numberOfLines={2}>
               {record.book?.title}
             </Text>
-            <Text fontSize={14} fontWeight="500" color="#4b5563" marginBottom="$2" numberOfLines={1}>
+            <Text fontSize={14} fontWeight="500" color={theme.textSecondary} marginBottom="$2" numberOfLines={1}>
               {record.book?.author?.name || 'Unknown Author'}
             </Text>
-            <Text fontSize={12} fontWeight="500" color="#7c7c8a" marginBottom="$2">
+            <Text fontSize={12} fontWeight="500" color={theme.textSecondary} marginBottom="$2">
               Borrowed: {borrowDateStr}
             </Text>
             
@@ -165,7 +169,7 @@ export default function Borrowed() {
           <TouchableOpacity
             onPress={() => router.push('/scan')}
             style={{
-              backgroundColor: '#f4f1fa',
+              backgroundColor: theme.pillContainer,
               paddingVertical: 12,
               paddingHorizontal: 16,
               flexDirection: 'row',
@@ -173,8 +177,8 @@ export default function Borrowed() {
               minHeight: 48,
             }}
           >
-            <QrCode color="#6C48C5" size={16} style={{ marginRight: 8 }} />
-            <Text color="#6C48C5" fontSize={12} fontWeight="500">
+            <QrCode color={theme.primary} size={16} style={{ marginRight: 8 }} />
+            <Text color={theme.primary} fontSize={12} fontWeight="500">
               Present your QR code at the desk to return.
             </Text>
           </TouchableOpacity>
@@ -184,17 +188,17 @@ export default function Borrowed() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#f4f1fa' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.pillContainer }}>
       {/* Header */}
-      <YStack paddingTop="$4" paddingHorizontal="$5" paddingBottom="$4" backgroundColor="white">
-        <Text fontSize={24} fontWeight="800" color="#1e1e2e" marginBottom="$3">
+      <YStack paddingTop="$4" paddingHorizontal="$5" paddingBottom="$4" backgroundColor={theme.card}>
+        <Text fontSize={24} fontWeight="800" color={theme.text} marginBottom="$3">
           {activeTab === 'active' 
             ? `You have ${activeBorrows.length} active borrow${activeBorrows.length === 1 ? '' : 's'}${overdueCount > 0 ? `. ${overdueCount} need${overdueCount === 1 ? 's' : ''} attention.` : '.'}`
             : `You have ${historyBorrows.length} past borrow${historyBorrows.length === 1 ? '' : 's'}.`}
         </Text>
 
         {/* Tab Switcher */}
-        <XStack backgroundColor="#f4f1fa" borderRadius={9999} padding={4} minHeight={48}>
+        <XStack backgroundColor={theme.pillContainer} borderRadius={9999} padding={4} minHeight={48}>
           <TouchableOpacity
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -205,10 +209,10 @@ export default function Borrowed() {
               justifyContent: 'center',
               alignItems: 'center',
               borderRadius: 9999,
-              backgroundColor: activeTab === 'active' ? '#6C48C5' : 'transparent',
+              backgroundColor: activeTab === 'active' ? theme.primary : 'transparent',
             }}
           >
-            <Text color={activeTab === 'active' ? 'white' : '#7c7c8a'} fontWeight={activeTab === 'active' ? '700' : '500'} fontSize={13}>
+            <Text color={activeTab === 'active' ? theme.card : theme.textSecondary} fontWeight={activeTab === 'active' ? '700' : '500'} fontSize={13}>
               Active ({activeBorrows.length})
             </Text>
           </TouchableOpacity>
@@ -222,10 +226,10 @@ export default function Borrowed() {
               justifyContent: 'center',
               alignItems: 'center',
               borderRadius: 9999,
-              backgroundColor: activeTab === 'history' ? '#6C48C5' : 'transparent',
+              backgroundColor: activeTab === 'history' ? theme.primary : 'transparent',
             }}
           >
-            <Text color={activeTab === 'history' ? 'white' : '#7c7c8a'} fontWeight={activeTab === 'history' ? '700' : '500'} fontSize={13}>
+            <Text color={activeTab === 'history' ? theme.card : theme.textSecondary} fontWeight={activeTab === 'history' ? '700' : '500'} fontSize={13}>
               History ({historyBorrows.length})
             </Text>
           </TouchableOpacity>
@@ -241,10 +245,10 @@ export default function Borrowed() {
         contentContainerStyle={[
           { paddingBottom: insets.bottom + 98 },
           currentList.length > 0 && {
-            backgroundColor: 'white',
+            backgroundColor: theme.card,
             borderRadius: 24,
             borderWidth: 1,
-            borderColor: '#ede9f6',
+            borderColor: theme.border,
             overflow: 'hidden',
           }
         ]}
@@ -265,7 +269,7 @@ export default function Borrowed() {
         ListHeaderComponent={null}
         ListEmptyComponent={
           isLoading ? (
-            <ActivityIndicator size="large" color="#6C48C5" style={{ marginTop: 40 }} />
+            <ActivityIndicator size="large" color={theme.primary} style={{ marginTop: 40 }} />
           ) : fetchError ? (
             <YStack
               backgroundColor="#fef3f2"
@@ -287,15 +291,15 @@ export default function Borrowed() {
                 hitSlop={{ top: 15, bottom: 15, left: 16, right: 16 }}
                 style={{ paddingVertical: 12, paddingHorizontal: 8 }}
               >
-                <Text fontSize={12} color="#6C48C5" fontWeight="700">
+                <Text fontSize={12} color={theme.primary} fontWeight="700">
                   Tap to retry
                 </Text>
               </TouchableOpacity>
             </YStack>
           ) : (
             <YStack padding={32} alignItems="center" justifyContent="center" flex={1} marginTop={40}>
-              <Wind color="#9ca3af" size={48} style={{ marginBottom: 16 }} />
-              <Text style={{ fontSize: 14, fontWeight: '500', color: '#7c7c8a', textAlign: 'center' }}>
+              <Wind color={theme.textSecondary} size={48} style={{ marginBottom: 16 }} />
+              <Text style={{ fontSize: 14, fontWeight: '500', color: theme.textSecondary, textAlign: 'center' }}>
                 {activeTab === 'active' ? 'No active borrows found' : 'No past borrows found'}
               </Text>
             </YStack>

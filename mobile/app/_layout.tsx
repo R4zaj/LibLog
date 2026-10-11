@@ -46,6 +46,8 @@ export default function RootLayout() {
 
 import { AuthProvider } from '../context/AuthContext';
 import { FavoritesProvider } from '../context/FavoritesContext';
+import { LanguageProvider } from '../context/LanguageContext';
+import { ThemeProvider as AppThemeProvider } from '../context/ThemeContext';
 
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
@@ -53,15 +55,19 @@ function RootLayoutNav() {
   return (
     <TamaguiProvider config={tamaguiConfig} defaultTheme="light">
       <ThemeProvider value={DefaultTheme}>
-        <AuthProvider>
-          <FavoritesProvider>
-            <Stack>
-              <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
-            </Stack>
-          </FavoritesProvider>
-        </AuthProvider>
+        <AppThemeProvider>
+          <LanguageProvider>
+            <AuthProvider>
+              <FavoritesProvider>
+                <Stack>
+                  <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+                  <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                  <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+                </Stack>
+              </FavoritesProvider>
+            </AuthProvider>
+          </LanguageProvider>
+        </AppThemeProvider>
       </ThemeProvider>
     </TamaguiProvider>
   );

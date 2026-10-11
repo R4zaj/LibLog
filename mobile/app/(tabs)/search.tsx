@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { TextInput, TouchableOpacity, Dimensions, FlatList, ListRenderItem } from 'react-native';
+import { useAppTheme } from '../../context/ThemeContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AlertCircle, ArrowUpRight, Search as SearchIcon, BookOpen, Clock, X, Heart } from 'lucide-react-native';
 import { YStack, XStack, Text, ScrollView, View } from 'tamagui';
@@ -35,6 +37,8 @@ const TAB_TO_CATEGORY: Record<string, BookCategory> = {
 };
 
 export default function Search() {
+  const { theme } = useAppTheme();
+  const { t } = useLanguage();
   const { isFavorite, toggleFavorite } = useFavorites();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('All');
@@ -149,16 +153,16 @@ export default function Search() {
     <TouchableOpacity onPress={() => handleBookPress(item)} activeOpacity={0.7} style={{ paddingHorizontal: 20 }}>
       <XStack
         alignItems="center"
-        backgroundColor="#ffffff"
+        backgroundColor={theme.card}
         padding={16}
         borderLeftWidth={1}
         borderRightWidth={1}
         borderTopWidth={isFirst ? 1 : 0}
         borderBottomWidth={1}
-        borderBottomColor={isLast ? '#ede9f6' : '#f3f4f6'}
-        borderLeftColor="#ede9f6"
-        borderRightColor="#ede9f6"
-        borderTopColor="#ede9f6"
+        borderBottomColor={isLast ? theme.border : theme.border}
+        borderLeftColor={theme.border}
+        borderRightColor={theme.border}
+        borderTopColor={theme.border}
         borderTopLeftRadius={isFirst ? 24 : 0}
         borderTopRightRadius={isFirst ? 24 : 0}
         borderBottomLeftRadius={isLast ? 24 : 0}
@@ -169,17 +173,17 @@ export default function Search() {
           height={96}
           borderRadius={12}
           borderWidth={1}
-          borderColor="#ede9f6"
+          borderColor={theme.border}
           justifyContent="center"
           alignItems="center"
           marginRight="$3"
-          backgroundColor="#faf9fe"
+          backgroundColor={theme.background}
         >
-          <BookOpen color="#6C48C5" size={24} />
+          <BookOpen color={theme.primary} size={24} />
         </YStack>
         <YStack flex={1}>
           <XStack justifyContent="space-between" alignItems="flex-start">
-            <Text fontSize={18} fontWeight="600" color="#1e1e2e" marginBottom={3} flex={1} marginRight="$2" numberOfLines={2}>
+            <Text fontSize={18} fontWeight="600" color={theme.text} marginBottom={3} flex={1} marginRight="$2" numberOfLines={2}>
               {item.title}
             </Text>
             <TouchableOpacity
@@ -200,17 +204,17 @@ export default function Search() {
               />
             </TouchableOpacity>
           </XStack>
-          <Text fontSize={14} fontWeight="500" color="#4b5563" marginBottom="$2" numberOfLines={1}>
+          <Text fontSize={14} fontWeight="500" color={theme.textSecondary} marginBottom="$2" numberOfLines={1}>
             {item.author}
           </Text>
           <XStack alignItems="center" flexWrap="wrap" gap={8}>
-            <Text fontSize={12} fontWeight="500" color="#7c7c8a">
+            <Text fontSize={12} fontWeight="500" color={theme.textSecondary}>
               {item.tags?.slice(0, 2).join(', ')}
             </Text>
             <Text fontSize={12} color="#d1d5db">•</Text>
             <XStack alignItems="center" gap={4}>
               <View width={6} height={6} borderRadius={3} backgroundColor={item.available > 0 ? '#10b981' : '#ef4444'} />
-              <Text fontSize={12} fontWeight="500" color="#7c7c8a">
+              <Text fontSize={12} fontWeight="500" color={theme.textSecondary}>
                 {item.available > 0 ? `${item.available} of ${item.total} Available` : 'Out'}
               </Text>
             </XStack>
@@ -222,7 +226,7 @@ export default function Search() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#f4f1fa' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.pillContainer }}>
       <BookDetailModal
         isOpen={!!selectedBook}
         book={selectedBook}
@@ -232,24 +236,24 @@ export default function Search() {
       />
 
       {/* Header */}
-      <YStack paddingTop="$4" paddingHorizontal="$5" paddingBottom="$4" backgroundColor="white">
-        <Text fontSize={24} fontWeight="800" color="#1e1e2e" marginBottom="$3">
+      <YStack paddingTop="$4" paddingHorizontal="$5" paddingBottom="$4" backgroundColor={theme.card}>
+        <Text fontSize={24} fontWeight="800" color={theme.text} marginBottom="$3">
           Search Catalog
         </Text>
         <XStack
           alignItems="center"
-          backgroundColor="#faf9fe"
+          backgroundColor={theme.background}
           borderRadius={16}
           paddingHorizontal="$4"
           height={48}
           borderWidth={1}
-          borderColor="#ede9f6"
+          borderColor={theme.border}
         >
-          <SearchIcon color="#9ca3af" size={20} style={{ marginRight: 10 }} />
+          <SearchIcon color={theme.textSecondary} size={20} style={{ marginRight: 10 }} />
           <TextInput
-            style={{ flex: 1, fontSize: 15, color: '#1e1e2e' }}
+            style={{ flex: 1, fontSize: 15, color: theme.text }}
             placeholder="Search books, research, magazines..."
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={theme.textSecondary}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
@@ -258,21 +262,21 @@ export default function Search() {
 
       {/* Auto-Suggestions */}
       {searchQuery.length > 0 && (
-        <YStack backgroundColor="white" paddingHorizontal="$5" paddingBottom="$4" borderBottomWidth={1} borderBottomColor="#ede9f6" zIndex={10}>
+        <YStack backgroundColor={theme.card} paddingHorizontal="$5" paddingBottom="$4" borderBottomWidth={1} borderBottomColor={theme.border} zIndex={10}>
           {getSuggestions().map((suggestion, idx) => (
             <TouchableOpacity
               key={idx}
               onPress={() => setSearchQuery(suggestion)}
-              style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f4f1fa' }}
+              style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.pillContainer }}
             >
               <XStack alignItems="center">
-                <SearchIcon color="#9ca3af" size={16} style={{ marginRight: 10 }} />
-                <Text color="#1e1e2e" fontSize={15} fontWeight="500">{suggestion}</Text>
+                <SearchIcon color={theme.textSecondary} size={16} style={{ marginRight: 10 }} />
+                <Text color={theme.text} fontSize={15} fontWeight="500">{suggestion}</Text>
               </XStack>
             </TouchableOpacity>
           ))}
           {getSuggestions().length === 0 && (
-            <Text color="#9ca3af" fontSize={14} paddingVertical={12}>No suggestions found</Text>
+            <Text color={theme.textSecondary} fontSize={14} paddingVertical={12}>No suggestions found</Text>
           )}
         </YStack>
       )}
@@ -318,18 +322,18 @@ export default function Search() {
                       flexDirection: 'row',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      backgroundColor: isActive ? '#6C48C5' : '#faf9fe',
+                      backgroundColor: isActive ? theme.primary : theme.background,
                       paddingHorizontal: 16,
                       minHeight: 36,
                       borderRadius: 9999,
                       borderWidth: 1,
-                      borderColor: isActive ? '#6C48C5' : '#ede9f6',
+                      borderColor: isActive ? theme.primary : theme.border,
                     }}
                   >
                     {(tab === 'All' || tab === 'Books' || tab === 'Research') && (
-                      <BookOpen color={isActive ? '#fff' : '#7c7c8a'} size={14} style={{ marginRight: 6 }} />
+                      <BookOpen color={isActive ? theme.card : theme.textSecondary} size={14} style={{ marginRight: 6 }} />
                     )}
-                    <Text color={isActive ? 'white' : '#4b5563'} fontSize={14} fontWeight={isActive ? '600' : '500'}>
+                    <Text color={isActive ? theme.card : theme.textSecondary} fontSize={14} fontWeight={isActive ? '600' : '500'}>
                       {tab}
                     </Text>
                   </TouchableOpacity>
@@ -340,16 +344,16 @@ export default function Search() {
                   key={`tag-${idx}`}
                   onPress={() => setSearchQuery(tag)}
                   style={{
-                    backgroundColor: '#faf9fe',
+                    backgroundColor: theme.background,
                     paddingHorizontal: 16,
                     minHeight: 36,
                     justifyContent: 'center',
                     borderRadius: 9999,
                     borderWidth: 1,
-                    borderColor: '#ede9f6',
+                    borderColor: theme.border,
                   }}
                 >
-                  <Text color="#6C48C5" fontSize={14} fontWeight="500">
+                  <Text color={theme.primary} fontSize={14} fontWeight="500">
                     {tag}
                   </Text>
                 </TouchableOpacity>
@@ -360,8 +364,8 @@ export default function Search() {
             {recentItems.length > 0 && (
               <YStack paddingHorizontal="$5" marginBottom="$5">
                 <XStack alignItems="center" marginBottom="$3">
-                  <Clock color="#6C48C5" size={16} />
-                  <Text fontSize={18} fontWeight="600" color="#1e1e2e" marginLeft="$2">
+                  <Clock color={theme.primary} size={16} />
+                  <Text fontSize={18} fontWeight="600" color={theme.text} marginLeft="$2">
                     Recently Viewed
                   </Text>
                 </XStack>
@@ -384,22 +388,22 @@ export default function Search() {
                         justifyContent="center"
                         alignItems="center"
                         marginBottom="$2"
-                        backgroundColor="#6C48C5"
+                        backgroundColor={theme.primary}
                         position="relative"
                       >
-                        <BookOpen color="#fff" size={32} opacity={0.6} />
+                        <BookOpen color={theme.pillTextActive} size={32} opacity={0.6} />
                         <YStack
                           position="absolute"
                           top={8}
                           left={8}
                           right={40}
-                          backgroundColor="white"
+                          backgroundColor={theme.card}
                           paddingHorizontal="$1.5"
                           paddingVertical={3}
                           borderRadius={6}
                           alignSelf="flex-start"
                         >
-                          <Text fontSize={12} fontWeight="700" color="#7c7c8a" textTransform="uppercase" numberOfLines={1} ellipsizeMode="tail">
+                          <Text fontSize={12} fontWeight="700" color={theme.textSecondary} textTransform="uppercase" numberOfLines={1} ellipsizeMode="tail">
                             {item.type}
                           </Text>
                         </YStack>
@@ -425,16 +429,16 @@ export default function Search() {
                           }}
                         >
                           <Heart
-                            color={isFavorite(item.id) ? '#ef4444' : '#9ca3af'}
+                            color={isFavorite(item.id) ? '#ef4444' : theme.textSecondary}
                             size={18}
                             fill={isFavorite(item.id) ? '#ef4444' : 'none'}
                           />
                         </TouchableOpacity>
                       </YStack>
-                      <Text fontSize={18} fontWeight="600" color="#1e1e2e" numberOfLines={2} marginBottom={2}>
+                      <Text fontSize={18} fontWeight="600" color={theme.text} numberOfLines={2} marginBottom={2}>
                         {item.title}
                       </Text>
-                      <Text fontSize={12} fontWeight="500" color="#9ca3af" numberOfLines={1}>
+                      <Text fontSize={12} fontWeight="500" color={theme.textSecondary} numberOfLines={1}>
                         {item.author}
                       </Text>
                     </YStack>
@@ -446,14 +450,14 @@ export default function Search() {
         }
         ListEmptyComponent={
           loading ? (
-            <YStack backgroundColor="#ffffff" borderRadius={24} borderWidth={1} borderColor="#ede9f6" marginHorizontal={20} overflow="hidden">
+            <YStack backgroundColor={theme.card} borderRadius={24} borderWidth={1} borderColor={theme.border} marginHorizontal={20} overflow="hidden">
               {[1, 2, 3, 4].map((i) => (
-                <XStack key={i} alignItems="center" padding={16} borderBottomWidth={i !== 4 ? 1 : 0} borderBottomColor="#f3f4f6">
-                  <YStack width={72} height={96} borderRadius={12} backgroundColor="#f4f1fa" marginRight="$3" />
+                <XStack key={i} alignItems="center" padding={16} borderBottomWidth={i !== 4 ? 1 : 0} borderBottomColor={theme.border}>
+                  <YStack width={72} height={96} borderRadius={12} backgroundColor={theme.pillContainer} marginRight="$3" />
                   <YStack flex={1} gap={8}>
-                    <YStack height={16} width="80%" backgroundColor="#f4f1fa" borderRadius={4} />
-                    <YStack height={14} width="50%" backgroundColor="#f4f1fa" borderRadius={4} />
-                    <YStack height={12} width="30%" backgroundColor="#f4f1fa" borderRadius={4} marginTop={8} />
+                    <YStack height={16} width="80%" backgroundColor={theme.pillContainer} borderRadius={4} />
+                    <YStack height={14} width="50%" backgroundColor={theme.pillContainer} borderRadius={4} />
+                    <YStack height={12} width="30%" backgroundColor={theme.pillContainer} borderRadius={4} marginTop={8} />
                   </YStack>
                 </XStack>
               ))}
@@ -477,23 +481,23 @@ export default function Search() {
                 onPress={fetchBooks}
                 hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
               >
-                <Text fontSize={12} color="#6C48C5" fontWeight="700">
+                <Text fontSize={12} color={theme.primary} fontWeight="700">
                   Tap to retry
                 </Text>
               </TouchableOpacity>
             </YStack>
           ) : (
             <YStack
-              backgroundColor="white"
+              backgroundColor={theme.card}
               borderRadius={16}
               padding="$5"
               alignItems="center"
               borderWidth={1}
-              borderColor="#f0eef5"
+              borderColor={theme.border}
               marginHorizontal="$5"
             >
-              <BookOpen color="#9ca3af" size={32} strokeWidth={1.5} style={{ marginBottom: 8 }} />
-              <Text color="#9ca3af" fontSize={14} fontWeight="500">
+              <BookOpen color={theme.textSecondary} size={32} strokeWidth={1.5} style={{ marginBottom: 8 }} />
+              <Text color={theme.textSecondary} fontSize={14} fontWeight="500">
                 No books found
               </Text>
             </YStack>

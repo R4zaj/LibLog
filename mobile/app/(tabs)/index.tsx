@@ -2,6 +2,8 @@ import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Pressable, Dimensions, Alert, Modal, Animated, ActivityIndicator } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
+import { useAppTheme } from '../../context/ThemeContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 import { Bell, Settings, Flame, ArrowRight, ScanLine, BookOpen, Bookmark, Calendar, ChevronRight, Clock, TrendingUp, Megaphone, Star, Users, Check, X, Activity, ArrowRightLeft, DollarSign, ExternalLink, AlertCircle, Heart, CircleUser, ArrowLeft } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
@@ -31,6 +33,9 @@ function formatTimeAgo(dateString: string) {
 }
 
 export default function Home() {
+  const { theme } = useAppTheme();
+  const { t } = useLanguage();
+  const styles = getStyles(theme);
   const { user } = useAuth();
   const { isFavorite, toggleFavorite } = useFavorites();
   const router = useRouter();
@@ -142,23 +147,23 @@ export default function Home() {
   const announcementsCount = announcements.length;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#faf9fe' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
       {isLoading ? (
         <View style={{ flex: 1, paddingHorizontal: 16, paddingTop: 20, gap: 24 }}>
           {/* Greeting Skeleton */}
           <View>
-            <View style={{ width: 120, height: 14, backgroundColor: '#ede9f6', borderRadius: 4, marginBottom: 8 }} />
-            <View style={{ width: 200, height: 28, backgroundColor: '#ede9f6', borderRadius: 8 }} />
+            <View style={{ width: 120, height: 14, backgroundColor: theme.border, borderRadius: 4, marginBottom: 8 }} />
+            <View style={{ width: 200, height: 28, backgroundColor: theme.border, borderRadius: 8 }} />
           </View>
           {/* Assistant Skeleton */}
-          <View style={{ height: 76, backgroundColor: '#ffffff', borderRadius: 24, borderWidth: 1, borderColor: '#ede9f6' }} />
+          <View style={{ height: 76, backgroundColor: theme.card, borderRadius: 24, borderWidth: 1, borderColor: theme.border }} />
           {/* Grid Skeleton */}
           <View style={{ flexDirection: 'row', gap: 12 }}>
-            <View style={{ flex: 1, height: 140, backgroundColor: '#ffffff', borderRadius: 24, borderWidth: 1, borderColor: '#ede9f6' }} />
-            <View style={{ flex: 1, height: 140, backgroundColor: '#ffffff', borderRadius: 24, borderWidth: 1, borderColor: '#ede9f6' }} />
+            <View style={{ flex: 1, height: 140, backgroundColor: theme.card, borderRadius: 24, borderWidth: 1, borderColor: theme.border }} />
+            <View style={{ flex: 1, height: 140, backgroundColor: theme.card, borderRadius: 24, borderWidth: 1, borderColor: theme.border }} />
           </View>
           {/* Borrows Skeleton */}
-          <View style={{ height: 200, backgroundColor: '#ffffff', borderRadius: 24, borderWidth: 1, borderColor: '#ede9f6' }} />
+          <View style={{ height: 200, backgroundColor: theme.card, borderRadius: 24, borderWidth: 1, borderColor: theme.border }} />
         </View>
       ) : (
         <Animated.ScrollView 
@@ -200,7 +205,7 @@ export default function Home() {
             accessibilityRole="button"
             accessibilityLabel="Notifications"
           >
-            <Bell color="#1f2937" size={20} />
+            <Bell color={theme.text} size={20} />
             {announcementsCount > 0 && <View style={styles.badge}><Text style={styles.badgeText}>{announcementsCount}</Text></View>}
           </TouchableOpacity>
           <TouchableOpacity
@@ -210,7 +215,7 @@ export default function Home() {
             accessibilityRole="button"
             accessibilityLabel="Settings"
           >
-            <Settings color="#1f2937" size={20} />
+            <Settings color={theme.text} size={20} />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.actionChip}
@@ -219,7 +224,7 @@ export default function Home() {
             accessibilityRole="button"
             accessibilityLabel="Profile"
           >
-            <CircleUser color="#1f2937" size={20} />
+            <CircleUser color={theme.text} size={20} />
           </TouchableOpacity>
         </View>
       </View>
@@ -245,7 +250,7 @@ export default function Home() {
       {announcements.length > 0 && (
         <View style={styles.assistantCard}>
           <View style={styles.assistantIconTray}>
-            <Megaphone color="#6C48C5" size={18} />
+            <Megaphone color={theme.primary} size={18} />
           </View>
           <View style={styles.assistantContent}>
             <Text style={styles.assistantOverline}>{announcements[0].is_overdue ? 'URGENT' : 'ANNOUNCEMENT'}</Text>
@@ -280,7 +285,7 @@ export default function Home() {
               return (
                 <View key={idx} style={styles.chartCol}>
                   <View style={styles.chartBarBg}>
-                    <View style={[styles.chartBarFill, { height: barHeight, backgroundColor: isToday ? '#6C48C5' : '#ede9f6' }]} />
+                    <View style={[styles.chartBarFill, { height: barHeight, backgroundColor: isToday ? theme.primary : theme.border }]} />
                   </View>
                   <Text style={styles.chartLabel}>{day}</Text>
                 </View>
@@ -346,7 +351,7 @@ export default function Home() {
         <View style={styles.borrowsCard}>
           <View style={styles.borrowsHeaderRow}>
             <View style={styles.borrowsIconTray}>
-              <Calendar color="#6C48C5" size={20} />
+              <Calendar color={theme.primary} size={20} />
             </View>
             <View style={styles.borrowsHeaderContent}>
               <Text style={styles.borrowsTitle}>Due Soon</Text>
@@ -377,12 +382,12 @@ export default function Home() {
                 return (
                   <TouchableOpacity 
                     key={borrow.id} 
-                    style={[styles.borrowRow, idx !== 0 && { borderTopWidth: 1, borderTopColor: '#f3f4f6' }, { minHeight: 48 }]}
+                    style={[styles.borrowRow, idx !== 0 && { borderTopWidth: 1, borderTopColor: theme.border }, { minHeight: 48 }]}
                     activeOpacity={0.8}
                     onPress={() => router.push('/borrowed')}
                   >
                     <View style={styles.borrowRowIcon}>
-                      <BookOpen color="#6C48C5" size={16} />
+                      <BookOpen color={theme.primary} size={16} />
                     </View>
                     <View style={styles.borrowRowContent}>
                       <Text style={styles.borrowRowTitle} numberOfLines={1}>{borrow.book?.title || 'Unknown Book'}</Text>
@@ -398,7 +403,7 @@ export default function Home() {
                       hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                       onPress={() => router.push('/scan')}
                     >
-                      <ScanLine color="#9ca3af" size={20} />
+                      <ScanLine color={theme.textSecondary} size={20} />
                     </TouchableOpacity>
                   </TouchableOpacity>
                 );
@@ -420,7 +425,7 @@ export default function Home() {
           </View>
           <TouchableOpacity style={styles.highlightCard} onPress={() => setSelectedBook(books[0])}>
             <View style={styles.highlightIconCont}>
-              <BookOpen color="#fff" size={40} opacity={0.85} />
+              <BookOpen color={theme.pillTextActive} size={40} opacity={0.85} />
             </View>
             <View style={styles.highlightContent}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -438,7 +443,7 @@ export default function Home() {
                   style={{ padding: 4 }}
                 >
                   <Heart
-                    color={isFavorite(books[0].id) ? '#ef4444' : '#9ca3af'}
+                    color={isFavorite(books[0].id) ? '#ef4444' : theme.textSecondary}
                     size={20}
                     fill={isFavorite(books[0].id) ? '#ef4444' : 'none'}
                   />
@@ -450,7 +455,7 @@ export default function Home() {
                 {books[0].available > 0 ? (
                   <Text style={[styles.unavailableText, { color: '#10b981' }]}>Available ({books[0].available})</Text>
                 ) : (
-                  <Text style={styles.unavailableText}>Currently unavailable <ArrowRight size={12} color="#9ca3af" /></Text>
+                  <Text style={styles.unavailableText}>Currently unavailable <ArrowRight size={12} color={theme.textSecondary} /></Text>
                 )}
               </View>
             </View>
@@ -467,7 +472,7 @@ export default function Home() {
           <View style={[styles.sectionHeader, { justifyContent: 'space-between' }]}>
             <Text style={styles.sectionTitle}>Recommended for You</Text>
             <TouchableOpacity onPress={() => router.push('/search')} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-              <Text style={styles.seeAllText}>See All <ChevronRight size={14} color="#6C48C5" /></Text>
+              <Text style={styles.seeAllText}>See All <ChevronRight size={14} color={theme.primary} /></Text>
             </TouchableOpacity>
           </View>
           
@@ -488,12 +493,12 @@ export default function Home() {
                     style={styles.recFavBtn}
                   >
                     <Heart
-                      color={isFavorite(book.id) ? '#ef4444' : '#6C48C5'}
+                      color={isFavorite(book.id) ? '#ef4444' : theme.primary}
                       size={18}
                       fill={isFavorite(book.id) ? '#ef4444' : 'none'}
                     />
                   </TouchableOpacity>
-                  <BookOpen color="#6C48C5" size={32} />
+                  <BookOpen color={theme.primary} size={32} />
                 </View>
                 <View style={styles.recAvailRow}>
                   <View style={[styles.dot, { backgroundColor: book.available > 0 ? '#10b981' : '#ef4444' }]} /> 
@@ -518,8 +523,8 @@ export default function Home() {
           <View style={styles.trendingList}>
             {books.slice(4, 9).map((book, idx) => (
               <TouchableOpacity key={book.id} style={styles.trendingItem} onPress={() => setSelectedBook(book)}>
-                <View style={[styles.rankCircle, { backgroundColor: idx < 3 ? '#6C48C5' : '#faf9fe' }]}>
-                  <Text style={[styles.rankText, { color: idx < 3 ? '#fff' : '#6C48C5' }]}>{idx + 1}</Text>
+                <View style={[styles.rankCircle, { backgroundColor: idx < 3 ? theme.primary : theme.background }]}>
+                  <Text style={[styles.rankText, { color: idx < 3 ? theme.pillTextActive : theme.primary }]}>{idx + 1}</Text>
                 </View>
                 <View style={styles.trendingInfo}>
                   <Text style={styles.trendingTitle} numberOfLines={1} ellipsizeMode="tail">{book.title}</Text>
@@ -537,7 +542,7 @@ export default function Home() {
                   />
                 </TouchableOpacity>
                 <View style={styles.trendingCount}>
-                  <Clock size={11} color="#9ca3af" strokeWidth={2} />
+                  <Clock size={11} color={theme.textSecondary} strokeWidth={2} />
                   <Text style={styles.countText}>{book.total} copies</Text>
                 </View>
               </TouchableOpacity>
@@ -574,17 +579,17 @@ export default function Home() {
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <Text style={styles.modalTitle}>Notifications</Text>
                   {announcementsCount > 0 && (
-                    <View style={{ backgroundColor: '#f4f1fa', borderRadius: 9999, paddingHorizontal: 8, paddingVertical: 2, marginLeft: 8 }}>
-                      <Text style={{ fontSize: 12, fontWeight: '600', color: '#6C48C5' }}>{announcementsCount}</Text>
+                    <View style={{ backgroundColor: theme.pillContainer, borderRadius: 9999, paddingHorizontal: 8, paddingVertical: 2, marginLeft: 8 }}>
+                      <Text style={{ fontSize: 12, fontWeight: '600', color: theme.primary }}>{announcementsCount}</Text>
                     </View>
                   )}
                 </View>
                 <Pressable 
                   onPress={() => setNotificationsOpen(false)}
                   hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                  style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#faf9fe', borderWidth: 1, borderColor: '#ede9f6', justifyContent: 'center', alignItems: 'center' }}
+                  style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: theme.background, borderWidth: 1, borderColor: theme.border, justifyContent: 'center', alignItems: 'center' }}
                 >
-                  <ArrowLeft size={20} color="#4b5563" />
+                  <ArrowLeft size={20} color={theme.textSecondary} />
                 </Pressable>
               </View>
 
@@ -600,11 +605,11 @@ export default function Home() {
                         style={styles.notifItem}
                       >
                         <View style={{ flexDirection: 'row' }}>
-                          <View style={[styles.notifIconWrapper, { backgroundColor: a.is_overdue ? '#fef2f2' : '#f4f1fa' }]}>
+                          <View style={[styles.notifIconWrapper, { backgroundColor: a.is_overdue ? '#fef2f2' : theme.pillContainer }]}>
                             {a.is_overdue ? (
                               <AlertCircle size={18} color="#ef4444" />
                             ) : (
-                              <Megaphone size={18} color="#6C48C5" />
+                              <Megaphone size={18} color={theme.primary} />
                             )}
                           </View>
                           <View style={styles.notifContent}>
@@ -631,131 +636,131 @@ export default function Home() {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme: any) => ({
   topUtilityBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, marginBottom: 24 },
   streakPill: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff7ed', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 9999 },
   streakCount: { fontSize: 14, fontWeight: '700', color: '#f97316', marginHorizontal: 6 },
   streakText: { fontSize: 14, color: '#f97316', fontWeight: '500' },
   topBarActions: { flexDirection: 'row', gap: 12 },
-  actionChip: { width: 40, height: 40, borderRadius: 16, backgroundColor: '#ffffff', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#ede9f6' },
+  actionChip: { width: 40, height: 40, borderRadius: 16, backgroundColor: theme.card, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: theme.border },
   badge: { position: 'absolute', top: -4, right: -4, backgroundColor: '#ef4444', borderRadius: 10, width: 18, height: 18, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#fff' },
-  badgeText: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
+  badgeText: { color: theme.pillTextActive, fontSize: 10, fontWeight: 'bold' },
   
   greetingHeader: { marginBottom: 24 },
-  overlineDate: { fontSize: 12, fontWeight: '700', color: '#7c7c8a', letterSpacing: 1, marginBottom: 4 },
-  greetingTitle: { fontSize: 24, fontWeight: '800', color: '#1e1e2e' },
+  overlineDate: { fontSize: 12, fontWeight: '700', color: theme.textSecondary, letterSpacing: 1, marginBottom: 4 },
+  greetingTitle: { fontSize: 24, fontWeight: '800', color: theme.text },
   
-  assistantCard: { flexDirection: 'row', backgroundColor: '#ffffff', borderRadius: 24, padding: 16, marginBottom: 24, borderWidth: 1, borderColor: '#ede9f6', alignItems: 'center' },
-  assistantIconTray: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#f4f1fa', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+  assistantCard: { flexDirection: 'row', backgroundColor: theme.card, borderRadius: 24, padding: 16, marginBottom: 24, borderWidth: 1, borderColor: theme.border, alignItems: 'center' },
+  assistantIconTray: { width: 44, height: 44, borderRadius: 12, backgroundColor: theme.pillContainer, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
   assistantContent: { flex: 1 },
-  assistantOverline: { fontSize: 12, fontWeight: '500', color: '#6C48C5', marginBottom: 2 },
-  assistantBody: { fontSize: 14, fontWeight: '500', color: '#4b5563', lineHeight: 20 },
+  assistantOverline: { fontSize: 12, fontWeight: '500', color: theme.primary, marginBottom: 2 },
+  assistantBody: { fontSize: 14, fontWeight: '500', color: theme.textSecondary, lineHeight: 20 },
 
   gridContainer: { flexDirection: 'row', gap: 12, marginBottom: 24 },
-  gridCard: { flex: 1, backgroundColor: '#ffffff', borderRadius: 24, padding: 16, borderWidth: 1, borderColor: '#ede9f6', justifyContent: 'space-between', minHeight: 140 },
-  gridEyebrow: { fontSize: 12, fontWeight: '500', color: '#7c7c8a', marginBottom: 16 },
+  gridCard: { flex: 1, backgroundColor: theme.card, borderRadius: 24, padding: 16, borderWidth: 1, borderColor: theme.border, justifyContent: 'space-between', minHeight: 140 },
+  gridEyebrow: { fontSize: 12, fontWeight: '500', color: theme.textSecondary, marginBottom: 16 },
   chartContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 60, marginTop: 'auto' },
   chartCol: { alignItems: 'center', gap: 4 },
   chartBarBg: { height: 50, justifyContent: 'flex-end' },
   chartBarFill: { width: 6, borderRadius: 4 },
-  chartLabel: { fontSize: 9, color: '#9ca3af', fontWeight: '600' },
+  chartLabel: { fontSize: 9, color: theme.textSecondary, fontWeight: '600' },
   
-  gridCardTitle: { fontSize: 18, fontWeight: '600', color: '#1e1e2e', marginBottom: 8 },
+  gridCardTitle: { fontSize: 18, fontWeight: '600', color: theme.text, marginBottom: 8 },
   penaltyValueCont: { flexDirection: 'row', alignItems: 'flex-start' },
-  currencySymbol: { fontSize: 14, fontWeight: '700', color: '#9ca3af', marginTop: 2, marginRight: 2 },
-  penaltyValue: { fontSize: 24, fontWeight: '800', color: '#1e1e2e' },
-  segmentedPill: { flexDirection: 'row', backgroundColor: '#f4f1fa', borderRadius: 9999, padding: 4, alignItems: 'center', marginTop: 16 },
+  currencySymbol: { fontSize: 14, fontWeight: '700', color: theme.textSecondary, marginTop: 2, marginRight: 2 },
+  penaltyValue: { fontSize: 24, fontWeight: '800', color: theme.text },
+  segmentedPill: { flexDirection: 'row', backgroundColor: theme.pillContainer, borderRadius: 9999, padding: 4, alignItems: 'center', marginTop: 16 },
   segmentTab: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 32, borderRadius: 9999, backgroundColor: 'transparent' },
-  segmentTabActive: { backgroundColor: '#ffffff', elevation: 1, boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.05)' },
-  segmentTabText: { fontSize: 12, fontWeight: '500', color: '#7c7c8a' },
-  segmentTabTextActive: { fontWeight: '600', color: '#1e1e2e' },
+  segmentTabActive: { backgroundColor: theme.card, elevation: 1, boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.05)' },
+  segmentTabText: { fontSize: 12, fontWeight: '500', color: theme.textSecondary },
+  segmentTabTextActive: { fontWeight: '600', color: theme.text },
 
   borrowsSection: { marginBottom: 32 },
-  borrowsCard: { backgroundColor: '#ffffff', borderRadius: 24, padding: 16, borderWidth: 1, borderColor: '#ede9f6' },
+  borrowsCard: { backgroundColor: theme.card, borderRadius: 24, padding: 16, borderWidth: 1, borderColor: theme.border },
   borrowsHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
-  borrowsIconTray: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#faf9fe', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  borrowsIconTray: { width: 40, height: 40, borderRadius: 12, backgroundColor: theme.background, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   borrowsHeaderContent: { flex: 1 },
-  borrowsTitle: { fontSize: 18, fontWeight: '600', color: '#1e1e2e' },
-  borrowsSubtitle: { fontSize: 12, color: '#7c7c8a', fontWeight: '500' },
+  borrowsTitle: { fontSize: 18, fontWeight: '600', color: theme.text },
+  borrowsSubtitle: { fontSize: 12, color: theme.textSecondary, fontWeight: '500' },
   borrowsList: { gap: 0 },
   borrowRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12 },
-  borrowRowIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#f4f1fa', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  borrowRowIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: theme.pillContainer, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   borrowRowContent: { flex: 1, marginRight: 8 },
-  borrowRowTitle: { fontSize: 14, fontWeight: '500', color: '#1e1e2e', marginBottom: 2 },
-  borrowRowDate: { fontSize: 12, color: '#7c7c8a' },
+  borrowRowTitle: { fontSize: 14, fontWeight: '500', color: theme.text, marginBottom: 2 },
+  borrowRowDate: { fontSize: 12, color: theme.textSecondary },
   borrowStatusPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 9999 },
   borrowStatusText: { fontSize: 12, fontWeight: '500' },
   borrowsEmpty: { paddingVertical: 24, alignItems: 'center' },
-  borrowsEmptyText: { fontSize: 14, color: '#9ca3af' },
+  borrowsEmptyText: { fontSize: 14, color: theme.textSecondary },
 
 
-  container: { flex: 1, backgroundColor: '#faf9fe', paddingHorizontal: 16 },
+  container: { flex: 1, backgroundColor: theme.background, paddingHorizontal: 16 },
   
   fetchErrorCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fef3f2', borderWidth: 1, borderColor: '#fecaca', borderRadius: 14, paddingVertical: 10, paddingHorizontal: 14, marginBottom: 16, gap: 8 },
   fetchErrorText: { flex: 1, fontSize: 12.5, color: '#b91c1c', fontWeight: '500' },
-  fetchErrorRetry: { fontSize: 12.5, color: '#6C48C5', fontWeight: '700' },
+  fetchErrorRetry: { fontSize: 12.5, color: theme.primary, fontWeight: '700' },
 
   sectionHeader: { flexDirection: 'row', alignItems: 'center', marginTop: 8, marginBottom: 16 },
-  sectionTitle: { fontSize: 18, fontWeight: '600', color: '#1e1e2e' },
+  sectionTitle: { fontSize: 18, fontWeight: '600', color: theme.text },
 
-  highlightCard: { backgroundColor: '#faf9fe', borderRadius: 24, padding: 20, flexDirection: 'row', marginBottom: 24, borderWidth: 1, borderColor: '#ede9f6' },
-  highlightIconCont: { width: 80, height: 110, backgroundColor: '#6C48C5', borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+  highlightCard: { backgroundColor: theme.background, borderRadius: 24, padding: 20, flexDirection: 'row', marginBottom: 24, borderWidth: 1, borderColor: theme.border },
+  highlightIconCont: { width: 80, height: 110, backgroundColor: theme.primary, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
   highlightContent: { flex: 1, justifyContent: 'center' },
   featuredTag: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   featuredTagText: { color: '#b45309', fontSize: 12, fontWeight: 'bold', marginLeft: 4 },
-  highlightBookTitle: { color: '#1e1e2e', fontSize: 18, fontWeight: '600', marginBottom: 4 },
-  highlightBookAuthor: { color: '#7c7c8a', fontSize: 14, fontWeight: '500', marginBottom: 12 },
-  unavailableTag: { alignSelf: 'flex-start', backgroundColor: '#ede9f6', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, flexDirection: 'row', alignItems: 'center' },
-  unavailableText: { color: '#9ca3af', fontSize: 12, fontWeight: '500', marginRight: 4 },
+  highlightBookTitle: { color: theme.text, fontSize: 18, fontWeight: '600', marginBottom: 4 },
+  highlightBookAuthor: { color: theme.textSecondary, fontSize: 14, fontWeight: '500', marginBottom: 12 },
+  unavailableTag: { alignSelf: 'flex-start', backgroundColor: theme.border, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, flexDirection: 'row', alignItems: 'center' },
+  unavailableText: { color: theme.textSecondary, fontSize: 12, fontWeight: '500', marginRight: 4 },
 
-  seeAllText: { color: '#6C48C5', fontSize: 14, fontWeight: '600' },
+  seeAllText: { color: theme.primary, fontSize: 14, fontWeight: '600' },
   recommendedScroll: { marginBottom: 24, marginLeft: -16, paddingLeft: 16 },
-  recCard: { width: 180, marginRight: 16, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#ede9f6', borderRadius: 24, padding: 12 },
-  recCover: { height: 190, backgroundColor: '#faf9fe', borderWidth: 1, borderColor: '#ede9f6', borderRadius: 12, justifyContent: 'center', alignItems: 'center', position: 'relative' },
-  recTypeTag: { position: 'absolute', top: 10, left: 10, backgroundColor: '#ffffff', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 9999 },
-  recTypeText: { fontSize: 12, fontWeight: '500', color: '#6C48C5' },
-  recFavBtn: { position: 'absolute', bottom: 10, right: 10, width: 36, height: 36, borderRadius: 18, backgroundColor: '#ffffff', boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.05)', elevation: 2, justifyContent: 'center', alignItems: 'center', zIndex: 2 },
+  recCard: { width: 180, marginRight: 16, backgroundColor: theme.card, borderWidth: 1, borderColor: theme.border, borderRadius: 24, padding: 12 },
+  recCover: { height: 190, backgroundColor: theme.background, borderWidth: 1, borderColor: theme.border, borderRadius: 12, justifyContent: 'center', alignItems: 'center', position: 'relative' },
+  recTypeTag: { position: 'absolute', top: 10, left: 10, backgroundColor: theme.card, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 9999 },
+  recTypeText: { fontSize: 12, fontWeight: '500', color: theme.primary },
+  recFavBtn: { position: 'absolute', bottom: 10, right: 10, width: 36, height: 36, borderRadius: 18, backgroundColor: theme.card, boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.05)', elevation: 2, justifyContent: 'center', alignItems: 'center', zIndex: 2 },
   recAvailRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6, marginBottom: 4 },
   dot: { width: 6, height: 6, borderRadius: 3, marginRight: 4 },
   recAvailText: { fontSize: 12, fontWeight: '500' },
-  recTitle: { fontSize: 18, fontWeight: '600', color: '#1e1e2e', lineHeight: 22, marginBottom: 2 },
-  recAuthor: { fontSize: 14, fontWeight: '500', color: '#7c7c8a' },
+  recTitle: { fontSize: 18, fontWeight: '600', color: theme.text, lineHeight: 22, marginBottom: 2 },
+  recAuthor: { fontSize: 14, fontWeight: '500', color: theme.textSecondary },
 
   trendingList: { marginBottom: 24 },
-  trendingItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 16, borderRadius: 24, marginBottom: 8, borderWidth: 1, borderColor: '#ede9f6' },
+  trendingItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.card, padding: 16, borderRadius: 24, marginBottom: 8, borderWidth: 1, borderColor: theme.border },
   rankCircle: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   rankText: { fontSize: 14, fontWeight: 'bold' },
   trendingInfo: { flex: 1 },
-  trendingTitle: { fontSize: 18, fontWeight: '600', color: '#1e1e2e', marginBottom: 2 },
+  trendingTitle: { fontSize: 18, fontWeight: '600', color: theme.text, marginBottom: 2 },
   trendingAuthor: { fontSize: 14, fontWeight: '500', color: '#6b7280' },
   trendingCount: { marginLeft: 12, flexDirection: 'row', alignItems: 'center', gap: 4 },
-  countText: { fontSize: 12, fontWeight: '500', color: '#9ca3af' },
+  countText: { fontSize: 12, fontWeight: '500', color: theme.textSecondary },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(30, 30, 46, 0.45)', justifyContent: 'center', alignItems: 'center' },
-  modalContent: { backgroundColor: '#ffffff', width: '90%', maxHeight: '80%', borderRadius: 24, paddingTop: 24, paddingHorizontal: 16, elevation: 10 },
+  modalContent: { backgroundColor: theme.card, width: '90%', maxHeight: '80%', borderRadius: 24, paddingTop: 24, paddingHorizontal: 16, elevation: 10 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  modalTitle: { fontSize: 24, fontWeight: '800', color: '#1e1e2e' },
+  modalTitle: { fontSize: 24, fontWeight: '800', color: theme.text },
   markAllBtn: { flexDirection: 'row', alignItems: 'center' },
   markAllText: { fontSize: 12, color: '#6b7280', marginLeft: 4 },
-  notifTabs: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#f3f4f6', paddingHorizontal: 16 },
+  notifTabs: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: theme.border, paddingHorizontal: 16 },
   notifTab: { paddingVertical: 12, paddingHorizontal: 8, marginRight: 8, borderBottomWidth: 2, borderBottomColor: 'transparent' },
-  notifTabActive: { borderBottomColor: '#6C48C5' },
+  notifTabActive: { borderBottomColor: theme.primary },
   notifTabText: { fontSize: 13, color: '#6b7280' },
-  notifTabTextActive: { fontWeight: 'bold', color: '#6C48C5' },
+  notifTabTextActive: { fontWeight: 'bold', color: theme.primary },
   notifList: { flexShrink: 1 },
-  noNotifsText: { textAlign: 'center', padding: 32, color: '#9ca3af', fontSize: 13 },
-  notifItem: { backgroundColor: '#faf9fe', borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#ede9f6' },
-  notifItemUnread: { backgroundColor: '#faf9fe' },
+  noNotifsText: { textAlign: 'center', padding: 32, color: theme.textSecondary, fontSize: 13 },
+  notifItem: { backgroundColor: theme.background, borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: theme.border },
+  notifItemUnread: { backgroundColor: theme.background },
   notifIconWrapper: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
   notifContent: { flex: 1 },
   notifTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 },
-  notifTitle: { fontSize: 16, fontWeight: '600', color: '#1e1e2e', flex: 1, marginRight: 8 },
-  notifTitleUnread: { fontWeight: '600', color: '#1e1e2e' },
-  unreadDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#6C48C5', marginRight: 6 },
-  notifTime: { fontSize: 12, fontWeight: '500', color: '#9ca3af' },
-  notifMessage: { fontSize: 14, fontWeight: '500', color: '#4b5563' },
-  notifTrigger: { fontSize: 10, color: '#9ca3af', marginTop: 4 },
-  notifFooter: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', padding: 16, backgroundColor: '#faf9fe', borderTopWidth: 1, borderTopColor: '#f3f4f6' },
-  notifFooterText: { fontSize: 14, fontWeight: 'bold', color: '#6C48C5', marginLeft: 8 },
+  notifTitle: { fontSize: 16, fontWeight: '600', color: theme.text, flex: 1, marginRight: 8 },
+  notifTitleUnread: { fontWeight: '600', color: theme.text },
+  unreadDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: theme.primary, marginRight: 6 },
+  notifTime: { fontSize: 12, fontWeight: '500', color: theme.textSecondary },
+  notifMessage: { fontSize: 14, fontWeight: '500', color: theme.textSecondary },
+  notifTrigger: { fontSize: 10, color: theme.textSecondary, marginTop: 4 },
+  notifFooter: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', padding: 16, backgroundColor: theme.background, borderTopWidth: 1, borderTopColor: theme.border },
+  notifFooterText: { fontSize: 14, fontWeight: 'bold', color: theme.primary, marginLeft: 8 },
   closeModalBtn: { position: 'absolute', top: -50, right: 0, padding: 8, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20 }
 });
