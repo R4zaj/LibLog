@@ -32,14 +32,14 @@ const NavItem = ({ to, icon: Icon, label, badge, subItems }) => {
   const isPathActive = to === '/' ? location.pathname === '/' : location.pathname.startsWith(to);
   const [isManuallyExpanded, setIsManuallyExpanded] = useState(isPathActive);
 
-  // Update initial state if path changes
+  // Sync expanded state with route changes
   useEffect(() => {
-    if (isPathActive) {
-      setIsManuallyExpanded(true);
-    }
+    setIsManuallyExpanded(isPathActive);
   }, [isPathActive]);
 
-  const isExpanded = isManuallyExpanded;
+  const isExpanded = subItems ? isManuallyExpanded : false;
+  const isMainActive = isPathActive && (!subItems || !isExpanded);
+  const isSectionActive = isPathActive && subItems && isExpanded;
 
   const handleToggle = (e) => {
     if (subItems) {
@@ -54,47 +54,74 @@ const NavItem = ({ to, icon: Icon, label, badge, subItems }) => {
         to={to}
         end={to === '/'}
         onClick={subItems ? handleToggle : undefined}
-        className={({ isActive }) =>
-          `flex items-center justify-between px-4 py-2.5 rounded-lg transition-colors ${
-            isActive || (isPathActive && !subItems)
-              ? 'bg-primary-50 dark:bg-dark-hover text-primary-800 dark:text-primary-300 font-semibold'
-              : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-hover hover:text-gray-900 dark:hover:text-white'
-          }`
-        }
+        className={`group flex items-center justify-between px-4 py-2.5 rounded-lg transition-colors ${
+          isMainActive
+            ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-900 dark:text-primary-200 font-semibold'
+            : isSectionActive
+              ? 'bg-primary-50 dark:bg-dark-hover text-primary-900 dark:text-primary-200 font-semibold'
+              : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-hover hover:text-gray-900 dark:hover:text-white font-medium'
+        }`}
       >
         <div className="flex items-center gap-3">
-          <Icon size={18} className={isExpanded ? 'text-primary-600' : 'text-gray-500'} />
+          <Icon
+            size={18}
+            className={`transition-colors ${
+              isMainActive || isSectionActive
+                ? 'text-primary-700 dark:text-primary-400'
+                : 'text-gray-400 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-300'
+            }`}
+          />
           <span className="text-sm">{label}</span>
         </div>
-        {badge && (
-          <span className="bg-red-100 text-red-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-            {badge}
-          </span>
-        )}
-        {subItems && (
-          <ChevronDown size={14} className={`text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-        )}
+        <div className="flex items-center gap-2">
+          {badge && (
+            <span className="bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+              {badge}
+            </span>
+          )}
+          {subItems && (
+            <ChevronDown
+              size={14}
+              className={`transition-all ${
+                isExpanded ? 'rotate-180' : ''
+              } ${
+                isMainActive || isSectionActive
+                  ? 'text-primary-700 dark:text-primary-400'
+                  : 'text-gray-400 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-300'
+              }`}
+            />
+          )}
+        </div>
       </NavLink>
-      
+
       {subItems && isExpanded && (
-        <div className="ml-9 mt-1 flex flex-col gap-1 border-l-2 border-gray-200 dark:border-dark-border pl-3">
+        <div className="ml-8 mt-1 flex flex-col gap-1 border-l-2 border-gray-200 dark:border-dark-border pl-3 py-0.5">
           {subItems.map((sub, idx) => {
-            // Fix: location.search includes the '?' (e.g. '?tab=author')
             const expectedSearch = '?' + sub.to.split('?')[1];
-            const isSubActive = location.search === expectedSearch || (location.search === '' && sub.to.includes('tab=catalog') && location.pathname === '/literatures');
-            
+            const isSubActive = location.pathname.startsWith('/literatures') && (
+              location.search === expectedSearch ||
+              (!location.search && sub.to.includes('tab=catalog'))
+            );
+
             return (
               <NavLink
                 key={idx}
                 to={sub.to}
-                className={() =>
-                  `flex items-center gap-2 px-3 py-1.5 rounded-md text-xs transition-colors ${
-                    isSubActive ? 'text-primary-700 dark:text-primary-300 font-bold bg-primary-50/50 dark:bg-dark-hover' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-dark-hover/50'
-                  }`
-                }
+                className={`group/sub flex items-center gap-2 px-3 py-1.5 rounded-md text-xs transition-colors ${
+                  isSubActive
+                    ? 'text-primary-900 dark:text-primary-200 font-semibold bg-primary-100 dark:bg-primary-900/40'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-dark-hover font-medium'
+                }`}
               >
-                <sub.icon size={14} className={isSubActive ? 'text-primary-600' : 'text-gray-400'} />
-                {sub.label}
+                <sub.icon
+                  size={14}
+                  className={`transition-colors ${
+                    isSubActive
+                      ? 'text-primary-700 dark:text-primary-400'
+                      : 'text-gray-400 dark:text-gray-500 group-hover/sub:text-gray-600 dark:group-hover/sub:text-gray-300'
+                  }`}
+                />
+                <span>{sub.label}</span>
               </NavLink>
             );
           })}
