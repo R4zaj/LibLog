@@ -518,10 +518,44 @@ export default function Dashboard() {
               <span className="px-2 py-0.5 bg-purple-50 text-purple-700 text-[10px] font-bold rounded-full">{data.studentsInside} inside</span>
             </div>
 
-            <div className="flex-1 border border-dashed border-gray-200 dark:border-dark-border rounded-lg flex flex-col items-center justify-center p-8 bg-gray-50/50">
-              <Users size={32} className="text-gray-300 mb-2" />
-              <span className="text-sm font-bold text-gray-600 dark:text-slate-300">Library is quiet right now</span>
-              <span className="text-xs text-gray-400 dark:text-slate-500 text-center mt-1">Students will appear here as they check in</span>
+            <div className="flex-1 flex flex-col">
+              {!data.studentsCurrentlyInside || data.studentsCurrentlyInside.length === 0 ? (
+                <div className="flex-1 border border-dashed border-gray-200 dark:border-dark-border rounded-lg flex flex-col items-center justify-center p-8 bg-gray-50/50">
+                  <Users size={32} className="text-gray-300 mb-2" />
+                  <span className="text-sm font-bold text-gray-600 dark:text-slate-300">Library is quiet right now</span>
+                  <span className="text-xs text-gray-400 dark:text-slate-500 text-center mt-1">Students will appear here as they check in</span>
+                </div>
+              ) : (
+                <div className="overflow-y-auto max-h-[220px] space-y-2 pr-1">
+                  {data.studentsCurrentlyInside.map((student) => {
+                    const initials = student.name
+                      ? student.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+                      : 'ST';
+                    const checkInTime = student.checked_in_at
+                      ? new Date(student.checked_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                      : '--:--';
+                    return (
+                      <div key={student.id} className="p-2.5 bg-gray-50/70 dark:bg-dark-bg/60 border border-gray-200/80 dark:border-dark-border rounded-lg flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-600 to-blue-500 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                            {initials}
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span className="font-bold text-xs text-gray-900 dark:text-slate-100 truncate">{student.name}</span>
+                            <span className="text-[10px] text-gray-400 dark:text-slate-400 truncate">{student.student_id} • {student.program}</span>
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end shrink-0">
+                          <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Inside
+                          </span>
+                          <span className="text-[9px] text-gray-400">{checkInTime}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
 

@@ -1,15 +1,12 @@
-import { useState, useRef, useEffect, useContext } from 'react';
-import { Maximize, Camera, Printer, ArrowRightLeft, CameraOff } from 'lucide-react';
-import { AttendanceScannerContext } from '../context/AttendanceScannerContext';
-import { BorrowingContext } from '../context/BorrowingContext';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { Maximize, Camera, Printer, ArrowRightLeft, CameraOff, AlertCircle } from 'lucide-react';
 
-export function ZxingScanner({ onScan, deviceId }) {
+export function ZxingScanner({ onScan, deviceId, scanFeedback }) {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const scanTimerRef = useRef(null);
   const cleanupIdRef = useRef(0);
   const lastScanned = useRef({ text: null, time: 0 });
-  const [showCheck, setShowCheck] = useState(false);
   const onScanRef = useRef(onScan);
   onScanRef.current = onScan;
   const activeDeviceRef = useRef(null);
@@ -59,13 +56,12 @@ export function ZxingScanner({ onScan, deviceId }) {
               const isBook = /^BK-[A-Z0-9-]+$/.test(text);
               const isJwt = /^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+$/.test(text);
               const isOldUser = /^[A-Z0-9-]+$/.test(text);
+              const isOffline = /^OFFLINE:/.test(text);
 
-              if (isBook || isJwt || isOldUser) {
+              if (isBook || isJwt || isOldUser || isOffline) {
                 const now = Date.now();
                 if (lastScanned.current.text !== text || (now - lastScanned.current.time) >= 3000) {
                   lastScanned.current = { text, time: now };
-                  setShowCheck(true);
-                  setTimeout(() => setShowCheck(false), 1200);
                   onScanRef.current(text);
                 }
               }
@@ -185,13 +181,50 @@ export function ZxingScanner({ onScan, deviceId }) {
         playsInline
         muted
       />
-      {showCheck && (
-        <div className="absolute inset-0 bg-green-500/20 backdrop-blur-sm flex items-center justify-center transition-all z-10">
-          <div className="bg-white dark:bg-dark-card rounded-full p-4 shadow-2xl animate-pulse">
-            <svg className="w-16 h-16 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
+
+      {/* Live Scanner indicator in corner */}
+      <div className="absolute top-2.5 left-2.5 z-10 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-xs border border-white/20 text-[10px] font-semibold text-green-400 flex items-center gap-1.5 pointer-events-none select-none">
+        <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
+        <span>Live Scanner</span>
+      </div>
+
+      {/* In-Scanner Feedback Overlay */}
+      {scanFeedback && (
+        <div className={`absolute inset-0 backdrop-blur-[2px] flex flex-col items-center justify-center p-6 text-center z-20 animate-fade-in transition-all ${
+          scanFeedback.type === 'error'
+            ? 'bg-red-950/80 border-4 border-red-500'
+            : scanFeedback.type === 'success'
+            ? 'bg-emerald-950/80 border-4 border-emerald-500'
+            : 'bg-black/60'
+        }`}>
+          {scanFeedback.type === 'error' && (
+            <>
+              <div className="w-14 h-14 rounded-full bg-red-500/30 border-2 border-red-400 flex items-center justify-center mb-2 animate-bounce">
+                <AlertCircle size={32} className="text-red-400" />
+              </div>
+              <h4 className="text-white font-bold text-base mb-1 tracking-wide">{scanFeedback.title || 'Scan Error'}</h4>
+              <p className="text-red-200 text-xs font-semibold max-w-xs leading-relaxed">{scanFeedback.message}</p>
+            </>
+          )}
+
+          {scanFeedback.type === 'success' && (
+            <>
+              <div className="w-14 h-14 rounded-full bg-emerald-500/30 border-2 border-emerald-400 flex items-center justify-center mb-2 animate-pulse">
+                <svg className="w-8 h-8 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h4 className="text-white font-bold text-base mb-0.5">{scanFeedback.title}</h4>
+              <p className="text-emerald-300 text-xs font-bold uppercase tracking-wider">{scanFeedback.message}</p>
+            </>
+          )}
+
+          {scanFeedback.type === 'verifying' && (
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-8 h-8 border-2 border-primary-400 border-t-transparent rounded-full animate-spin"></div>
+              <span className="text-white text-xs font-medium tracking-wide">{scanFeedback.message}</span>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -204,6 +237,7 @@ export default function ScannerSim({
   subtitle, 
   boxTitle, 
   placeholder, 
+  prefix,
   helperText, 
   icon: Icon = Maximize,
   onSubmit,
@@ -213,11 +247,13 @@ export default function ScannerSim({
   onStopScanner,
   setPortalTarget,
   globalSelectedDevice,
-  onSelectGlobalDevice
+  onSelectGlobalDevice,
+  scanFeedback
 }) {
   const [inputValue, setInputValue] = useState('');
   const [localIsScanning, setLocalIsScanning] = useState(false);
   const [devices, setDevices] = useState([]);
+  const [hasCheckedDevices, setHasCheckedDevices] = useState(false);
   const [localSelectedDevice, setLocalSelectedDevice] = useState('');
 
   const isScanning = isGlobalScanner ? globalIsScanning : localIsScanning;
@@ -227,14 +263,32 @@ export default function ScannerSim({
   const startScanner = isGlobalScanner ? onStartScanner : () => setLocalIsScanning(true);
   const stopScanner = isGlobalScanner ? onStopScanner : () => setLocalIsScanning(false);
 
+  const handlePortalRef = useCallback((el) => {
+    if (!setPortalTarget) return;
+    setPortalTarget(prev => {
+      // Avoid tearing down the portal on re-renders while the element is still in DOM
+      if (!el && prev && prev.isConnected) return prev;
+      return el;
+    });
+  }, [setPortalTarget]);
+
   useEffect(() => {
+    return () => {
+      if (setPortalTarget) setPortalTarget(null);
+    };
+  }, [setPortalTarget]);
+
+  useEffect(() => {
+    let isSubscribed = true;
     const getDevices = async () => {
       if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
         try {
           const deviceInfos = await navigator.mediaDevices.enumerateDevices();
           const videoDevices = deviceInfos.filter(device => device.kind === 'videoinput');
 
+          if (!isSubscribed) return;
           setDevices(videoDevices);
+          setHasCheckedDevices(true);
           
           if (videoDevices.length > 0 && !selectedDevice) {
             let defaultDev = videoDevices.find(d => d.label.toLowerCase().includes('back'));
@@ -253,10 +307,24 @@ export default function ScannerSim({
           }
         } catch (err) {
           console.error("Error enumerating devices:", err);
+          if (isSubscribed) setHasCheckedDevices(true);
         }
+      } else {
+        if (isSubscribed) setHasCheckedDevices(true);
       }
     };
     getDevices();
+
+    if (navigator.mediaDevices?.addEventListener) {
+      navigator.mediaDevices.addEventListener('devicechange', getDevices);
+      return () => {
+        isSubscribed = false;
+        navigator.mediaDevices.removeEventListener('devicechange', getDevices);
+      };
+    }
+    return () => {
+      isSubscribed = false;
+    };
   }, [isScanning, isGlobalScanner, selectedDevice, setSelectedDevice]);
 
   const handleScanSuccess = (decodedText) => {
@@ -265,12 +333,39 @@ export default function ScannerSim({
     if (onSubmit) onSubmit(decodedText);
   };
 
+  const handleInputChange = (e) => {
+    let val = e.target.value;
+    if (prefix) {
+      const cleanPrefix = prefix.endsWith('-') ? prefix : `${prefix}-`;
+      // If user types or pastes the prefix, strip it so it doesn't duplicate
+      if (val.toUpperCase().startsWith(cleanPrefix.toUpperCase())) {
+        val = val.slice(cleanPrefix.length);
+      } else if (val.toUpperCase().startsWith('CCC-')) {
+        val = val.slice(4);
+      } else if (val.toUpperCase().startsWith('CCC')) {
+        val = val.replace(/^CCC[-_ ]?/i, '');
+      }
+    }
+    setInputValue(val);
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (inputValue.trim() && onSubmit) {
-      onSubmit(inputValue.trim());
-      setInputValue('');
+    const trimmed = inputValue.trim();
+    if (!trimmed || !onSubmit) return;
+
+    let finalVal = trimmed;
+    if (prefix) {
+      const cleanPrefix = prefix.endsWith('-') ? prefix : `${prefix}-`;
+      // Allow explicit admin or library IDs (e.g. ADMIN-001, LIB-001) without prepending prefix
+      const isSpecialRole = /^(ADMIN|LIB)-/i.test(trimmed);
+      if (!isSpecialRole && !trimmed.toUpperCase().startsWith(cleanPrefix.toUpperCase())) {
+        finalVal = `${cleanPrefix}${trimmed}`;
+      }
     }
+
+    onSubmit(finalVal);
+    setInputValue('');
   };
 
   return (
@@ -299,33 +394,73 @@ export default function ScannerSim({
             <span className="text-xs font-bold text-gray-600 dark:text-slate-300 flex items-center gap-2">
               <Icon size={12} /> {boxTitle}
             </span>
-            <span className={`text-[10px] font-medium flex items-center gap-1 ${isScanning ? 'text-green-500' : 'text-gray-400 dark:text-slate-500'}`}>
-              <div className={`w-1.5 h-1.5 rounded-full ${isScanning ? 'bg-green-500 animate-pulse' : 'bg-gray-300'}`}></div> 
-              {isScanning ? 'Scanner Active' : 'Scanner Inactive'}
-            </span>
+            <div className="ml-auto flex items-center">
+              {hasCheckedDevices && devices.length === 0 ? (
+                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full border flex items-center gap-1.5 bg-red-50 text-red-600 border-red-200 dark:bg-red-950/40 dark:border-red-800 dark:text-red-400">
+                  <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                  Scanner Unavailable • No Camera Detected
+                </span>
+              ) : isScanning ? (
+                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full border flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-400">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  Scanner Available • Active
+                </span>
+              ) : (
+                <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full border flex items-center gap-1.5 bg-emerald-50/70 text-emerald-600 border-emerald-100 dark:bg-emerald-950/20 dark:border-emerald-900/40 dark:text-emerald-400">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                  Scanner Available • Standby
+                </span>
+              )}
+            </div>
           </div>
           
           <div className={`w-full overflow-hidden rounded bg-gray-50 dark:bg-transparent border border-gray-200 dark:border-dark-border ${!isScanning ? 'h-64 flex flex-col items-center justify-center text-primary-600 dark:text-primary-400 gap-3' : 'bg-black flex items-center justify-center min-h-[16rem]'}`}>
             {isScanning ? (
               isGlobalScanner ? (
-                <div ref={(el) => setPortalTarget && setPortalTarget(el)} className="w-full h-full min-h-[16rem] bg-black overflow-hidden relative"></div>
+                <div ref={handlePortalRef} className="w-full h-full min-h-[16rem] bg-black overflow-hidden relative"></div>
               ) : (
-                <ZxingScanner key={selectedDevice || 'default'} onScan={handleScanSuccess} deviceId={selectedDevice} />
+                <ZxingScanner key={selectedDevice || 'default'} onScan={handleScanSuccess} deviceId={selectedDevice} scanFeedback={scanFeedback} />
               )
             ) : (
-              <>
-                <div className="w-12 h-12 bg-white dark:bg-transparent border border-transparent dark:border-primary-800 rounded-full flex items-center justify-center shadow-sm">
-                  <Camera size={24} />
-                </div>
-                <span className="text-sm font-medium text-gray-500 dark:text-slate-400">Click "Start Scanner" to activate the camera</span>
-              </>
+              hasCheckedDevices && devices.length === 0 ? (
+                <>
+                  <div className="w-12 h-12 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 rounded-full flex items-center justify-center text-red-500 shadow-sm">
+                    <CameraOff size={24} />
+                  </div>
+                  <div className="text-center px-4">
+                    <p className="text-sm font-bold text-red-600 dark:text-red-400">Scanner Hardware Unavailable</p>
+                    <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">No webcam or camera device detected on this system.</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="w-12 h-12 bg-white dark:bg-transparent border border-transparent dark:border-primary-800 rounded-full flex items-center justify-center shadow-sm">
+                    <Camera size={24} />
+                  </div>
+                  <div className="text-center px-4">
+                    <p className="text-sm font-medium text-gray-700 dark:text-slate-200">
+                      Scanner Ready {devices.length > 0 && <span className="text-xs text-gray-400 dark:text-slate-500 font-normal">({devices.length} {devices.length === 1 ? 'camera' : 'cameras'} detected)</span>}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Click "Start Scanner" to activate the camera</p>
+                  </div>
+                </>
+              )
             )}
           </div>
         </div>
         
         <div className="flex gap-2 items-center flex-wrap w-full">
           {!isScanning ? (
-            <button onClick={startScanner} className="self-start px-4 py-2 bg-primary-800 text-white text-sm font-medium rounded shadow-sm hover:bg-primary-900 flex items-center gap-2 transition-colors">
+            <button 
+              onClick={startScanner} 
+              disabled={hasCheckedDevices && devices.length === 0}
+              className={`self-start px-4 py-2 text-white text-sm font-medium rounded shadow-sm flex items-center gap-2 transition-colors ${
+                hasCheckedDevices && devices.length === 0
+                  ? 'bg-gray-400 cursor-not-allowed opacity-60'
+                  : 'bg-primary-800 hover:bg-primary-900'
+              }`}
+              title={hasCheckedDevices && devices.length === 0 ? 'No camera available' : 'Start Camera Scanner'}
+            >
               <Camera size={16} /> Start Scanner
             </button>
           ) : (
@@ -358,17 +493,31 @@ export default function ScannerSim({
             <Printer size={12} /> Manual Input
           </span>
           <div className="flex gap-3">
-            <div className="relative flex-1">
-              <ArrowRightLeft className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500" size={16} />
+            <div className="relative flex-1 flex items-center bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border rounded-lg focus-within:ring-2 focus-within:ring-primary-500 focus-within:border-transparent transition-all overflow-hidden">
+              <div className="pl-3 pr-2 text-gray-400 dark:text-slate-500 flex items-center shrink-0">
+                <ArrowRightLeft size={16} />
+              </div>
+              {prefix && (
+                <div className="flex items-center px-2 py-0.5 my-1 mr-1 bg-primary-100 dark:bg-primary-950/50 text-primary-800 dark:text-primary-300 font-bold text-xs rounded border border-primary-200 dark:border-primary-800/60 select-none shrink-0">
+                  {prefix}
+                </div>
+              )}
               <input 
                 type="text" 
                 value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                placeholder={placeholder} 
-                className="w-full pl-9 pr-4 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm dark:text-slate-200"
+                onChange={handleInputChange}
+                placeholder={placeholder || (prefix ? '2024-0001' : 'Enter ID...')} 
+                className="flex-1 py-2 pr-4 bg-transparent focus:outline-none text-sm text-gray-900 dark:text-slate-200 placeholder:text-gray-400 dark:placeholder:text-slate-500"
               />
             </div>
-            <button type="submit" className="px-6 py-2 bg-primary-300 text-white rounded-lg font-bold text-sm shadow-sm hover:bg-primary-400 transition-colors">
+            <button 
+              type="submit" 
+              className={`px-6 py-2 text-white rounded-lg font-bold text-sm shadow-sm transition-colors ${
+                inputValue.trim() 
+                  ? 'bg-primary-700 hover:bg-primary-800 active:bg-primary-900 cursor-pointer' 
+                  : 'bg-primary-300 dark:bg-primary-900/40 cursor-pointer'
+              }`}
+            >
               Submit
             </button>
           </div>

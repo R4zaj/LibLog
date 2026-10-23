@@ -11,7 +11,8 @@ const {
   getAllBorrowRecords,
   returnBook,
   getPenalties,
-  payPenalty
+  payPenalty,
+  checkOverdue
 } = require('../controllers/borrowingController');
 
 router.get('/stats', getStats);
@@ -25,5 +26,6 @@ router.get('/user/:id/history', getUserBorrowHistory);
 router.post('/return', returnBook);
 router.get('/penalties', getPenalties);
 router.post('/penalties/:id/pay', payPenalty);
+router.post('/check-overdue', checkOverdue);
 
 module.exports = router;

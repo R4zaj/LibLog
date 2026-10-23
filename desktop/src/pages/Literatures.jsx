@@ -13,6 +13,7 @@ import * as XLSX from 'xlsx';
 import NotificationDropdown from '../components/NotificationDropdown';
 import QRCode from 'react-qr-code';
 import { useTheme } from '../components/ThemeContext';
+import Pagination from '../components/Pagination';
 
 export default function Literatures() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -39,6 +40,25 @@ export default function Literatures() {
   // Filtering and Sorting - Archived
   const [archivedSearchQuery, setArchivedSearchQuery] = useState('');
   const [archivedSortBy, setArchivedSortBy] = useState('Recently Archived');
+
+  // Pagination States (10 lines per page)
+  const [literaturePage, setLiteraturePage] = useState(1);
+  const [authorPage, setAuthorPage] = useState(1);
+  const [qrPage, setQrPage] = useState(1);
+  const [qrSearch, setQrSearch] = useState('');
+
+  // Reset pagination when search / filters change
+  useEffect(() => {
+    setLiteraturePage(1);
+  }, [searchQuery, sortBy, availabilityFilter]);
+
+  useEffect(() => {
+    setAuthorPage(1);
+  }, [authorSearch]);
+
+  useEffect(() => {
+    setQrPage(1);
+  }, [qrSearch]);
 
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -681,8 +701,11 @@ export default function Literatures() {
     </div>
   );
 
-  const renderLiteratureCatalog = () => (
-    <div className="flex flex-col gap-5 animate-fade-in pb-20 relative">
+  const renderLiteratureCatalog = () => {
+    const paginatedBooks = filteredBooks.slice((literaturePage - 1) * 10, literaturePage * 10);
+
+    return (
+      <div className="flex flex-col gap-5 animate-fade-in pb-20 relative">
       {/* Stats Row */}
       <div className="grid grid-cols-4 gap-4">
         <div className="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-lg p-3 flex items-center gap-4">
@@ -810,7 +833,7 @@ export default function Literatures() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-dark-border text-xs">
-            {filteredBooks.map((book, idx) => (
+            {paginatedBooks.map((book, idx) => (
               <tr key={book.id} className={`hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors ${selectedBooks.includes(book.id) ? 'bg-primary-50/50 dark:bg-purple-950/20' : ''}`}>
                 <td className="px-4 py-3">
                   <input 
@@ -820,7 +843,7 @@ export default function Literatures() {
                     className="rounded border-gray-300 accent-primary-600" 
                   />
                 </td>
-                <td className="px-4 py-3 text-gray-400 dark:text-slate-500">{idx + 1}</td>
+                <td className="px-4 py-3 text-gray-400 dark:text-slate-500">{(literaturePage - 1) * 10 + idx + 1}</td>
                 <td className="px-4 py-3 font-medium text-gray-700 dark:text-slate-300">{book.isbn}</td>
                 <td className="px-4 py-3 whitespace-normal min-w-[200px]">
                   <div className="flex flex-col">
@@ -875,6 +898,16 @@ export default function Literatures() {
             )}
           </tbody>
         </table>
+
+        {/* Pagination Controls inside Table Footer */}
+        <div className="px-6 py-3.5 border-t border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-card">
+          <Pagination
+            currentPage={literaturePage}
+            totalItems={filteredBooks.length}
+            itemsPerPage={10}
+            onPageChange={setLiteraturePage}
+          />
+        </div>
       </div>
 
       {/* Floating Toolbar for Active Selection */}
@@ -904,6 +937,7 @@ export default function Literatures() {
       )}
     </div>
   );
+};
 
   const renderArchivedCatalog = () => {
     const oldestYear = archivedBooks.reduce((min, b) => {
@@ -1166,6 +1200,7 @@ export default function Literatures() {
     const filteredAuthors = authors.filter(a =>
       !authorSearch || a.name?.toLowerCase().includes(authorSearch.toLowerCase())
     );
+    const paginatedAuthors = filteredAuthors.slice((authorPage - 1) * 10, authorPage * 10);
 
     return (
       <div className="flex flex-col gap-4 animate-fade-in relative pb-20">
@@ -1190,7 +1225,7 @@ export default function Literatures() {
             No authors found matching &quot;{authorSearch}&quot;.
           </div>
         ) : (
-          filteredAuthors.map(author => (
+          paginatedAuthors.map(author => (
         <div key={author.id} className="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-xl shadow-sm overflow-hidden transition-all">
           <div className="p-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-hover" onClick={() => toggleAuthor(author.id)}>
             <div className="flex items-center gap-4">
@@ -1241,6 +1276,15 @@ export default function Literatures() {
         </div>
       ))
     )}
+
+        <div className="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-xl px-6 py-3.5 shadow-sm">
+          <Pagination
+            currentPage={authorPage}
+            totalItems={filteredAuthors.length}
+            itemsPerPage={10}
+            onPageChange={setAuthorPage}
+          />
+        </div>
       </div>
     );
   };
@@ -1339,60 +1383,94 @@ export default function Literatures() {
     );
   };
 
-  const renderQRCatalog = () => (
-    <div className="flex flex-col gap-6 animate-fade-in pb-20">
-      <div className="flex items-center justify-between">
-        <div className="relative w-96">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500" size={16} />
-          <input type="text" placeholder="Search by title, author, ISBN, or LCCN..." className="w-full pl-9 pr-4 py-2 border border-gray-200 dark:border-dark-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-dark-bg dark:text-slate-200" />
-        </div>
-        <div className="flex gap-3">
-          <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 dark:border-dark-border rounded bg-white dark:bg-dark-card text-sm font-medium text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-dark-hover shadow-sm">
-            <QrCode size={16} /> Generate QR Codes
-          </button>
-          <div className={`overflow-hidden transition-all duration-300 transform origin-left ${selectedQRs.length > 0 ? 'max-w-[200px] opacity-100 scale-100' : 'max-w-0 opacity-0 scale-50 -ml-3'}`}>
-            <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2 bg-primary-800 text-white rounded text-sm font-medium hover:bg-primary-900 shadow-sm whitespace-nowrap">
-              <Printer size={16} /> Print QR Codes
-            </button>
-          </div>
-        </div>
-      </div>
+  const renderQRCatalog = () => {
+    const filteredQRBooks = books.filter(b => {
+      if (!qrSearch) return true;
+      const q = qrSearch.toLowerCase();
+      return (b.title || '').toLowerCase().includes(q) ||
+             (b.author || '').toLowerCase().includes(q) ||
+             (b.isbn || '').toLowerCase().includes(q) ||
+             (b.lccn || '').toLowerCase().includes(q);
+    });
 
-      {selectedQRs.length > 0 && (
-        <div className="flex items-center gap-4 bg-purple-50 dark:bg-purple-950/40 rounded-md px-4 py-2 text-sm font-medium text-purple-800 dark:text-purple-300">
-          <span>{selectedQRs.length} selected</span>
-          <button onClick={() => setSelectedQRs([])} className="text-purple-600 dark:text-purple-400 hover:text-purple-900">Clear</button>
-          <button onClick={() => setSelectedQRs(books.map(b => b.id))} className="text-purple-600 dark:text-purple-400 hover:text-purple-900">Select All</button>
-        </div>
-      )}
+    const paginatedQRBooks = filteredQRBooks.slice((qrPage - 1) * 10, qrPage * 10);
 
-      <div className="grid grid-cols-5 gap-4">
-        {books.map((qr) => (
-          <div key={qr.id} onClick={() => handleViewQRCode(qr)} className={`bg-white dark:bg-dark-card border rounded-lg p-4 flex flex-col items-center text-center shadow-sm relative transition-colors cursor-pointer ${selectedQRs.includes(qr.id) ? 'border-purple-600 ring-1 ring-purple-600' : 'border-gray-200 dark:border-dark-border hover:border-primary-300'}`}>
+    return (
+      <div className="flex flex-col gap-6 animate-fade-in pb-20">
+        <div className="flex items-center justify-between">
+          <div className="relative w-96">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500" size={16} />
             <input 
-              type="checkbox" 
-              checked={selectedQRs.includes(qr.id)}
-              onChange={(e) => {
-                if (e.target.checked) setSelectedQRs([...selectedQRs, qr.id]);
-                else setSelectedQRs(selectedQRs.filter(id => id !== qr.id));
-              }}
-              onClick={(e) => e.stopPropagation()}
-              className="absolute top-3 right-3 rounded border-gray-300 text-purple-600 focus:ring-purple-500 cursor-pointer w-4 h-4" 
+              type="text" 
+              placeholder="Search by title, author, ISBN, or LCCN..." 
+              value={qrSearch}
+              onChange={(e) => setQrSearch(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 border border-gray-200 dark:border-dark-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-dark-bg dark:text-slate-200" 
             />
-            <div className="bg-white dark:bg-dark-card p-2 border border-gray-200 dark:border-dark-border mb-4 rounded shadow-sm inline-block mt-2">
-              {(() => {
-                const QR = QRCode.default || QRCode.QRCode || QRCode;
-                return <QR value={String(qr.qr_code || qr.isbn || qr.id || 'UNKNOWN')} size={80} fgColor="#006644" />;
-              })()}
-            </div>
-            <h4 className="font-bold text-gray-800 dark:text-slate-300 text-xs mb-1 line-clamp-2">{qr.title}</h4>
-            <span className="text-[10px] text-gray-500 dark:text-slate-400 font-medium">{qr.lccn}</span>
-            <span className="text-[10px] text-gray-400 dark:text-slate-500">{qr.isbn}</span>
           </div>
-        ))}
+          <div className="flex gap-3">
+            <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 dark:border-dark-border rounded bg-white dark:bg-dark-card text-sm font-medium text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-dark-hover shadow-sm">
+              <QrCode size={16} /> Generate QR Codes
+            </button>
+            <div className={`overflow-hidden transition-all duration-300 transform origin-left ${selectedQRs.length > 0 ? 'max-w-[200px] opacity-100 scale-100' : 'max-w-0 opacity-0 scale-50 -ml-3'}`}>
+              <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2 bg-primary-800 text-white rounded text-sm font-medium hover:bg-primary-900 shadow-sm whitespace-nowrap">
+                <Printer size={16} /> Print QR Codes
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {selectedQRs.length > 0 && (
+          <div className="flex items-center gap-4 bg-purple-50 dark:bg-purple-950/40 rounded-md px-4 py-2 text-sm font-medium text-purple-800 dark:text-purple-300">
+            <span>{selectedQRs.length} selected</span>
+            <button onClick={() => setSelectedQRs([])} className="text-purple-600 dark:text-purple-400 hover:text-purple-900">Clear</button>
+            <button onClick={() => setSelectedQRs(filteredQRBooks.map(b => b.id))} className="text-purple-600 dark:text-purple-400 hover:text-purple-900">Select All</button>
+          </div>
+        )}
+
+        {filteredQRBooks.length === 0 ? (
+          <div className="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-xl p-8 text-center text-gray-500 dark:text-slate-400 text-sm">
+            No QR codes found matching &quot;{qrSearch}&quot;.
+          </div>
+        ) : (
+          <div className="grid grid-cols-5 gap-4">
+            {paginatedQRBooks.map((qr) => (
+              <div key={qr.id} onClick={() => handleViewQRCode(qr)} className={`bg-white dark:bg-dark-card border rounded-lg p-4 flex flex-col items-center text-center shadow-sm relative transition-colors cursor-pointer ${selectedQRs.includes(qr.id) ? 'border-purple-600 ring-1 ring-purple-600' : 'border-gray-200 dark:border-dark-border hover:border-primary-300'}`}>
+                <input 
+                  type="checkbox" 
+                  checked={selectedQRs.includes(qr.id)}
+                  onChange={(e) => {
+                    if (e.target.checked) setSelectedQRs([...selectedQRs, qr.id]);
+                    else setSelectedQRs(selectedQRs.filter(id => id !== qr.id));
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="absolute top-3 right-3 rounded border-gray-300 text-purple-600 focus:ring-purple-500 cursor-pointer w-4 h-4" 
+                />
+                <div className="bg-white dark:bg-dark-card p-2 border border-gray-200 dark:border-dark-border mb-4 rounded shadow-sm inline-block mt-2">
+                  {(() => {
+                    const QR = QRCode.default || QRCode.QRCode || QRCode;
+                    return <QR value={String(qr.qr_code || qr.isbn || qr.id || 'UNKNOWN')} size={80} fgColor="#006644" />;
+                  })()}
+                </div>
+                <h4 className="font-bold text-gray-800 dark:text-slate-300 text-xs mb-1 line-clamp-2">{qr.title}</h4>
+                <span className="text-[10px] text-gray-500 dark:text-slate-400 font-medium">{qr.lccn}</span>
+                <span className="text-[10px] text-gray-400 dark:text-slate-500">{qr.isbn}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-xl px-6 py-3.5 shadow-sm">
+          <Pagination
+            currentPage={qrPage}
+            totalItems={filteredQRBooks.length}
+            itemsPerPage={10}
+            onPageChange={setQrPage}
+          />
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="flex flex-col h-full animate-fade-in">

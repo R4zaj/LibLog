@@ -1,11 +1,13 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext, useMemo, Fragment } from 'react';
 import { 
-  ArrowRightLeft, Search, Sun, Moon, Bell, Printer, Maximize, Camera, DollarSign, BookUp, CheckCircle, AlertCircle
+  ArrowRightLeft, Search, Sun, Moon, Bell, Printer, Maximize, Camera, DollarSign, BookUp, CheckCircle, AlertCircle,
+  ChevronDown, ChevronUp
 } from 'lucide-react';
 import ScannerSim from '../components/ScannerSim';
 import { useTheme } from '../components/ThemeContext';
 import { BorrowingContext } from '../context/BorrowingContext';
 import { useOfflineApi } from '../hooks/useOfflineApi';
+import Pagination from '../components/Pagination';
 
 export default function Borrowing() {
   const { isDarkMode, toggleDarkMode } = useTheme();
@@ -29,14 +31,49 @@ export default function Borrowing() {
     setReturnScannedUser,
     error, 
     setError,
-    handleScan
+    handleScan,
+    scanFeedback
   } = useContext(BorrowingContext);
   
   // Penalties State
   const [penalties, setPenalties] = useState([]);
+  const [expandedUserIds, setExpandedUserIds] = useState(new Set());
+
+  const toggleUserExpanded = (userId) => {
+    setExpandedUserIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
+  };
+
+  const groupedPenalties = useMemo(() => {
+    const map = new Map();
+    penalties.forEach((p) => {
+      const uId = p.user_id;
+      if (!map.has(uId)) {
+        map.set(uId, {
+          user: p.user,
+          penalties: [],
+          totalAmount: 0,
+          hasUnreturned: false,
+        });
+      }
+      const entry = map.get(uId);
+      entry.penalties.push(p);
+      entry.totalAmount += parseFloat(p.amount || 0);
+      if (!p.is_returned) entry.hasUnreturned = true;
+    });
+    return Array.from(map.values());
+  }, [penalties]);
   
   // Records State
   const [records, setRecords] = useState([]);
+
+  // Pagination States (10 items per page)
+  const [recordsPage, setRecordsPage] = useState(1);
+  const [penaltiesPage, setPenaltiesPage] = useState(1);
 
   const [stats, setStats] = useState({ active: 0, overdue: 0, returned: 0 });
   const [successMessage, setSuccessMessage] = useState(null);
@@ -51,8 +88,14 @@ export default function Borrowing() {
 
   useEffect(() => {
     fetchStats();
-    if (activeTab === '$ Penalties') fetchPenalties();
-    if (activeTab === 'Records') fetchRecords();
+    if (activeTab === '$ Penalties') {
+      setPenaltiesPage(1);
+      fetchPenalties();
+    }
+    if (activeTab === 'Records') {
+      setRecordsPage(1);
+      fetchRecords();
+    }
   }, [activeTab]);
 
   const fetchRecords = async () => {
@@ -278,6 +321,7 @@ export default function Borrowing() {
                 placeholder="Enter book ISBN or ID (e.g., 978-0...)"
                 onSubmit={handleScan}
                 isGlobalScanner={false}
+                scanFeedback={scanFeedback}
               />
             )}
 
@@ -289,6 +333,7 @@ export default function Borrowing() {
                 placeholder="Enter student ID (e.g., 2021-0001)"
                 onSubmit={handleScan}
                 isGlobalScanner={false}
+                scanFeedback={scanFeedback}
               />
             )}
 
@@ -374,6 +419,7 @@ export default function Borrowing() {
                 placeholder="Enter book ISBN or ID..."
                 onSubmit={handleScan}
                 isGlobalScanner={false}
+                scanFeedback={scanFeedback}
               />
             )}
 
@@ -385,6 +431,7 @@ export default function Borrowing() {
                 placeholder="Enter student ID..."
                 onSubmit={handleScan}
                 isGlobalScanner={false}
+                scanFeedback={scanFeedback}
               />
             )}
 
@@ -424,11 +471,30 @@ export default function Borrowing() {
         {/* PENALTIES TAB */}
         {activeTab === '$ Penalties' && (
           <div className="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-xl overflow-hidden shadow-sm mt-4 flex flex-col animate-fade-in">
-            <div className="p-5 border-b border-gray-200 dark:border-dark-border flex justify-between items-center bg-gray-50">
+            <div className="p-5 border-b border-gray-200 dark:border-dark-border flex justify-between items-center bg-gray-50 dark:bg-dark-bg">
               <div>
                 <h3 className="font-bold text-gray-800 dark:text-slate-300">Unpaid Penalties</h3>
-                <p className="text-xs text-gray-500 dark:text-slate-400">Manage overdue and damage fines</p>
+                <p className="text-xs text-gray-500 dark:text-slate-400">One line per user with expandable penalties breakdown</p>
               </div>
+              {groupedPenalties.length > 0 && (
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-gray-500 dark:text-slate-400">
+                    <strong>{groupedPenalties.length}</strong> Students ({penalties.length} Total Penalties)
+                  </span>
+                  <button
+                    onClick={() => {
+                      if (expandedUserIds.size === groupedPenalties.length) {
+                        setExpandedUserIds(new Set());
+                      } else {
+                        setExpandedUserIds(new Set(groupedPenalties.map(g => g.user.id)));
+                      }
+                    }}
+                    className="text-xs font-semibold px-2.5 py-1 bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-lg text-gray-600 dark:text-slate-300 hover:bg-gray-100 transition-colors"
+                  >
+                    {expandedUserIds.size === groupedPenalties.length ? 'Collapse All' : 'Expand All'}
+                  </button>
+                </div>
+              )}
             </div>
             
             <div className="overflow-x-auto">
@@ -436,42 +502,179 @@ export default function Borrowing() {
                 <thead>
                   <tr className="bg-gray-50 dark:bg-dark-bg border-b border-gray-200 dark:border-dark-border text-xs text-gray-500 dark:text-slate-400 uppercase">
                     <th className="px-6 py-3 font-bold">Student</th>
-                    <th className="px-6 py-3 font-bold">Book Details</th>
-                    <th className="px-6 py-3 font-bold">Type</th>
-                    <th className="px-6 py-3 font-bold text-right">Amount</th>
+                    <th className="px-6 py-3 font-bold">Penalties Summary</th>
+                    <th className="px-6 py-3 font-bold">Status</th>
+                    <th className="px-6 py-3 font-bold text-right">Total Unpaid</th>
                     <th className="px-6 py-3 font-bold text-center">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {penalties.length === 0 ? (
+                <tbody className="divide-y divide-gray-100 dark:divide-dark-border">
+                  {groupedPenalties.length === 0 ? (
                     <tr><td colSpan="5" className="p-8 text-center text-gray-400 dark:text-slate-500 font-medium">No unpaid penalties</td></tr>
                   ) : (
-                    penalties.map((p) => (
-                      <tr key={p.id} className="hover:bg-gray-50 dark:hover:bg-dark-hover">
-                        <td className="px-6 py-4">
-                          <p className="font-bold text-sm text-gray-900 dark:text-slate-200">{p.user.first_name} {p.user.last_name}</p>
-                          <p className="text-xs text-gray-500 dark:text-slate-400">{p.user.student_id}</p>
-                        </td>
-                        <td className="px-6 py-4">
-                          <p className="font-semibold text-sm text-gray-800 dark:text-slate-300 line-clamp-1">{p.borrow.book.title}</p>
-                          <p className="text-xs text-red-500">{p.days_overdue} days overdue</p>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="px-2 py-1 bg-red-100 text-red-700 rounded text-[10px] font-bold">{p.type}</span>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <span className="font-bold text-gray-900 dark:text-slate-200">₱{parseFloat(p.amount).toFixed(2)}</span>
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <button onClick={() => handlePayPenalty(p.id)} className="px-3 py-1 bg-green-100 text-green-700 hover:bg-green-200 rounded text-xs font-bold transition-colors">
-                            Mark Paid
-                          </button>
-                        </td>
-                      </tr>
-                    ))
+                    groupedPenalties.slice((penaltiesPage - 1) * 10, penaltiesPage * 10).map((group) => {
+                      const isExpanded = expandedUserIds.has(group.user.id);
+                      return (
+                        <Fragment key={group.user.id}>
+                          <tr className={`border-b border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors ${isExpanded ? 'bg-primary-50/20 dark:bg-primary-900/10' : ''}`}>
+                            <td className="px-6 py-4">
+                              <p className="font-bold text-sm text-gray-900 dark:text-slate-200">
+                                {group.user.first_name} {group.user.last_name}
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-slate-400">
+                                {group.user.student_id}
+                              </p>
+                              <button
+                                onClick={() => toggleUserExpanded(group.user.id)}
+                                className="mt-1 flex items-center gap-1 text-xs font-semibold text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300 transition-colors"
+                              >
+                                {isExpanded ? (
+                                  <>
+                                    <ChevronUp size={13} /> Hide Penalties ({group.penalties.length})
+                                  </>
+                                ) : (
+                                  <>
+                                    <ChevronDown size={13} /> View Penalties ({group.penalties.length})
+                                  </>
+                                )}
+                              </button>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-2">
+                                <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-gray-100 dark:bg-dark-bg text-gray-700 dark:text-slate-300 border border-gray-200 dark:border-dark-border">
+                                  {group.penalties.length} Item{group.penalties.length !== 1 ? 's' : ''}
+                                </span>
+                              </div>
+                              <p className="text-xs text-gray-500 dark:text-slate-400 mt-1 line-clamp-1 max-w-xs" title={group.penalties.map(p => p.borrow?.book?.title).filter(Boolean).join(', ')}>
+                                {group.penalties.map(p => p.borrow?.book?.title).filter(Boolean).slice(0, 2).join(', ')}
+                                {group.penalties.length > 2 && ` +${group.penalties.length - 2} more`}
+                              </p>
+                            </td>
+                            <td className="px-6 py-4">
+                              {group.hasUnreturned ? (
+                                <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 whitespace-nowrap">
+                                  Has Active Overdue
+                                </span>
+                              ) : (
+                                <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800 whitespace-nowrap">
+                                  All Returned (Unpaid)
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              <span className="font-bold text-base text-gray-900 dark:text-slate-200">
+                                ₱{group.totalAmount.toFixed(2)}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <button
+                                onClick={() => toggleUserExpanded(group.user.id)}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 mx-auto ${
+                                  isExpanded
+                                    ? 'bg-gray-200 dark:bg-dark-hover text-gray-800 dark:text-slate-200'
+                                    : 'bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/50'
+                                }`}
+                              >
+                                {isExpanded ? (
+                                  <>
+                                    <ChevronUp size={13} /> Close
+                                  </>
+                                ) : (
+                                  <>
+                                    <ChevronDown size={13} /> Details
+                                  </>
+                                )}
+                              </button>
+                            </td>
+                          </tr>
+
+                          {/* EXPANDED BREAKDOWN SUB-ROW */}
+                          {isExpanded && (
+                            <tr className="bg-gray-50/70 dark:bg-dark-bg/60 border-b border-gray-200 dark:border-dark-border">
+                              <td colSpan="5" className="px-8 py-4">
+                                <div className="bg-white dark:bg-dark-card rounded-xl border border-gray-200 dark:border-dark-border p-4 shadow-sm">
+                                  <div className="flex justify-between items-center mb-3 border-b border-gray-100 dark:border-dark-border pb-2">
+                                    <span className="text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                                      <span className="w-2 h-2 rounded-full bg-primary-600"></span>
+                                      Penalties for {group.user.first_name} {group.user.last_name} ({group.penalties.length} Item{group.penalties.length !== 1 ? 's' : ''})
+                                    </span>
+                                    <span className="text-xs text-gray-500 dark:text-slate-400">
+                                      Subtotal: <strong className="text-gray-900 dark:text-slate-200 font-bold">₱{group.totalAmount.toFixed(2)}</strong>
+                                    </span>
+                                  </div>
+                                  
+                                  <div className="overflow-x-auto">
+                                    <table className="w-full text-left text-xs">
+                                      <thead>
+                                        <tr className="border-b border-gray-100 dark:border-dark-border text-gray-400 uppercase text-[10px]">
+                                          <th className="pb-2 font-bold">Book Title</th>
+                                          <th className="pb-2 font-bold">Overdue Details</th>
+                                          <th className="pb-2 font-bold">Type</th>
+                                          <th className="pb-2 font-bold text-right">Fine Amount</th>
+                                          <th className="pb-2 font-bold text-center">Action</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-gray-100 dark:divide-dark-border">
+                                        {group.penalties.map((p) => (
+                                          <tr key={p.id} className="hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors">
+                                            <td className="py-2.5 font-semibold text-gray-800 dark:text-slate-300">
+                                              {p.borrow?.book?.title || 'Unknown Book'}
+                                            </td>
+                                            <td className="py-2.5">
+                                              <span className="text-red-500 font-semibold">{p.days_overdue} days overdue</span>
+                                              {p.is_returned ? (
+                                                <span className="ml-2 text-[10px] bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 px-1.5 py-0.5 rounded font-medium">
+                                                  Returned {p.return_date ? new Date(p.return_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}
+                                                </span>
+                                              ) : (
+                                                <span className="ml-2 text-[10px] bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded font-medium">
+                                                  Not Returned
+                                                </span>
+                                              )}
+                                            </td>
+                                            <td className="py-2.5">
+                                              <span className="px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded text-[10px] font-bold">
+                                                {p.type}
+                                              </span>
+                                            </td>
+                                            <td className="py-2.5 text-right font-bold text-gray-900 dark:text-slate-200">
+                                              ₱{parseFloat(p.amount).toFixed(2)}
+                                              <span className="text-[10px] text-gray-400 dark:text-slate-500 font-normal block">
+                                                ₱{p.daily_rate || 5}/day
+                                              </span>
+                                            </td>
+                                            <td className="py-2.5 text-center">
+                                              <button
+                                                onClick={() => handlePayPenalty(p.id)}
+                                                className="px-3 py-1 bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 rounded text-xs font-bold transition-colors shadow-sm"
+                                              >
+                                                Mark Paid
+                                              </button>
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-card">
+              <Pagination
+                currentPage={penaltiesPage}
+                totalItems={groupedPenalties.length}
+                itemsPerPage={10}
+                onPageChange={setPenaltiesPage}
+              />
             </div>
           </div>
         )}
@@ -500,9 +703,9 @@ export default function Borrowing() {
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-dark-border">
                   {records.length === 0 ? (
-                    <tr><td colSpan="5" className="p-8 text-center text-gray-400 dark:text-slate-500 font-medium">No records found</td></tr>
+                    <tr><td colSpan="6" className="p-8 text-center text-gray-400 dark:text-slate-500 font-medium">No records found</td></tr>
                   ) : (
-                    records.map((record) => (
+                    records.slice((recordsPage - 1) * 10, recordsPage * 10).map((record) => (
                       <tr key={record.id} className="hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors">
                         <td className="px-6 py-4">
                           <p className="font-bold text-sm text-gray-900 dark:text-slate-200">{record.book?.title}</p>
@@ -537,6 +740,15 @@ export default function Borrowing() {
                   )}
                 </tbody>
               </table>
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-card">
+              <Pagination
+                currentPage={recordsPage}
+                totalItems={records.length}
+                itemsPerPage={10}
+                onPageChange={setRecordsPage}
+              />
             </div>
           </div>
         )}

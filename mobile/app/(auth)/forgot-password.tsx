@@ -66,7 +66,7 @@ export default function ForgotPassword() {
 
       setResolvedEmail(res.data.email || trimmed);
       setMaskedEmail(res.data.maskedEmail || res.data.email || trimmed);
-      setResendCooldown(30);
+      setResendCooldown(60);
       setStep(2);
     } catch (e: any) {
       setError(e.response?.data?.error || 'Failed to send reset code. Please verify your details.');

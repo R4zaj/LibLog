@@ -15,6 +15,7 @@ import RequireAuth from './components/RequireAuth';
 // Reports is the only page that needs xlsx, jspdf and html2canvas. Loading it
 // on demand keeps roughly half the bundle out of the initial download.
 const Reports = lazy(() => import('./pages/Reports'));
+import ReportsSkeleton from './components/ReportsSkeleton';
 
 import { ThemeProvider } from './components/ThemeContext';
 import { NetworkProvider } from './contexts/NetworkContext';
@@ -42,7 +43,7 @@ function App() {
               <Route
                 path="reports"
                 element={
-                  <Suspense fallback={<div className="h-full w-full flex items-center justify-center text-sm text-gray-400 dark:text-slate-500">Loading…</div>}>
+                  <Suspense fallback={<ReportsSkeleton />}>
                     <Reports />
                   </Suspense>
                 }

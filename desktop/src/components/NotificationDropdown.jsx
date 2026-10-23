@@ -154,20 +154,29 @@ export default function NotificationDropdown() {
                       <Icon size={18} />
                     </div>
                     <div className="flex flex-col flex-1">
-                      <div className="flex justify-between items-start">
-                        <p className="text-sm">
-                          <span className={`font-bold ${!n.is_read ? 'text-gray-900 dark:text-slate-200' : 'text-gray-700 dark:text-slate-300'}`}>{n.title}</span>
-                        </p>
-                        <div className="flex items-center gap-2">
-                          {!n.is_read && <span className="w-1.5 h-1.5 rounded-full bg-primary-600 shrink-0"></span>}
-                          <span className="text-xs text-gray-400 dark:text-slate-500 shrink-0">{formatTimeAgo(n.created_at)}</span>
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className={`text-sm font-bold ${!n.is_read ? 'text-gray-900 dark:text-slate-100' : 'text-gray-700 dark:text-slate-300'}`}>
+                            {n.title}
+                          </span>
+                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase tracking-wider ${bg} ${color}`}>
+                            {n.category}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {!n.is_read && <span className="w-2 h-2 rounded-full bg-primary-600 shrink-0"></span>}
+                          <span className="text-xs text-gray-400 dark:text-slate-500">{formatTimeAgo(n.created_at)}</span>
                         </div>
                       </div>
-                      <p className={`text-xs mt-0.5 line-clamp-2 ${!n.is_read ? 'text-gray-700 dark:text-slate-300 font-medium' : 'text-gray-500 dark:text-slate-400'}`}>{n.message}</p>
+                      <p className={`text-xs mt-1 leading-relaxed ${!n.is_read ? 'text-gray-800 dark:text-slate-200 font-medium' : 'text-gray-500 dark:text-slate-400'}`}>
+                        {n.message}
+                      </p>
                       {n.trigger_user && (
-                        <p className="text-[10px] text-gray-400 dark:text-slate-500 mt-1">
-                          Triggered by {n.trigger_user.first_name} {n.trigger_user.last_name}
-                        </p>
+                        <div className="mt-1.5 flex items-center gap-1 text-[11px] text-gray-500 dark:text-slate-400 bg-gray-50 dark:bg-dark-bg/60 px-2 py-0.5 rounded border border-gray-100 dark:border-dark-border/50 w-fit">
+                          <span className="font-semibold text-gray-700 dark:text-slate-300">User:</span>
+                          <span>{n.trigger_user.first_name} {n.trigger_user.last_name}</span>
+                          {n.trigger_user.student_id && <span className="text-gray-400 dark:text-slate-500">({n.trigger_user.student_id})</span>}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -176,9 +185,31 @@ export default function NotificationDropdown() {
             )}
           </div>
 
-          <div className="p-3 border-t border-gray-100 dark:border-dark-border bg-gray-50 dark:bg-dark-bg rounded-b-xl">
-            <button className="w-full py-2 text-primary-700 dark:text-primary-400 text-sm font-bold flex items-center justify-center gap-2 hover:bg-primary-100/50 dark:hover:bg-primary-900/30 rounded-lg transition-colors">
-              <ExternalLink size={16} /> View All Activity
+          <div className="p-3 border-t border-gray-100 dark:border-dark-border bg-gray-50 dark:bg-dark-bg rounded-b-xl flex gap-2">
+            <button 
+              onClick={async () => {
+                try {
+                  const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/borrowing/check-overdue`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                  });
+                  if (res.ok) {
+                    fetchNotifications();
+                  }
+                } catch (e) {
+                  console.error('Failed to run overdue check', e);
+                }
+              }}
+              title="Scan and send overdue reminders"
+              className="flex-1 py-1.5 text-xs font-semibold text-gray-600 dark:text-slate-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-white dark:hover:bg-dark-card border border-gray-200 dark:border-dark-border rounded-lg transition-colors flex items-center justify-center gap-1.5"
+            >
+              <Activity size={13} /> Check Overdue
+            </button>
+            <button 
+              onClick={handleMarkAllAsRead}
+              className="py-1.5 px-3 text-xs font-semibold text-primary-700 dark:text-primary-400 hover:bg-primary-100/50 dark:hover:bg-primary-900/30 rounded-lg transition-colors"
+            >
+              Clear All
             </button>
           </div>
         </div>

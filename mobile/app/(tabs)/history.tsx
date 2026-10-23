@@ -1,10 +1,10 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Animated, TextInput } from 'react-native';
 import { useAppTheme } from '../../context/ThemeContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
-import { LogIn, LogOut, BookOpen, Receipt, RefreshCcw, Activity, Search, Calendar, ListFilter, MoreVertical, ChevronRight, ChevronDown, Wind } from 'lucide-react-native';
+import { LogIn, LogOut, BookOpen, Receipt, RefreshCcw, Activity, Search, Calendar, ChevronRight, ChevronDown, Wind } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { YStack, XStack } from 'tamagui';
 import api from '../../api';
@@ -19,10 +19,121 @@ type ActivityEvent = {
   subtitle?: string;
 };
 
+const getStyles = (theme: any) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.background,
+  },
+  header: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: theme.text,
+  },
+  utilityChip: {
+    width: 44,
+    height: 44,
+    borderRadius: 16,
+    backgroundColor: theme.card,
+    borderWidth: 1,
+    borderColor: theme.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  filterContainer: {
+    marginBottom: 8,
+  },
+  filterScroll: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  filterChip: {
+    backgroundColor: theme.pillContainer,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginRight: 8,
+    minHeight: 48,
+    justifyContent: 'center',
+  },
+  filterChipActive: {
+    backgroundColor: theme.primary,
+  },
+  filterText: {
+    color: theme.primary,
+    fontWeight: '500',
+    fontSize: 14,
+  },
+  filterTextActive: {
+    color: theme.pillTextActive,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyState: {
+    padding: 32,
+    alignItems: 'center',
+  },
+  emptyText: {
+    color: theme.textSecondary,
+    fontSize: 15,
+  },
+  card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.card,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: theme.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  iconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: theme.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  content: {
+    flex: 1,
+    marginRight: 8,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: theme.text,
+    marginBottom: 4,
+  },
+  cardSubtitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: theme.textSecondary,
+  },
+  dateText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: theme.textSecondary,
+  },
+});
+
 export default function HistoryScreen() {
   const { theme } = useAppTheme();
   const { t } = useLanguage();
-  const styles = typeof getStyles === 'function' ? getStyles(theme) : {};
+  const styles = useMemo(() => getStyles(theme), [theme]);
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const [filter, setFilter] = useState<'All' | 'Attendance' | 'Borrows' | 'Penalties'>('All');
@@ -40,68 +151,98 @@ export default function HistoryScreen() {
     setLoading(true);
     try {
       const [attendanceRes, borrowRes] = await Promise.all([
-        api.get('/attendance/my-history'),
-        api.get(`/borrowing/user/${user.id}`)
+        api.get('/attendance/my-history').catch(err => {
+          console.warn('Failed to fetch attendance history:', err?.message);
+          return { data: [] };
+        }),
+        api.get(`/borrowing/user/${user.id}/history`).catch(async () => {
+          return api.get(`/borrowing/user/${user.id}`).catch(err => {
+            console.warn('Failed to fetch borrow history:', err?.message);
+            return { data: [] };
+          });
+        })
       ]);
 
       const newEvents: ActivityEvent[] = [];
 
       // Process attendance
       (attendanceRes.data || []).forEach((log: any) => {
+        if (!log || !log.logged_at) return;
+        const logTime = log.logged_at;
+        const formattedTime = (() => {
+          try {
+            const d = new Date(logTime);
+            return isNaN(d.getTime()) ? '' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          } catch {
+            return '';
+          }
+        })();
+
         if (log.action === 'CHECK_IN') {
           newEvents.push({
             id: `att-in-${log.id}`,
             type: 'ATTENDANCE_IN',
-            timestamp: log.logged_at,
+            timestamp: logTime,
             title: 'Time in',
-            subtitle: new Date(log.logged_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            subtitle: formattedTime
           });
         } else if (log.action === 'CHECK_OUT') {
           newEvents.push({
             id: `att-out-${log.id}`,
             type: 'ATTENDANCE_OUT',
-            timestamp: log.logged_at,
+            timestamp: logTime,
             title: 'Time out',
-            subtitle: log.duration_minutes ? `Duration: ${log.duration_minutes} min` : new Date(log.logged_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            subtitle: log.duration_minutes ? `Duration: ${log.duration_minutes} min` : formattedTime
           });
         }
       });
 
-      // Process borrows
+      // Process borrows (supports borrow_date and return_date from Prisma)
       (borrowRes.data || []).forEach((b: any) => {
-        newEvents.push({
-          id: `bor-${b.id}`,
-          type: 'BORROW',
-          timestamp: b.borrowed_date,
-          title: 'Checked Out',
-          subtitle: b.book?.title
-        });
-        if (b.returned_date) {
+        if (!b) return;
+        const borrowTime = b.borrow_date || b.borrowed_date || b.created_at;
+        const returnTime = b.return_date || b.returned_date;
+
+        if (borrowTime) {
+          newEvents.push({
+            id: `bor-${b.id}`,
+            type: 'BORROW',
+            timestamp: borrowTime,
+            title: 'Checked Out',
+            subtitle: b.book?.title || 'Library Book'
+          });
+        }
+        if (returnTime) {
           newEvents.push({
             id: `ret-${b.id}`,
             type: 'RETURN',
-            timestamp: b.returned_date,
+            timestamp: returnTime,
             title: 'Checked In',
-            subtitle: b.book?.title
+            subtitle: b.book?.title || 'Library Book'
           });
         }
       });
 
-      // Mock penalty event if applicable (can be replaced by real endpoint later)
-      if (Number(user.penalty_balance) > 0) {
+      // Mock penalty event if applicable
+      if (Number(user?.penalty_balance) > 0) {
         newEvents.push({
           id: `pen-mock`,
           type: 'PENALTY',
           timestamp: new Date().toISOString(),
           title: 'Pending Penalty Balance',
-          subtitle: `₱${Number(user.penalty_balance).toFixed(2)}`
+          subtitle: `₱${Number(user?.penalty_balance).toFixed(2)}`
         });
       }
 
-      newEvents.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      newEvents.sort((a, b) => {
+        const timeA = new Date(a.timestamp).getTime();
+        const timeB = new Date(b.timestamp).getTime();
+        return (isNaN(timeB) ? 0 : timeB) - (isNaN(timeA) ? 0 : timeA);
+      });
+
       setEvents(newEvents);
     } catch (e) {
-      console.error(e);
+      console.error('Error fetching history events:', e);
     } finally {
       setLoading(false);
     }
@@ -129,9 +270,18 @@ export default function HistoryScreen() {
   });
 
   const groupedEvents = filteredEvents.reduce((acc, event) => {
-    const date = new Date(event.timestamp);
-    const dateStr = date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }).toUpperCase();
-    const dayStr = date.toLocaleDateString('en-US', { weekday: 'long' });
+    let dayStr = 'Recent';
+    let dateStr = 'RECENT ACTIVITY';
+
+    if (event.timestamp) {
+      const date = new Date(event.timestamp);
+      if (!isNaN(date.getTime())) {
+        try {
+          dateStr = date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }).toUpperCase();
+          dayStr = date.toLocaleDateString('en-US', { weekday: 'long' });
+        } catch {}
+      }
+    }
     
     const key = `${dayStr}|${dateStr}`;
     if (!acc[key]) {
@@ -227,13 +377,13 @@ export default function HistoryScreen() {
           contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 98 }}
           showsVerticalScrollIndicator={false}
           onScroll={(e) => {
-            const offsetY = e.nativeEvent.contentOffset.y;
+            const offsetY = e.nativeEvent?.contentOffset?.y ?? 0;
             if (offsetY <= 0) {
-              setTabBarVisible(true);
+              setTabBarVisible?.(true);
             } else if (offsetY > lastOffsetY.current + 10) {
-              setTabBarVisible(false);
+              setTabBarVisible?.(false);
             } else if (offsetY < lastOffsetY.current - 10) {
-              setTabBarVisible(true);
+              setTabBarVisible?.(true);
             }
             lastOffsetY.current = offsetY;
           }}
@@ -272,26 +422,36 @@ export default function HistoryScreen() {
                         <Text style={{ fontSize: 12, fontWeight: '500', color: theme.textSecondary, letterSpacing: 0.5, textTransform: 'uppercase' }}>{section.dateStr}</Text>
                       </YStack>
                     </XStack>
-                    <XStack backgroundColor={theme.pillContainer} paddingHorizontal={12} paddingVertical={6} borderRadius={9999} alignItems="center">
+                    <XStack backgroundColor={theme.pillContainer as any} paddingHorizontal={12} paddingVertical={6} borderRadius={9999} alignItems="center">
                       <Text style={{ color: theme.primary, fontSize: 12, fontWeight: '600' }}>{section.events.length} Event{section.events.length !== 1 ? 's' : ''}</Text>
                     </XStack>
                   </XStack>
                 </TouchableOpacity>
                 
                 {!collapsedDays[section.dayStr + '|' + section.dateStr] && (
-                  <YStack backgroundColor={theme.card} borderRadius={24} borderWidth={1} borderColor={theme.border} overflow="hidden">
+                  <YStack backgroundColor={theme.card as any} borderRadius={24} borderWidth={1} borderColor={theme.border as any} overflow="hidden">
                     {section.events.map((evt, evtIdx) => {
                       const isLast = evtIdx === section.events.length - 1;
                       const dotColor = evt.type === 'ATTENDANCE_IN' ? '#10b981' : evt.type === 'ATTENDANCE_OUT' ? '#ef4444' : (evt.type === 'BORROW' || evt.type === 'RETURN') ? theme.primary : '#ef4444';
                       const iconBgColor = evt.type === 'ATTENDANCE_OUT' ? '#fef2f2' : theme.pillContainer;
                       
+                      const eventTime = (() => {
+                        if (!evt.timestamp) return '';
+                        try {
+                          const d = new Date(evt.timestamp);
+                          return isNaN(d.getTime()) ? '' : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                        } catch {
+                          return '';
+                        }
+                      })();
+
                       return (
                         <XStack 
                           key={evt.id} 
                           padding={16} 
                           alignItems="center" 
                           borderBottomWidth={isLast ? 0 : 1} 
-                          borderBottomColor={theme.border}
+                          borderBottomColor={theme.border as any}
                         >
                           <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: iconBgColor, justifyContent: 'center', alignItems: 'center', marginRight: 16 }}>
                             {renderIcon(evt.type)}
@@ -299,9 +459,11 @@ export default function HistoryScreen() {
                           <YStack flex={1}>
                             <XStack justifyContent="space-between" alignItems="center" marginBottom={2}>
                               <Text style={{ fontSize: 16, fontWeight: '600', color: theme.text }} numberOfLines={1}>{evt.title}</Text>
-                              <Text style={{ fontSize: 12, fontWeight: '600', color: dotColor, marginLeft: 8 }}>
-                                {new Date(evt.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                              </Text>
+                              {eventTime ? (
+                                <Text style={{ fontSize: 12, fontWeight: '600', color: dotColor, marginLeft: 8 }}>
+                                  {eventTime}
+                                </Text>
+                              ) : null}
                             </XStack>
                             {evt.subtitle && <Text style={{ fontSize: 14, fontWeight: '500', color: theme.textSecondary }} numberOfLines={1}>{evt.subtitle}</Text>}
                           </YStack>
@@ -318,111 +480,3 @@ export default function HistoryScreen() {
     </SafeAreaView>
   );
 }
-
-const getStyles = (theme: any) => ({
-  container: {
-    flex: 1,
-    backgroundColor: theme.background,
-  },
-  header: {
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: 8,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: theme.text,
-  },
-  utilityChip: {
-    width: 44,
-    height: 44,
-    borderRadius: 16,
-    backgroundColor: theme.card,
-    borderWidth: 1,
-    borderColor: theme.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  filterContainer: {
-    marginBottom: 8,
-  },
-  filterScroll: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  filterChip: {
-    backgroundColor: theme.pillContainer,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginRight: 8,
-    minHeight: 48,
-    justifyContent: 'center',
-  },
-  filterChipActive: {
-    backgroundColor: theme.primary,
-  },
-  filterText: {
-    color: theme.primary,
-    fontWeight: '500',
-    fontSize: 14,
-  },
-  filterTextActive: {
-    color: theme.pillTextActive,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyState: {
-    padding: 32,
-    alignItems: 'center',
-  },
-  emptyText: {
-    color: theme.textSecondary,
-    fontSize: 15,
-  },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.card,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: theme.border,
-    boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.05)',
-    elevation: 2,
-  },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    backgroundColor: theme.background,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  content: {
-    flex: 1,
-    marginRight: 8,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: theme.text,
-    marginBottom: 4,
-  },
-  cardSubtitle: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: theme.textSecondary,
-  },
-  dateText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: theme.textSecondary,
-  },
-});

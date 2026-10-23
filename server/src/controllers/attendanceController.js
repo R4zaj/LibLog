@@ -1,5 +1,6 @@
 const prisma = require('../db');
 const jwt = require('jsonwebtoken');
+const { notifyAttendance } = require('../services/notificationService');
 
 const getStats = async (req, res) => {
   try {
@@ -11,24 +12,45 @@ const getStats = async (req, res) => {
         logged_at: {
           gte: today
         }
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            student_id: true,
+            card_no: true,
+            first_name: true,
+            last_name: true,
+            email: true,
+            role: true,
+            year_level: true,
+            program: {
+              select: {
+                name: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: {
+        logged_at: 'asc'
       }
     });
 
     let checkIns = 0;
     let checkOuts = 0;
-    let insideNow = 0;
     let totalDuration = 0;
     let durationCount = 0;
 
-    const userStatus = {}; // userId -> status ('IN' or 'OUT')
+    const userStatus = {}; // userId -> { status, user, logged_at }
 
     logs.forEach(log => {
       if (log.action === 'CHECK_IN') {
         checkIns++;
-        userStatus[log.user_id] = 'IN';
+        userStatus[log.user_id] = { status: 'IN', user: log.user, logged_at: log.logged_at };
       } else if (log.action === 'CHECK_OUT') {
         checkOuts++;
-        userStatus[log.user_id] = 'OUT';
+        userStatus[log.user_id] = { status: 'OUT', user: log.user, logged_at: log.logged_at };
         if (log.duration_minutes) {
           totalDuration += log.duration_minutes;
           durationCount++;
@@ -36,10 +58,22 @@ const getStats = async (req, res) => {
       }
     });
 
-    for (const status of Object.values(userStatus)) {
-      if (status === 'IN') insideNow++;
-    }
+    const activeUsers = Object.values(userStatus)
+      .filter(item => item.status === 'IN' && item.user)
+      .map(item => ({
+        id: item.user.id,
+        student_id: item.user.student_id,
+        card_no: item.user.card_no,
+        first_name: item.user.first_name,
+        last_name: item.user.last_name,
+        email: item.user.email,
+        role: item.user.role,
+        year_level: item.user.year_level,
+        department: item.user.program?.name || 'General',
+        checked_in_at: item.logged_at
+      }));
 
+    const insideNow = activeUsers.length;
     const avgDuration = durationCount > 0 ? Math.round(totalDuration / durationCount) : 0;
 
     // Heatmap data: last 30 days CHECK_INs
@@ -68,7 +102,7 @@ const getStats = async (req, res) => {
       }
     });
 
-    res.json({ checkIns, checkOuts, insideNow, avgDuration, heatmapCounts });
+    res.json({ checkIns, checkOuts, insideNow, avgDuration, heatmapCounts, activeUsers });
   } catch (error) {
     console.error('Attendance Stats Error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -86,7 +120,7 @@ const scanQR = async (req, res) => {
       if (parts.length === 4) {
         const [, stId, ts, hmac] = parts;
         const timestamp = parseInt(ts, 10);
-        if (Date.now() - timestamp > 15000 || Date.now() - timestamp < -5000) {
+        if (Date.now() - timestamp > 60000 || Date.now() - timestamp < -5000) {
            return res.status(401).json({ error: 'Expired offline QR token' });
         }
         const crypto = require('crypto');
@@ -143,13 +177,19 @@ const scanQR = async (req, res) => {
     let duration = null;
 
     if (lastLog && lastLog.action === 'CHECK_IN') {
-      // User is currently checked in, so check them out
-      action = 'CHECK_OUT';
       const diffTime = Math.abs(new Date() - new Date(lastLog.logged_at));
-      duration = Math.round(diffTime / (1000 * 60)); // minutes
+      const diffHours = diffTime / (1000 * 60 * 60);
+      // Only treat as CHECK_OUT if the previous check-in happened within 18 hours.
+      // If someone forgot to check out on a previous day/session, start fresh as CHECK_IN.
+      if (diffHours <= 18) {
+        action = 'CHECK_OUT';
+        duration = Math.round(diffTime / (1000 * 60)); // minutes
+      } else {
+        action = 'CHECK_IN';
+      }
     }
 
-    await prisma.attendanceLog.create({
+    const log = await prisma.attendanceLog.create({
       data: {
         user_id: user.id,
         action: action,
@@ -158,14 +198,11 @@ const scanQR = async (req, res) => {
       }
     });
 
-    await prisma.notification.create({
-      data: {
-        category: 'ATTENDANCE',
-        title: action === 'CHECK_IN' ? 'Checked In' : 'Checked Out',
-        message: action === 'CHECK_IN' ? 'You have successfully checked in to the library.' : `You have checked out of the library. Duration: ${duration} mins.`,
-        target_user_id: user.id,
-      }
-    });
+    try {
+      await notifyAttendance({ user, action, duration, logId: log.id, tx: prisma });
+    } catch (notifErr) {
+      console.error('Failed to create attendance notification:', notifErr);
+    }
 
     const { password_hash, ...userWithoutPassword } = user;
     res.json({ user: userWithoutPassword, action, duration });
@@ -190,9 +227,13 @@ const getActiveUsers = async (req, res) => {
         user: {
           select: {
             id: true,
+            student_id: true,
+            card_no: true,
             first_name: true,
             last_name: true,
+            email: true,
             role: true,
+            year_level: true,
             program: {
               select: {
                 name: true
@@ -216,13 +257,17 @@ const getActiveUsers = async (req, res) => {
     });
 
     const activeUsers = Object.values(userStatus)
-      .filter(item => item.status === 'IN')
+      .filter(item => item.status === 'IN' && item.user)
       .map(item => ({
         id: item.user.id,
+        student_id: item.user.student_id,
+        card_no: item.user.card_no,
         first_name: item.user.first_name,
         last_name: item.user.last_name,
+        email: item.user.email,
         role: item.user.role,
-        department: item.user.program?.name || 'N/A',
+        year_level: item.user.year_level,
+        department: item.user.program?.name || 'General',
         checked_in_at: item.logged_at
       }));
 

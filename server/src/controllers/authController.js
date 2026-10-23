@@ -33,11 +33,25 @@ const requestOtp = async (req, res) => {
       if (existingUser) return res.status(400).json({ error: 'User with this email already exists.' });
     }
 
+    // Check 1-minute cooldown per target email
+    const existingEntry = otpStore.get(targetEmail.toLowerCase());
+    if (existingEntry && existingEntry.lastSentAt) {
+      const elapsed = Date.now() - existingEntry.lastSentAt;
+      const cooldownMs = 60 * 1000;
+      if (elapsed < cooldownMs) {
+        const remainingSec = Math.ceil((cooldownMs - elapsed) / 1000);
+        return res.status(429).json({
+          error: `Please wait ${remainingSec}s before requesting another verification code.`,
+          retryAfter: remainingSec
+        });
+      }
+    }
+
     // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
 
-    otpStore.set(targetEmail.toLowerCase(), { otp, expiresAt });
+    otpStore.set(targetEmail.toLowerCase(), { otp, expiresAt, lastSentAt: Date.now() });
 
     const textContent = type === 'reset'
       ? `Your password reset code is: ${otp}\n\nThis code will expire in 10 minutes.\nIf you did not request this, please ignore this email.`
@@ -414,7 +428,7 @@ const getQrToken = async (req, res) => {
     const token = jwt.sign(
       { student_id: req.user.student_id, type: 'qr_auth' },
       process.env.JWT_SECRET,
-      { expiresIn: '15s' }
+      { expiresIn: '1m' }
     );
     res.json({ token });
   } catch (error) {

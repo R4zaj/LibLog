@@ -9,6 +9,8 @@ import { authHeaders } from '../auth';
 
 export default function Attendance() {
   const [stats, setStats] = useState({ checkIns: 0, checkOuts: 0, insideNow: 0, avgDuration: 0, heatmapCounts: null });
+  const [activeUsers, setActiveUsers] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
   
   const { 
     isScanning: globalIsScanning, 
@@ -23,10 +25,45 @@ export default function Attendance() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isDarkMode, setIsDarkMode] = useState(false);
 
+  const fetchActiveUsers = async () => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/attendance/active`, { headers: authHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setActiveUsers(data);
+        }
+      }
+    } catch (e) {
+      console.error('Error fetching active users:', e);
+    }
+  };
+
+  const fetchStats = async () => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/attendance/stats`, { headers: authHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        setStats(data);
+        if (Array.isArray(data.activeUsers)) {
+          setActiveUsers(data.activeUsers);
+        }
+      } else if (res.status === 401 || res.status === 403) {
+        localStorage.removeItem('token');
+      }
+    } catch (e) {
+      console.error('Error fetching attendance stats:', e);
+    }
+  };
+
   useEffect(() => {
     fetchStats();
-    // Optional: Refresh stats periodically
-    const interval = setInterval(fetchStats, 60000);
+    fetchActiveUsers();
+    // Auto-refresh every 15s to keep "Currently Inside" live
+    const interval = setInterval(() => {
+      fetchStats();
+      fetchActiveUsers();
+    }, 15000);
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => {
       clearInterval(interval);
@@ -37,6 +74,7 @@ export default function Attendance() {
   useEffect(() => {
     if (lastScan) {
       fetchStats();
+      fetchActiveUsers();
     }
   }, [lastScan]);
 
@@ -45,19 +83,17 @@ export default function Attendance() {
     document.documentElement.classList.toggle('dark');
   };
 
-  const fetchStats = async () => {
-    try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/attendance/stats`, { headers: authHeaders() });
-      if (res.ok) {
-        setStats(await res.json());
-      } else if (res.status === 401 || res.status === 403) {
-        // If token is invalid or expired, clear it to avoid repeated auth failures
-        localStorage.removeItem('token');
-      }
-    } catch (e) {
-      console.error('Error fetching attendance stats:', e);
-    }
-  };
+  const filteredActiveUsers = useMemo(() => {
+    if (!searchQuery.trim()) return activeUsers;
+    const q = searchQuery.toLowerCase();
+    return activeUsers.filter(u => 
+      (u.first_name && u.first_name.toLowerCase().includes(q)) ||
+      (u.last_name && u.last_name.toLowerCase().includes(q)) ||
+      (u.student_id && u.student_id.toLowerCase().includes(q)) ||
+      (u.card_no && u.card_no.toLowerCase().includes(q)) ||
+      (u.department && u.department.toLowerCase().includes(q))
+    );
+  }, [activeUsers, searchQuery]);
 
   // handleScan is now managed by AttendanceScannerContext
 
@@ -143,8 +179,9 @@ export default function Attendance() {
             title="Scan Student QR Code"
             subtitle="Scan or enter QR code to check in/out"
             boxTitle="Student QR Scanner"
-            placeholder="CCC-2024-0001"
-            helperText="Format: CCC-{studentId} — 1st scan = in, 2nd = out"
+            prefix="CCC-"
+            placeholder="2024-0001"
+            helperText="Prefix: CCC- (preset) — 1st scan = in, 2nd = out"
             icon={Maximize}
             onSubmit={onScanGlobal}
             isGlobalScanner={true}
@@ -320,31 +357,99 @@ export default function Attendance() {
           </div>
 
           <div className="col-span-2 bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-xl p-6 shadow-sm flex flex-col">
-            <div className="flex justify-between items-start mb-6">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 bg-purple-100 text-purple-600 rounded">
-                  <LogIn size={16} />
+            <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-300 rounded-lg">
+                  <LogIn size={18} />
                 </div>
                 <div className="flex flex-col">
-                  <h3 className="font-bold text-gray-800 dark:text-slate-300 text-sm">Currently Inside</h3>
-                  <span className="text-[10px] text-gray-400 dark:text-slate-500">Students present in the library right now</span>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-gray-800 dark:text-slate-200 text-base">Currently Inside</h3>
+                    <span className="px-2.5 py-0.5 bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60 text-[10px] font-bold rounded-full flex items-center gap-1.5">
+                      <span className={`w-1.5 h-1.5 rounded-full ${activeUsers.length > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'}`}></span>
+                      {activeUsers.length} {activeUsers.length === 1 ? 'student' : 'students'}
+                    </span>
+                  </div>
+                  <span className="text-xs text-gray-400 dark:text-slate-400">Students present in the library right now</span>
                 </div>
               </div>
-              <span className="px-2 py-0.5 bg-purple-50 text-purple-700 text-[10px] font-bold rounded-full">{stats.insideNow} students</span>
+
+              {activeUsers.length > 2 && (
+                <div className="relative w-48">
+                  <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search inside..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-8 pr-2.5 py-1 text-xs rounded-lg border border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-bg text-gray-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                  />
+                </div>
+              )}
             </div>
 
-            <div className="flex-1 border border-dashed border-gray-200 dark:border-dark-border rounded-lg flex flex-col items-center justify-center p-8 bg-gray-50/50">
-              {stats.insideNow === 0 ? (
-                <>
-                  <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+            <div className="flex-1 flex flex-col">
+              {activeUsers.length === 0 ? (
+                <div className="border border-dashed border-gray-200 dark:border-dark-border rounded-lg flex flex-col items-center justify-center p-8 bg-gray-50/50 dark:bg-dark-bg/20 min-h-[160px]">
+                  <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-dark-card border border-gray-200 dark:border-dark-border flex items-center justify-center mb-3">
                     <Users size={20} className="text-gray-400 dark:text-slate-500" />
                   </div>
-                  <span className="text-sm font-bold text-gray-600 dark:text-slate-300">No students inside</span>
-                  <span className="text-[10px] text-gray-400 dark:text-slate-500 text-center mt-1">The library is currently empty</span>
-                </>
+                  <span className="text-sm font-bold text-gray-700 dark:text-slate-300">No students inside</span>
+                  <span className="text-xs text-gray-400 dark:text-slate-500 text-center mt-1">The library is currently empty. Scanned check-ins will appear here immediately.</span>
+                </div>
               ) : (
-                <div className="w-full text-center text-sm font-medium text-gray-500 dark:text-slate-400">
-                  {stats.insideNow} students are currently inside.
+                <div className="overflow-y-auto max-h-72 space-y-2 pr-1">
+                  {filteredActiveUsers.map((student) => {
+                    const initials = ((student.first_name?.[0] || '') + (student.last_name?.[0] || '')).toUpperCase() || 'ST';
+                    const checkInTime = student.checked_in_at
+                      ? new Date(student.checked_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                      : '--:--';
+                    
+                    const minutesInside = student.checked_in_at
+                      ? Math.max(0, Math.round((Date.now() - new Date(student.checked_in_at).getTime()) / (1000 * 60)))
+                      : 0;
+
+                    return (
+                      <div 
+                        key={student.id} 
+                        className="p-3 bg-white dark:bg-dark-bg/60 border border-gray-200 dark:border-dark-border hover:border-purple-300 dark:hover:border-purple-600/60 rounded-xl flex items-center justify-between gap-3 shadow-2xs transition-colors"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-700 to-indigo-500 text-white font-bold text-sm flex items-center justify-center shrink-0 shadow-xs ring-2 ring-purple-100 dark:ring-purple-900/40">
+                            {initials}
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-bold text-sm text-gray-900 dark:text-slate-100 truncate">
+                                {student.first_name} {student.last_name}
+                              </span>
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 shrink-0">
+                                {student.student_id || student.card_no || 'Student'}
+                              </span>
+                            </div>
+                            <span className="text-xs text-gray-500 dark:text-slate-400 truncate">
+                              {student.department || 'General'} {student.year_level ? `• ${student.year_level}` : ''}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col items-end shrink-0 pl-2">
+                          <span className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 px-2 py-0.5 rounded-full">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                            Inside
+                          </span>
+                          <span className="text-[10px] text-gray-400 dark:text-slate-400 flex items-center gap-1 mt-1">
+                            <Clock size={11} /> In at {checkInTime} ({minutesInside}m)
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {filteredActiveUsers.length === 0 && searchQuery && (
+                    <div className="text-center py-6 text-xs text-gray-400 dark:text-slate-500">
+                      No matching students found for "{searchQuery}"
+                    </div>
+                  )}
                 </div>
               )}
             </div>

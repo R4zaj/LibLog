@@ -7,8 +7,8 @@ import api from '../api';
 import type { QrTokenResponse } from '../types/api';
 import CryptoJS from 'crypto-js';
 
-const TOKEN_TTL_SECONDS = 15; // must match authController.js getQrToken expiresIn
-const REFRESH_MARGIN_SECONDS = 3; // refresh before expiry so the QR never visibly hits 0
+const TOKEN_TTL_SECONDS = 60; // 1 min (must match authController.js getQrToken expiresIn: '1m')
+const REFRESH_MARGIN_SECONDS = 5; // refresh before expiry so the QR never visibly hits 0
 
 interface DynamicQrCodeProps {
   /** user.student_id — shown whenever /auth/qr-token can't be reached, so the QR stays scannable. */

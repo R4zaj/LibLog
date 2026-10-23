@@ -1,8 +1,9 @@
 import { createContext, useState, useRef, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { createPortal } from 'react-dom';
-import { BookUp, X } from 'lucide-react';
+import { BookUp, X, AlertCircle } from 'lucide-react';
 import { useNetwork } from '../contexts/NetworkContext';
+import { playScannerSound } from '../utils/scannerAudio';
 
 export const BorrowingContext = createContext(null);
 
@@ -39,6 +40,7 @@ export function BorrowingProvider({ children }) {
   const [selectedDevice, setSelectedDevice] = useState('');
   const [portalTarget, setPortalTarget] = useState(null);
   const [cameraStream, setCameraStream] = useState(null);
+  const [scanFeedback, setScanFeedback] = useState(null); // { type: 'verifying' | 'success' | 'error', title, message }
 
   // --- BORROWING FLOW STATE ---
   const [activeTab, setActiveTab] = useState('Borrow');
@@ -82,11 +84,16 @@ export function BorrowingProvider({ children }) {
       setError(null);
       if (!identifier) return;
 
+      setScanFeedback({ type: 'verifying', message: 'Validating barcode / QR...' });
+
       if (activeTab === 'Borrow') {
         if (step === 1) {
           if (!isOnline) {
             setScannedBook({ id: `offline-${identifier}`, title: `Book (${identifier})`, qr_code: identifier, isbn: identifier });
             setStep(2);
+            playScannerSound('chime');
+            setScanFeedback({ type: 'success', title: 'Book Scanned', message: `Offline Mode: Book (${identifier}) ready` });
+            setTimeout(() => setScanFeedback(null), 2500);
             if (!isBorrowingRoute) triggerToast('Book Scanned', `Offline Mode: Book (${identifier}) ready. Now scan student ID.`);
             return;
           }
@@ -96,18 +103,38 @@ export function BorrowingProvider({ children }) {
             if (res.ok) {
               setScannedBook(data);
               setStep(2);
+              playScannerSound('chime');
+              setScanFeedback({ type: 'success', title: 'Book Verified', message: data.title });
+              setTimeout(() => setScanFeedback(null), 2500);
               if (!isBorrowingRoute) triggerToast('Book Scanned', `${data.title} ready for checkout. Now scan student ID.`);
             } else {
               setError(data.error || 'Book validation failed');
+              playScannerSound('error');
+              setScanFeedback({
+                type: 'error',
+                title: 'Invalid Book',
+                message: data.error || 'Book validation failed'
+              });
+              setTimeout(() => setScanFeedback(null), 3500);
               if (!isBorrowingRoute) triggerToast('Scan Failed', data.error || 'Invalid book', true);
             }
           } catch (e) {
             setError('Server error during validation');
+            playScannerSound('error');
+            setScanFeedback({
+              type: 'error',
+              title: 'Server Error',
+              message: 'Server error during book validation'
+            });
+            setTimeout(() => setScanFeedback(null), 3500);
           }
         } else if (step === 2) {
           if (!isOnline) {
             setScannedUser({ id: `offline-${identifier}`, first_name: 'Student', last_name: `(${identifier})`, student_id: identifier });
             setStep(3);
+            playScannerSound('chime');
+            setScanFeedback({ type: 'success', title: 'Student Verified', message: `Offline Mode: Student (${identifier})` });
+            setTimeout(() => setScanFeedback(null), 2500);
             if (!isBorrowingRoute) triggerToast('Student Verified', `Offline Mode: Student (${identifier}). Please confirm checkout on Borrowing tab.`);
             return;
           }
@@ -117,13 +144,33 @@ export function BorrowingProvider({ children }) {
             if (res.ok) {
               setScannedUser(data);
               setStep(3);
+              playScannerSound('chime');
+              setScanFeedback({ type: 'success', title: 'Student Verified', message: `${data.first_name} ${data.last_name}` });
+              setTimeout(() => setScanFeedback(null), 2500);
               if (!isBorrowingRoute) triggerToast('Student Verified', `${data.first_name} ${data.last_name}. Please confirm checkout on Borrowing tab.`);
             } else {
               setError(data.error || 'User validation failed');
+              playScannerSound('error');
+              const isExpired = data.error === 'Invalid or expired QR token';
+              setScanFeedback({
+                type: 'error',
+                title: isExpired ? 'Expired QR Token' : 'Student Error',
+                message: isExpired
+                  ? 'QR token has expired. Please refresh the QR code on your mobile device.'
+                  : (data.error || 'Invalid student ID')
+              });
+              setTimeout(() => setScanFeedback(null), 3500);
               if (!isBorrowingRoute) triggerToast('Scan Failed', data.error || 'Invalid student', true);
             }
           } catch (e) {
             setError('Server error during validation');
+            playScannerSound('error');
+            setScanFeedback({
+              type: 'error',
+              title: 'Server Error',
+              message: 'Server error during student validation'
+            });
+            setTimeout(() => setScanFeedback(null), 3500);
           }
         }
       } else if (activeTab === 'Return') {
@@ -131,6 +178,9 @@ export function BorrowingProvider({ children }) {
           if (!isOnline) {
             setReturnBookIdentifier(identifier);
             setReturnStep(2);
+            playScannerSound('chime');
+            setScanFeedback({ type: 'success', title: 'Book Scanned', message: 'Offline Mode: Now scan returning student ID' });
+            setTimeout(() => setScanFeedback(null), 2500);
             if (!isBorrowingRoute) triggerToast('Book Scanned', 'Offline Mode: Now scan the returning student ID.');
             return;
           }
@@ -140,19 +190,39 @@ export function BorrowingProvider({ children }) {
             if (res.ok) {
               setReturnBookIdentifier(identifier);
               setReturnStep(2);
+              playScannerSound('chime');
+              setScanFeedback({ type: 'success', title: 'Book Scanned', message: 'Now scan returning student ID' });
+              setTimeout(() => setScanFeedback(null), 2500);
               if (!isBorrowingRoute) triggerToast('Book Scanned', 'Now scan the returning student ID.');
             } else {
               setError(data.error || 'Could not find book');
+              playScannerSound('error');
+              setScanFeedback({
+                type: 'error',
+                title: 'Invalid Book',
+                message: data.error || 'Could not find book'
+              });
+              setTimeout(() => setScanFeedback(null), 3500);
               if (!isBorrowingRoute) triggerToast('Scan Failed', data.error || 'Could not find book', true);
             }
           } catch (e) {
             setError('Server error during scan');
+            playScannerSound('error');
+            setScanFeedback({
+              type: 'error',
+              title: 'Server Error',
+              message: 'Server error during book scan'
+            });
+            setTimeout(() => setScanFeedback(null), 3500);
           }
         } else if (returnStep === 2) {
           if (!isOnline) {
             setReturnRecord({ id: 'offline-record', book: { title: `Book (${returnBookIdentifier})` } });
             setReturnScannedUser({ id: `offline-${identifier}`, first_name: 'Student', last_name: `(${identifier})`, student_id: identifier });
             setReturnStep(3);
+            playScannerSound('chime');
+            setScanFeedback({ type: 'success', title: 'Return Ready', message: 'Offline Mode: Please confirm return on Borrowing tab' });
+            setTimeout(() => setScanFeedback(null), 2500);
             if (!isBorrowingRoute) triggerToast('Return Ready', 'Offline Mode: Please confirm return on Borrowing tab.');
             return;
           }
@@ -163,20 +233,40 @@ export function BorrowingProvider({ children }) {
               setReturnRecord(data);
               setReturnScannedUser(data.user);
               setReturnStep(3);
+              playScannerSound('chime');
+              setScanFeedback({ type: 'success', title: 'Return Ready', message: `${data.user?.first_name || 'Student'} ${data.user?.last_name || ''}` });
+              setTimeout(() => setScanFeedback(null), 2500);
               if (!isBorrowingRoute) triggerToast('Return Ready', 'Please confirm return on Borrowing tab.');
             } else {
               setError(data.error || 'No active borrow record.');
+              playScannerSound('error');
+              const isExpired = data.error === 'Invalid or expired QR token';
+              setScanFeedback({
+                type: 'error',
+                title: isExpired ? 'Expired QR Token' : 'Return Error',
+                message: isExpired
+                  ? 'QR token has expired. Please refresh the QR code on your mobile device.'
+                  : (data.error || 'No active borrow record.')
+              });
+              setTimeout(() => setScanFeedback(null), 3500);
               if (!isBorrowingRoute) triggerToast('Scan Failed', data.error || 'No active borrow record.', true);
             }
           } catch (e) {
             setError('Server error');
+            playScannerSound('error');
+            setScanFeedback({
+              type: 'error',
+              title: 'Server Error',
+              message: 'Server error during return verification'
+            });
+            setTimeout(() => setScanFeedback(null), 3500);
           }
         }
       }
     } finally {
       processingRef.current = false;
     }
-  }, [activeTab, step, returnStep, returnBookIdentifier, isBorrowingRoute, triggerToast]);
+  }, [activeTab, step, returnStep, returnBookIdentifier, isBorrowingRoute, isOnline, triggerToast]);
 
   handleScanRef.current = handleScan;
 
@@ -251,8 +341,6 @@ export function BorrowingProvider({ children }) {
         const mod = await import('barcode-detector/ponyfill');
         BarcodeDetector = mod.BarcodeDetector;
       } catch (e) {
-        // Without the detector the camera runs but nothing is ever scanned,
-        // so make the failure loud instead of dying silently.
         console.error('Failed to load barcode-detector; borrowing scanning is disabled.', e);
         return;
       }
@@ -276,7 +364,8 @@ export function BorrowingProvider({ children }) {
               const isBook = /^BK-[A-Z0-9-]+$/.test(text);
               const isJwt = /^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+$/.test(text);
               const isOldUser = /^[A-Z0-9-]+$/.test(text);
-              if (isBook || isJwt || isOldUser) {
+              const isOffline = /^OFFLINE:/.test(text);
+              if (isBook || isJwt || isOldUser || isOffline) {
                 const now = Date.now();
                 if (lastScanned.text !== text || (now - lastScanned.time) >= 3000) {
                   lastScanned.text = text;
@@ -321,19 +410,22 @@ export function BorrowingProvider({ children }) {
     returnBookIdentifier, setReturnBookIdentifier,
     returnRecord, setReturnRecord,
     returnScannedUser, setReturnScannedUser,
-    error, setError
+    error, setError,
+    scanFeedback, setScanFeedback
   };
 
   return (
     <BorrowingContext.Provider value={value}>
       {children}
 
-      {/* Hidden video for barcode detection */}
+      {/* Hidden video for barcode detection - given real dimensions so browser decodes active frames */}
       {isScanning && (
         <video
           ref={hiddenVideoRef}
-          style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none', left: -9999 }}
-          muted playsInline
+          width={640}
+          height={480}
+          style={{ position: 'fixed', top: -9999, left: -9999, width: '640px', height: '480px', opacity: 0.001, pointerEvents: 'none' }}
+          muted playsInline autoPlay
         />
       )}
 
@@ -346,6 +438,7 @@ export function BorrowingProvider({ children }) {
           onStop={() => setIsScanning(false)}
           activeTab={activeTab}
           step={activeTab === 'Borrow' ? step : returnStep}
+          scanFeedback={scanFeedback}
         />
       )}
       
@@ -367,8 +460,58 @@ export function BorrowingProvider({ children }) {
   );
 }
 
-function BorrowingCameraDisplay({ stream, portalTarget, isBorrowingRoute, onStop, activeTab, step }) {
-  const videoElement = <StreamVideo stream={stream} className="w-full h-auto object-cover max-h-96" />;
+function BorrowingCameraDisplay({ stream, portalTarget, isBorrowingRoute, onStop, activeTab, step, scanFeedback }) {
+  const videoElement = (
+    <div className="relative w-full h-full flex items-center justify-center bg-black overflow-hidden">
+      <StreamVideo stream={stream} className="w-full h-auto object-cover max-h-96" />
+
+      {/* Live Scanner indicator in corner */}
+      <div className="absolute top-2.5 left-2.5 z-10 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-xs border border-white/20 text-[10px] font-semibold text-green-400 flex items-center gap-1.5 pointer-events-none select-none">
+        <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
+        <span>Live Scanner</span>
+      </div>
+
+      {/* In-Scanner Feedback Overlay */}
+      {scanFeedback && (
+        <div className={`absolute inset-0 backdrop-blur-[2px] flex flex-col items-center justify-center p-6 text-center z-20 animate-fade-in transition-all ${
+          scanFeedback.type === 'error'
+            ? 'bg-red-950/80 border-4 border-red-500'
+            : scanFeedback.type === 'success'
+            ? 'bg-emerald-950/80 border-4 border-emerald-500'
+            : 'bg-black/60'
+        }`}>
+          {scanFeedback.type === 'error' && (
+            <>
+              <div className="w-14 h-14 rounded-full bg-red-500/30 border-2 border-red-400 flex items-center justify-center mb-2 animate-bounce">
+                <AlertCircle size={32} className="text-red-400" />
+              </div>
+              <h4 className="text-white font-bold text-base mb-1 tracking-wide">{scanFeedback.title || 'Scan Error'}</h4>
+              <p className="text-red-200 text-xs font-semibold max-w-xs leading-relaxed">{scanFeedback.message}</p>
+            </>
+          )}
+
+          {scanFeedback.type === 'success' && (
+            <>
+              <div className="w-14 h-14 rounded-full bg-emerald-500/30 border-2 border-emerald-400 flex items-center justify-center mb-2 animate-pulse">
+                <svg className="w-8 h-8 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h4 className="text-white font-bold text-base mb-0.5">{scanFeedback.title}</h4>
+              <p className="text-emerald-300 text-xs font-bold uppercase tracking-wider">{scanFeedback.message}</p>
+            </>
+          )}
+
+          {scanFeedback.type === 'verifying' && (
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-8 h-8 border-2 border-primary-400 border-t-transparent rounded-full animate-spin"></div>
+              <span className="text-white text-xs font-medium tracking-wide">{scanFeedback.message}</span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 
   if (isBorrowingRoute && portalTarget) {
     return createPortal(videoElement, portalTarget);

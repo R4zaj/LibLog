@@ -1,5 +1,6 @@
 const prisma = require('../db');
 const jwt = require('jsonwebtoken');
+const { notifyBorrow, notifyReturn, notifyPenalty, notifyPenaltyPaid } = require('../services/notificationService');
 
 const getStats = async (req, res) => {
   try {
@@ -59,7 +60,7 @@ const validateUser = async (req, res) => {
       if (parts.length === 4) {
         const [, stId, ts, hmac] = parts;
         const timestamp = parseInt(ts, 10);
-        if (Date.now() - timestamp > 15000 || Date.now() - timestamp < -5000) {
+        if (Date.now() - timestamp > 60000 || Date.now() - timestamp < -5000) {
            return res.status(401).json({ error: 'Expired offline QR token' });
         }
         const crypto = require('crypto');
@@ -217,14 +218,7 @@ const checkout = async (req, res) => {
         }
       });
 
-      await tx.notification.create({
-        data: {
-          category: 'BORROWING',
-          title: 'Book Borrowed',
-          message: `You borrowed "${book.title}". It is due on ${dueDate.toLocaleDateString()}.`,
-          target_user_id: uId,
-        }
-      });
+      await notifyBorrow({ user, book, dueDate, borrowRecordId: record.id, tx });
 
       return record;
     });
@@ -246,7 +240,7 @@ const getUserActiveBorrow = async (req, res) => {
       if (parts.length === 4) {
         const [, stId, ts, hmac] = parts;
         const timestamp = parseInt(ts, 10);
-        if (Date.now() - timestamp > 15000 || Date.now() - timestamp < -5000) {
+        if (Date.now() - timestamp > 60000 || Date.now() - timestamp < -5000) {
            return res.status(401).json({ error: 'Expired offline QR token' });
         }
         const crypto = require('crypto');
@@ -310,7 +304,10 @@ const returnBook = async (req, res) => {
   try {
     const { borrowId } = req.body;
 
-    const record = await prisma.borrowRecord.findUnique({ where: { id: borrowId } });
+    const record = await prisma.borrowRecord.findUnique({
+      where: { id: borrowId },
+      include: { user: true, book: true }
+    });
     if (!record) {
       return res.status(404).json({ error: 'Record not found' });
     }
@@ -337,38 +334,55 @@ const returnBook = async (req, res) => {
         const settings = await tx.librarySettings.findFirst();
         const penaltyFee = settings && settings.penalty_fee_per_day 
           ? parseFloat(settings.penalty_fee_per_day) 
-          : 10.0;
+          : 5.0;
         
-        const daysLate = Math.ceil((new Date() - new Date(record.due_date)) / (1000 * 60 * 60 * 24));
+        const returnDate = new Date();
+        const diffMs = returnDate.getTime() - new Date(record.due_date).getTime();
+        const daysLate = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+        const penaltyAmount = daysLate * penaltyFee;
         
         if (daysLate > 0) {
-          await tx.penalty.create({
-            data: {
-              user_id: record.user_id,
-              borrow_id: record.id,
-              amount: daysLate * penaltyFee,
-              status: 'UNPAID'
-            }
+          // Check if an UNPAID penalty record already exists for this borrow to prevent duplicates
+          let penalty = await tx.penalty.findFirst({
+            where: { borrow_id: record.id, status: 'UNPAID' }
           });
 
-          await tx.notification.create({
-            data: {
-              category: 'PENALTIES',
-              title: 'Overdue Penalty',
-              message: `You were assessed a penalty for returning a book late.`,
-              target_user_id: record.user_id,
-            }
+          if (penalty) {
+            penalty = await tx.penalty.update({
+              where: { id: penalty.id },
+              data: {
+                days_overdue: daysLate,
+                amount: penaltyAmount
+              }
+            });
+          } else {
+            penalty = await tx.penalty.create({
+              data: {
+                user_id: record.user_id,
+                borrow_id: record.id,
+                amount: penaltyAmount,
+                days_overdue: daysLate,
+                status: 'UNPAID'
+              }
+            });
+          }
+
+          await notifyPenalty({
+            user: record.user,
+            book: record.book,
+            amount: penaltyAmount,
+            reason: 'OVERDUE',
+            penaltyId: penalty.id,
+            tx
           });
         }
       }
 
-      await tx.notification.create({
-        data: {
-          category: 'BORROWING',
-          title: 'Book Returned',
-          message: `You successfully returned a book.`,
-          target_user_id: record.user_id,
-        }
+      await notifyReturn({
+        user: record.user,
+        book: record.book,
+        borrowRecordId: record.id,
+        tx
       });
     });
 
@@ -381,6 +395,9 @@ const returnBook = async (req, res) => {
 
 const getPenalties = async (req, res) => {
   try {
+    const { calculateOverdueDetails } = require('../utils/penaltyCalculator');
+    const settings = await prisma.librarySettings.findFirst();
+
     const penalties = await prisma.penalty.findMany({
       where: { status: 'UNPAID' },
       include: {
@@ -388,19 +405,32 @@ const getPenalties = async (req, res) => {
         borrow: {
           include: { book: true }
         }
-      }
+      },
+      orderBy: { created_at: 'desc' }
     });
 
-    // We map it to include days_overdue for the frontend display
+    // Map each penalty with exact overdue days and strictly consistent amount
     const mappedPenalties = penalties.map(p => {
-      let daysOverdue = 0;
-      if (p.borrow && p.borrow.due_date) {
-        const diffTime = Math.abs(new Date() - new Date(p.borrow.due_date));
-        daysOverdue = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      const details = calculateOverdueDetails(p.borrow, settings, p);
+
+      // Asynchronously ensure database row stays synchronized if days or amount differed
+      if (p.type === 'OVERDUE' && (p.days_overdue !== details.daysOverdue || parseFloat(p.amount) !== details.penaltyAmount)) {
+        prisma.penalty.update({
+          where: { id: p.id },
+          data: {
+            days_overdue: details.daysOverdue,
+            amount: details.penaltyAmount
+          }
+        }).catch(err => console.error('Failed to sync penalty in DB:', err.message));
       }
+
       return {
         ...p,
-        days_overdue: daysOverdue
+        days_overdue: details.daysOverdue,
+        amount: details.penaltyAmount,
+        is_returned: details.isReturned,
+        return_date: details.returnDate,
+        daily_rate: details.dailyRate
       };
     });
 
@@ -418,7 +448,7 @@ const payPenalty = async (req, res) => {
 
     const penalty = await prisma.penalty.findUnique({ 
       where: { id: parseInt(id) },
-      include: { borrow: true }
+      include: { borrow: { include: { book: true } }, user: true }
     });
     
     if (!penalty) {
@@ -465,13 +495,11 @@ const payPenalty = async (req, res) => {
         }
       });
 
-      await tx.notification.create({
-        data: {
-          category: 'PENALTIES',
-          title: 'Penalty Paid',
-          message: `Your penalty of $${finalAmount.toFixed(2)} was marked as paid.`,
-          target_user_id: penalty.user_id,
-        }
+      await notifyPenaltyPaid({
+        user: penalty.user,
+        amount: finalAmount,
+        penaltyId: penalty.id,
+        tx
       });
     });
 
@@ -566,6 +594,17 @@ const getAllBorrowRecords = async (req, res) => {
   }
 };
 
+const checkOverdue = async (req, res) => {
+  try {
+    const { checkAndProcessOverdueBooks } = require('../services/overdueService');
+    const results = await checkAndProcessOverdueBooks();
+    res.json({ message: 'Overdue check completed', results });
+  } catch (error) {
+    console.error('Check Overdue Error:', error);
+    res.status(500).json({ error: 'Server error checking overdue books' });
+  }
+};
+
 module.exports = {
   getStats,
   validateBook,
@@ -577,5 +616,6 @@ module.exports = {
   getAllBorrowRecords,
   returnBook,
   getPenalties,
-  payPenalty
+  payPenalty,
+  checkOverdue
 };

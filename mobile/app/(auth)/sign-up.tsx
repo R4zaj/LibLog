@@ -27,6 +27,17 @@ export default function SignUp() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [otp, setOtp] = useState('');
   const [programsList, setProgramsList] = useState<string[]>([]);
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  React.useEffect(() => {
+    let timer: any;
+    if (resendCooldown > 0) {
+      timer = setInterval(() => {
+        setResendCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
 
   React.useEffect(() => {
     const fetchPrograms = async () => {
@@ -74,6 +85,7 @@ export default function SignUp() {
       setIsLoading(true);
       try {
         await api.post('/auth/request-otp', { email });
+        setResendCooldown(60);
         setStep(5);
       } catch (e: any) {
         setError(e.response?.data?.error || 'Failed to send OTP.');
@@ -389,16 +401,20 @@ export default function SignUp() {
 
               <TouchableOpacity 
                 style={{ alignItems: 'center', marginTop: 10 }}
+                disabled={resendCooldown > 0}
                 onPress={async () => {
                   try {
                     await api.post('/auth/request-otp', { email });
+                    setResendCooldown(60);
                     Alert.alert("Success", "A new code has been sent!");
                   } catch (e: any) {
-                    Alert.alert("Error", e.response?.data?.error || "Failed to resend code.");
+                    Alert.alert("Notice", e.response?.data?.error || "Failed to resend code.");
                   }
                 }}
               >
-                <Text style={{ color: '#6C48C5', fontWeight: 'bold' }}>Resend Code</Text>
+                <Text style={{ color: resendCooldown > 0 ? '#9ca3af' : '#6C48C5', fontWeight: 'bold' }}>
+                  {resendCooldown > 0 ? `Resend Code in ${resendCooldown}s` : 'Resend Code'}
+                </Text>
               </TouchableOpacity>
             </View>
           )}

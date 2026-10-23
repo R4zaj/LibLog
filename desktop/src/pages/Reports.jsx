@@ -10,6 +10,7 @@ import {
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+import ReportsSkeleton from '../components/ReportsSkeleton';
 
 export default function Reports() {
   const userStr = localStorage.getItem('user');
@@ -146,11 +147,7 @@ export default function Reports() {
   }
 
   if (!data) {
-    return (
-      <div className="flex-1 flex items-center justify-center h-full bg-[#f8f9fc] dark:bg-dark-bg">
-        <span className="text-gray-400 dark:text-slate-500 font-medium animate-pulse">Loading analytics...</span>
-      </div>
-    );
+    return <ReportsSkeleton />;
   }
 
   if (data.error) {

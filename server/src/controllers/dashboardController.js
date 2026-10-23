@@ -31,7 +31,18 @@ const getOverview = async (req, res) => {
       prisma.attendanceLog.findMany({
         where: { logged_at: { gte: today } },
         orderBy: { logged_at: 'asc' },
-        select: { user_id: true, action: true }
+        include: {
+          user: {
+            select: {
+              id: true,
+              student_id: true,
+              card_no: true,
+              first_name: true,
+              last_name: true,
+              program: { select: { name: true } }
+            }
+          }
+        }
       }),
       prisma.librarySettings.findFirst(),
       prisma.penalty.count({ where: { status: 'UNPAID' } }),
@@ -71,9 +82,22 @@ const getOverview = async (req, res) => {
     // Students inside
     const userStatus = {};
     todayLogs.forEach(log => {
-      userStatus[log.user_id] = log.action === 'CHECK_IN' ? 'IN' : 'OUT';
+      userStatus[log.user_id] = {
+        status: log.action === 'CHECK_IN' ? 'IN' : 'OUT',
+        user: log.user,
+        logged_at: log.logged_at
+      };
     });
-    const studentsInside = Object.values(userStatus).filter(s => s === 'IN').length;
+    const studentsCurrentlyInside = Object.values(userStatus)
+      .filter(s => s.status === 'IN' && s.user)
+      .map(s => ({
+        id: s.user.id,
+        name: `${s.user.first_name} ${s.user.last_name}`,
+        student_id: s.user.student_id || s.user.card_no || 'Student',
+        program: s.user.program?.name || 'General',
+        checked_in_at: s.logged_at
+      }));
+    const studentsInside = studentsCurrentlyInside.length;
 
     const capacity = settings?.library_capacity ?? 40;
     const collectionTarget = settings?.book_collection_target ?? 5000;
@@ -162,6 +186,7 @@ const getOverview = async (req, res) => {
       totalBorrowed,
       overdueCount,
       studentsInside: Math.max(0, studentsInside),
+      studentsCurrentlyInside,
       availableSlots: Math.max(0, availableSlots),
       capacity,
       collectionTarget,

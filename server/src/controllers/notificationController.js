@@ -6,16 +6,22 @@ const getNotifications = async (req, res) => {
     const userId = req.user.id;
     const userRole = req.user.role;
     
-    let whereClause = {
-      OR: [
-        { target_user_id: userId },
-        { target_user_id: null }
-      ]
-    };
+    let whereClause;
     
-    // Admins and Librarians see all activity in the desktop app
+    // Admins and Librarians see operational alerts on desktop (target_user_id IS NULL)
+    // or system messages explicitly targeted to them
     if (userRole === 'ADMIN' || userRole === 'LIBRARIAN') {
-      whereClause = {};
+      whereClause = {
+        OR: [
+          { target_user_id: null },
+          { target_user_id: userId }
+        ]
+      };
+    } else {
+      // Mobile students only see their personal notifications
+      whereClause = {
+        target_user_id: userId
+      };
     }
     
     const notifications = await prisma.notification.findMany({
@@ -24,7 +30,7 @@ const getNotifications = async (req, res) => {
       take: 50, // Limit to 50 recent notifications
       include: {
         trigger_user: {
-          select: { first_name: true, last_name: true, role: true }
+          select: { first_name: true, last_name: true, role: true, student_id: true }
         }
       }
     });
@@ -64,16 +70,20 @@ const markAllAsRead = async (req, res) => {
     const userId = req.user.id;
     const userRole = req.user.role;
     
-    let whereClause = {
-      OR: [
-        { target_user_id: userId },
-        { target_user_id: null }
-      ],
-      is_read: false
-    };
-
+    let whereClause;
     if (userRole === 'ADMIN' || userRole === 'LIBRARIAN') {
-      whereClause = { is_read: false };
+      whereClause = {
+        OR: [
+          { target_user_id: null },
+          { target_user_id: userId }
+        ],
+        is_read: false
+      };
+    } else {
+      whereClause = {
+        target_user_id: userId,
+        is_read: false
+      };
     }
     
     const result = await prisma.notification.updateMany({

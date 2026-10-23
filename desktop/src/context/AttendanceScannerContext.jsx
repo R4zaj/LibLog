@@ -3,6 +3,8 @@ import { useLocation } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { Camera, CameraOff, LogIn, LogOut, X, AlertCircle } from 'lucide-react';
 import { useOfflineApi } from '../hooks/useOfflineApi';
+import { playScannerSound } from '../utils/scannerAudio';
+import MovableAttendanceWidget from '../components/MovableAttendanceWidget';
 
 export const AttendanceScannerContext = createContext();
 
@@ -36,6 +38,7 @@ export function AttendanceScannerProvider({ children }) {
   const [toasts, setToasts] = useState([]);
   const [selectedDevice, setSelectedDevice] = useState('');
   const [cameraStream, setCameraStream] = useState(null);
+  const [scanFeedback, setScanFeedback] = useState(null); // { type: 'verifying' | 'success' | 'error', title, message }
   
   const location = useLocation();
   const isAttendanceRoute = location.pathname === '/attendance';
@@ -57,10 +60,21 @@ export function AttendanceScannerProvider({ children }) {
     setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 5000);
   }, []);
 
+  useEffect(() => {
+    if (hiddenVideoRef.current && cameraStream) {
+      if (hiddenVideoRef.current.srcObject !== cameraStream) {
+        hiddenVideoRef.current.srcObject = cameraStream;
+        hiddenVideoRef.current.play().catch(() => {});
+      }
+    }
+  }, [cameraStream]);
+
   const handleScan = useCallback(async (identifier) => {
     if (processingRef.current) return;
     processingRef.current = true;
     try {
+      setScanFeedback({ type: 'verifying', message: 'Verifying QR code...' });
+
       const res = await fetchWithOfflineSupport(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/attendance/scan`, { 
         method: 'POST', 
         headers: { 
@@ -71,28 +85,49 @@ export function AttendanceScannerProvider({ children }) {
       });
       const data = await res.json();
       if (res.ok) {
-        // If it was queued offline, data.user won't exist. Mock a generic UI update.
+        const userName = data.offlineQueued ? `User ${identifier}` : `${data.user.first_name} ${data.user.last_name}`;
+        const actionText = data.action === 'CHECK_IN' ? 'Checked In' : 'Checked Out';
         const scanData = {
-          user: data.offlineQueued ? `User ${identifier}` : `${data.user.first_name} ${data.user.last_name}`,
-          action: data.offlineQueued ? 'CHECK_IN' : data.action, // Default to check-in optimistically if offline
+          user: userName,
+          action: data.offlineQueued ? 'CHECK_IN' : data.action,
           time: new Date().toLocaleTimeString(),
           duration: data.duration
         };
         setLastScan(scanData);
         pushToast(scanData);
-        setTimeout(() => setLastScan(null), 5000); // auto-dismiss after 5s
+        playScannerSound('success');
+        setScanFeedback({
+          type: 'success',
+          title: userName,
+          message: `${actionText} • ${scanData.time}`
+        });
+        setTimeout(() => setScanFeedback(null), 2000);
       } else {
-        // A failed scan used to be a console.warn only, so at the desk it just
-        // looked like the camera had stopped reading QR codes.
         const message = (res.status === 401 || res.status === 403)
-          ? (data.error === 'Invalid or expired QR token' ? data.error : 'Session expired - please log in again')
+          ? (data.error === 'Invalid or expired QR token' ? data.error : (data.error || 'Session expired - please log in again'))
           : (data.error || `Scan failed (${res.status})`);
         console.warn('Scan failed:', message);
+        playScannerSound('error');
         pushToast({ user: message, error: true, time: new Date().toLocaleTimeString() });
+        setScanFeedback({
+          type: 'error',
+          title: data.error === 'Invalid or expired QR token' ? 'Expired QR Token' : 'Scan Error',
+          message: data.error === 'Invalid or expired QR token'
+            ? 'QR token has expired. Please refresh the QR code on your mobile device.'
+            : message
+        });
+        setTimeout(() => setScanFeedback(null), 3500);
       }
     } catch (e) {
       console.error('Network error connecting to server', e);
+      playScannerSound('error');
       pushToast({ user: 'Cannot reach the server', error: true, time: new Date().toLocaleTimeString() });
+      setScanFeedback({
+        type: 'error',
+        title: 'Connection Error',
+        message: 'Cannot reach the server. Please check network connection.'
+      });
+      setTimeout(() => setScanFeedback(null), 3500);
     } finally {
       processingRef.current = false;
     }
@@ -124,6 +159,10 @@ export function AttendanceScannerProvider({ children }) {
         const tracks = streamRef.current.getTracks();
         if (tracks.length > 0 && tracks[0].readyState === 'live' && tracks[0].getSettings().deviceId === selectedDevice) {
           setCameraStream(streamRef.current);
+          if (hiddenVideoRef.current && hiddenVideoRef.current.srcObject !== streamRef.current) {
+            hiddenVideoRef.current.srcObject = streamRef.current;
+            try { await hiddenVideoRef.current.play(); } catch(e) {}
+          }
           startScanLoop();
           return;
         }
@@ -188,7 +227,7 @@ export function AttendanceScannerProvider({ children }) {
         if (cancelled) return;
         const video = hiddenVideoRef.current;
         if (!video || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || video.videoWidth === 0) {
-          scanTimerRef.current = setTimeout(loop, 300);
+          scanTimerRef.current = setTimeout(loop, 250);
           return;
         }
         try {
@@ -197,10 +236,11 @@ export function AttendanceScannerProvider({ children }) {
           if (barcodes.length > 0) {
             const text = barcodes[0].rawValue;
             if (text && text.trim().length > 0) {
-              const isBook = /^BK-[A-Z0-9-]+$/.test(text);
+              const isBook = /^BK-[A-Za-z0-9-]+$/i.test(text);
               const isJwt = /^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+$/.test(text);
-              const isOldUser = /^[A-Z0-9-]+$/.test(text);
-              if (isBook || isJwt || isOldUser) {
+              const isOldUser = /^[A-Za-z0-9-_/]+$/i.test(text);
+              const isOffline = /^OFFLINE:/.test(text);
+              if (isBook || isJwt || isOldUser || isOffline) {
                 const now = Date.now();
                 if (lastScanned.text !== text || (now - lastScanned.time) >= 3000) {
                   lastScanned.text = text;
@@ -211,7 +251,7 @@ export function AttendanceScannerProvider({ children }) {
             }
           }
         } catch (e) {}
-        if (!cancelled) scanTimerRef.current = setTimeout(loop, 300);
+        if (!cancelled) scanTimerRef.current = setTimeout(loop, 250);
       };
       loop();
     };
@@ -238,16 +278,19 @@ export function AttendanceScannerProvider({ children }) {
   return (
     <AttendanceScannerContext.Provider value={{ 
       isScanning, setIsScanning, setPortalTarget, lastScan, setLastScan,
-      handleScan, selectedDevice, setSelectedDevice, cameraStream
+      handleScan, selectedDevice, setSelectedDevice, cameraStream,
+      scanFeedback, setScanFeedback
     }}>
       {children}
 
-      {/* Hidden video for barcode detection - always mounted when scanning */}
+      {/* Hidden video for barcode detection - given real dimensions so browser decodes active frames */}
       {isScanning && (
         <video
           ref={hiddenVideoRef}
-          style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none', left: -9999 }}
-          muted playsInline
+          width={640}
+          height={480}
+          style={{ position: 'fixed', top: -9999, left: -9999, width: '640px', height: '480px', opacity: 0.001, pointerEvents: 'none' }}
+          muted playsInline autoPlay
         />
       )}
 
@@ -258,6 +301,8 @@ export function AttendanceScannerProvider({ children }) {
           portalTarget={portalTarget}
           isAttendanceRoute={isAttendanceRoute}
           onStop={() => setIsScanning(false)}
+          scanFeedback={scanFeedback}
+          lastScan={lastScan}
         />
       )}
       
@@ -289,32 +334,73 @@ export function AttendanceScannerProvider({ children }) {
 
 // Pure display component - just renders a <video> connected to the stream.
 // No camera management here, so mounting/unmounting is free.
-function AttendanceCameraDisplay({ stream, portalTarget, isAttendanceRoute, onStop }) {
-  const videoElement = <StreamVideo stream={stream} className="w-full h-auto object-cover max-h-96" />;
+function AttendanceCameraDisplay({ stream, portalTarget, isAttendanceRoute, onStop, scanFeedback, lastScan }) {
+  const videoElement = (
+    <div className="relative w-full h-full flex items-center justify-center bg-black overflow-hidden">
+      <StreamVideo stream={stream} className="w-full h-auto object-cover max-h-96" />
 
-  if (isAttendanceRoute && portalTarget) {
+      {/* Live Scanner indicator in corner */}
+      <div className="absolute top-2.5 left-2.5 z-10 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-xs border border-white/20 text-[10px] font-semibold text-green-400 flex items-center gap-1.5 pointer-events-none select-none">
+        <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
+        <span>Live Scanner</span>
+      </div>
+
+      {/* In-Scanner Feedback Overlay */}
+      {scanFeedback && (
+        <div className={`absolute inset-0 backdrop-blur-[2px] flex flex-col items-center justify-center p-6 text-center z-20 animate-fade-in transition-all ${
+          scanFeedback.type === 'error'
+            ? 'bg-red-950/80 border-4 border-red-500'
+            : scanFeedback.type === 'success'
+            ? 'bg-emerald-950/80 border-4 border-emerald-500'
+            : 'bg-black/60'
+        }`}>
+          {scanFeedback.type === 'error' && (
+            <>
+              <div className="w-14 h-14 rounded-full bg-red-500/30 border-2 border-red-400 flex items-center justify-center mb-2 animate-bounce">
+                <AlertCircle size={32} className="text-red-400" />
+              </div>
+              <h4 className="text-white font-bold text-base mb-1 tracking-wide">{scanFeedback.title || 'Scan Error'}</h4>
+              <p className="text-red-200 text-xs font-semibold max-w-xs leading-relaxed">{scanFeedback.message}</p>
+            </>
+          )}
+
+          {scanFeedback.type === 'success' && (
+            <>
+              <div className="w-14 h-14 rounded-full bg-emerald-500/30 border-2 border-emerald-400 flex items-center justify-center mb-2 animate-pulse">
+                <svg className="w-8 h-8 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h4 className="text-white font-bold text-base mb-0.5">{scanFeedback.title}</h4>
+              <p className="text-emerald-300 text-xs font-bold uppercase tracking-wider">{scanFeedback.message}</p>
+            </>
+          )}
+
+          {scanFeedback.type === 'verifying' && (
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-8 h-8 border-2 border-primary-400 border-t-transparent rounded-full animate-spin"></div>
+              <span className="text-white text-xs font-medium tracking-wide">{scanFeedback.message}</span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
+  if (isAttendanceRoute && portalTarget && portalTarget.isConnected) {
     return createPortal(videoElement, portalTarget);
   }
 
   if (!isAttendanceRoute) {
     return (
-      <div className="fixed bottom-6 right-6 z-50 bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-xl shadow-2xl p-4 flex flex-col gap-3 w-64 animate-fade-in">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
-            <Camera size={18} className="animate-pulse" />
-            <span className="text-xs font-bold uppercase tracking-wider">Attendance On</span>
-          </div>
-          <button onClick={onStop} className="p-1.5 bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors">
-            <CameraOff size={14} />
-          </button>
-        </div>
-        <div className="w-full h-32 bg-black rounded overflow-hidden relative">
-          {videoElement}
-        </div>
-        <p className="text-[10px] text-gray-500 text-center dark:text-slate-400">Scanning continues in background</p>
-      </div>
+      <MovableAttendanceWidget
+        videoElement={videoElement}
+        onStop={onStop}
+        lastScan={lastScan}
+      />
     );
   }
 
   return null;
 }
+

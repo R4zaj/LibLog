@@ -84,4 +84,19 @@ const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
+
+  // Schedule periodic overdue book checker
+  const { checkAndProcessOverdueBooks } = require('./services/overdueService');
+  setTimeout(() => {
+    checkAndProcessOverdueBooks()
+      .then(res => console.log('[Overdue Service] Initial check completed:', res))
+      .catch(err => console.error('[Overdue Service] Initial check error:', err));
+  }, 10000); // 10s warmup
+
+  // Run every 6 hours
+  setInterval(() => {
+    checkAndProcessOverdueBooks()
+      .then(res => console.log('[Overdue Service] Scheduled check completed:', res))
+      .catch(err => console.error('[Overdue Service] Scheduled check error:', err));
+  }, 6 * 60 * 60 * 1000);
 });
