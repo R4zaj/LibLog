@@ -14,7 +14,8 @@ import {
   Wifi,
   WifiOff,
   RefreshCw,
-  GraduationCap
+  GraduationCap,
+  Bell
 } from 'lucide-react';
 import { AttendanceScannerProvider } from './context/AttendanceScannerContext';
 import { BorrowingProvider } from './context/BorrowingContext';
@@ -221,6 +222,7 @@ export default function MainLayout() {
           <NavItem to="/attendance" icon={UserCheck} label="Attendance" />
           <NavItem to="/student-activities" icon={GraduationCap} label="Student Activities" />
           <NavItem to="/reports" icon={BarChart3} label="Reports" />
+          <NavItem to="/notifications" icon={Bell} label="Notifications" />
           <NavItem to="/settings" icon={Settings} label="Settings" />
         </div>
 
@@ -314,7 +316,7 @@ export default function MainLayout() {
       >
         {/* Subtle ambient overlay matching theme */}
         <div className="absolute inset-0 bg-white/30 dark:bg-black/45 backdrop-blur-[1px] pointer-events-none" />
-        <div className="relative z-10 flex-1 flex flex-col overflow-hidden">
+        <div className="relative z-10 flex-1 flex flex-col overflow-auto">
           <Outlet />
         </div>
       </main>

@@ -1,6 +1,7 @@
 const prisma = require('../db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { sendOtpEmail } = require('../services/emailService');
 
 const otpStore = new Map(); // Store OTPs in memory: { email: { otp, expiresAt } }
 
@@ -11,7 +12,7 @@ const requestOtp = async (req, res) => {
     if (!lookupKey) return res.status(400).json({ error: 'Email or Library ID is required' });
 
     let targetEmail = lookupKey;
-    let subject = 'CCC LIB APP - Verification Code';
+    let studentName = 'Student';
 
     if (type === 'reset') {
       const user = await prisma.user.findFirst({
@@ -26,7 +27,7 @@ const requestOtp = async (req, res) => {
         return res.status(404).json({ error: 'No account found with this Email or Library ID.' });
       }
       targetEmail = user.email;
-      subject = 'CCC LIB APP - Password Reset Code';
+      studentName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.student_id || 'Student';
     } else {
       // Check if user already exists for registration
       const existingUser = await prisma.user.findFirst({ where: { email: lookupKey } });
@@ -53,55 +54,13 @@ const requestOtp = async (req, res) => {
 
     otpStore.set(targetEmail.toLowerCase(), { otp, expiresAt, lastSentAt: Date.now() });
 
-    const textContent = type === 'reset'
-      ? `Your password reset code is: ${otp}\n\nThis code will expire in 10 minutes.\nIf you did not request this, please ignore this email.`
-      : `Your verification code is: ${otp}\n\nThis code will expire in 10 minutes.`;
-
-    const htmlContent = type === 'reset'
-      ? `<p>Your password reset code is: <strong>${otp}</strong></p><p>This code will expire in 10 minutes.</p><p>If you did not request a password reset, please ignore this email.</p>`
-      : `<p>Your verification code is: <strong>${otp}</strong></p><p>This code will expire in 10 minutes.</p>`;
-
-    // Send Email via HTTP API (Bypasses Render SMTP Block)
-    if (process.env.SENDGRID_API_KEY) {
-      const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.SENDGRID_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          personalizations: [{ to: [{ email: targetEmail }] }],
-          from: { email: process.env.SENDER_EMAIL || 'noreply@liblog.com', name: 'CCC LIB APP' },
-          subject: subject,
-          content: [{ type: 'text/plain', value: textContent }]
-        })
-      });
-      if (!response.ok) throw new Error(`SendGrid API error: ${await response.text()}`);
-    } else if (process.env.BREVO_API_KEY) {
-      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-        method: 'POST',
-        headers: {
-          'accept': 'application/json',
-          'api-key': process.env.BREVO_API_KEY,
-          'content-type': 'application/json'
-        },
-        body: JSON.stringify({
-          sender: { name: 'CCC LIB APP', email: process.env.SENDER_EMAIL || 'noreply@liblog.com' },
-          to: [{ email: targetEmail }],
-          subject: subject,
-          htmlContent: htmlContent
-        })
-      });
-      if (!response.ok) throw new Error(`Brevo API error: ${await response.text()}`);
-    } else {
-      console.warn('No EMAIL API key set (SENDGRID_API_KEY or BREVO_API_KEY). Logging OTP to console instead:', otp);
-      const maskedEmail = targetEmail.replace(/(.{2})(.*)(?=@)/, (_, a, b) => a + '*'.repeat(Math.max(1, b.length)));
-      return res.json({ 
-        message: 'Verification code generated (check console since email API is not configured)',
-        email: targetEmail,
-        maskedEmail
-      });
-    }
+    // Send formatted email via emailService
+    await sendOtpEmail({
+      to: targetEmail,
+      otp,
+      type,
+      studentName
+    });
 
     const maskedEmail = targetEmail.replace(/(.{2})(.*)(?=@)/, (_, a, b) => a + '*'.repeat(Math.max(1, b.length)));
     res.json({ message: 'Verification code sent successfully.', email: targetEmail, maskedEmail });

@@ -4,10 +4,14 @@ const { verifyToken } = require('../middleware/authMiddleware');
 const {
   getNotifications,
   markAsRead,
-  markAllAsRead
+  markAllAsRead,
+  previewEmail
 } = require('../controllers/notificationController');
 
-// Apply auth middleware to all notification routes
+// Email template visual preview (accessible for admin desktop preview / iframes)
+router.get('/preview-email', previewEmail);
+
+// Apply auth middleware to all remaining notification routes
 router.use(verifyToken);
 
 router.get('/', getNotifications);
