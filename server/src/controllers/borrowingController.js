@@ -403,7 +403,11 @@ const getPenalties = async (req, res) => {
       include: {
         user: true,
         borrow: {
-          include: { book: true }
+          include: {
+            book: {
+              include: { author: true }
+            }
+          }
         }
       },
       orderBy: { created_at: 'desc' }
@@ -605,6 +609,74 @@ const checkOverdue = async (req, res) => {
   }
 };
 
+const sendPenaltyNoticeEmail = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const penaltyId = parseInt(id, 10);
+    if (isNaN(penaltyId)) {
+      return res.status(400).json({ error: 'Invalid penalty ID.' });
+    }
+
+    const penalty = await prisma.penalty.findUnique({
+      where: { id: penaltyId },
+      include: {
+        user: true,
+        borrow: {
+          include: {
+            book: {
+              include: { author: true }
+            }
+          }
+        }
+      }
+    });
+
+    if (!penalty) {
+      return res.status(404).json({ error: 'Penalty record not found.' });
+    }
+
+    if (!penalty.user?.email) {
+      return res.status(400).json({ error: 'The student does not have a registered email address.' });
+    }
+
+    const { sendOverdueNotice } = require('../services/emailService');
+    const { calculateOverdueDetails } = require('../utils/penaltyCalculator');
+    const settings = await prisma.librarySettings.findFirst();
+    const details = calculateOverdueDetails(penalty.borrow, settings, penalty);
+
+    const emailResult = await sendOverdueNotice({
+      user: penalty.user,
+      book: penalty.borrow?.book,
+      record: penalty.borrow,
+      daysOverdue: details.daysOverdue,
+      penaltyAmount: details.penaltyAmount,
+      dailyRate: details.dailyRate
+    });
+
+    // Log the notification event
+    await prisma.notification.create({
+      data: {
+        category: 'PENALTIES',
+        title: 'Overdue Notice Dispatched',
+        message: `Overdue email notice sent to ${penalty.user.email} for "${penalty.borrow?.book?.title || 'Borrowed Book'}".`,
+        target_user_id: penalty.user_id,
+        ref_table: 'penalties',
+        ref_id: penalty.id
+      }
+    });
+
+    res.json({
+      success: true,
+      message: `Overdue notice email successfully sent to ${penalty.user.email}!`,
+      sentTo: penalty.user.email,
+      emailResult
+    });
+  } catch (error) {
+    console.error('Send Penalty Notice Email Error:', error);
+    res.status(500).json({ error: error.message || 'Failed to dispatch overdue notice email' });
+  }
+};
+
 module.exports = {
   getStats,
   validateBook,
@@ -617,5 +689,6 @@ module.exports = {
   returnBook,
   getPenalties,
   payPenalty,
-  checkOverdue
+  checkOverdue,
+  sendPenaltyNoticeEmail
 };

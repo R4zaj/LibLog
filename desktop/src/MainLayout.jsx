@@ -14,8 +14,7 @@ import {
   Wifi,
   WifiOff,
   RefreshCw,
-  GraduationCap,
-  Bell
+  GraduationCap
 } from 'lucide-react';
 import { AttendanceScannerProvider } from './context/AttendanceScannerContext';
 import { BorrowingProvider } from './context/BorrowingContext';
@@ -222,7 +221,6 @@ export default function MainLayout() {
           <NavItem to="/attendance" icon={UserCheck} label="Attendance" />
           <NavItem to="/student-activities" icon={GraduationCap} label="Student Activities" />
           <NavItem to="/reports" icon={BarChart3} label="Reports" />
-          <NavItem to="/notifications" icon={Bell} label="Notifications" />
           <NavItem to="/settings" icon={Settings} label="Settings" />
         </div>
 

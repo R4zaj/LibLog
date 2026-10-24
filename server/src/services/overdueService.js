@@ -117,7 +117,8 @@ async function checkAndProcessOverdueBooks() {
               book: record.book,
               record,
               daysOverdue,
-              penaltyAmount
+              penaltyAmount,
+              dailyRate: parseFloat(settings?.penalty_fee_per_day || 5)
             });
             results.emailsSent++;
           } catch (emailErr) {

@@ -7,7 +7,6 @@ import Literatures from './pages/Literatures';
 import Borrowing from './pages/Borrowing';
 import Attendance from './pages/Attendance';
 import Settings from './pages/Settings';
-import Notifications from './pages/Notifications';
 import StudentActivities from './pages/StudentActivities';
 
 import RequireAuth from './components/RequireAuth';
@@ -49,7 +48,6 @@ function App() {
                 }
               />
               <Route path="settings" element={<Settings />} />
-              <Route path="notifications" element={<Notifications />} />
             </Route>
           </Routes>
         </BrowserRouter>

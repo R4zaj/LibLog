@@ -1,7 +1,7 @@
 import { useState, useEffect, useContext, useMemo, Fragment } from 'react';
 import { 
   ArrowRightLeft, Search, Sun, Moon, Bell, Printer, Maximize, Camera, DollarSign, BookUp, CheckCircle, AlertCircle,
-  ChevronDown, ChevronUp
+  ChevronDown, ChevronUp, Mail
 } from 'lucide-react';
 import ScannerSim from '../components/ScannerSim';
 import { useTheme } from '../components/ThemeContext';
@@ -38,6 +38,8 @@ export default function Borrowing() {
   // Penalties State
   const [penalties, setPenalties] = useState([]);
   const [expandedUserIds, setExpandedUserIds] = useState(new Set());
+  const [sendingEmailPenaltyId, setSendingEmailPenaltyId] = useState(null);
+  const [emailToast, setEmailToast] = useState(null);
 
   const toggleUserExpanded = (userId) => {
     setExpandedUserIds((prev) => {
@@ -206,6 +208,56 @@ export default function Borrowing() {
     } catch (e) {
       console.error('Failed to pay penalty');
       setPenaltyError('Server error while processing penalty');
+    }
+  };
+
+  const handleSendEmailNotice = async (penalty, studentUser) => {
+    if (!studentUser?.email) {
+      setEmailToast({ type: 'error', message: 'Student does not have a registered email address.' });
+      setTimeout(() => setEmailToast(null), 4000);
+      return;
+    }
+
+    setSendingEmailPenaltyId(penalty.id);
+    setEmailToast(null);
+
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/borrowing/penalties/${penalty.id}/send-email`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      let data = {};
+      try {
+        data = await res.json();
+      } catch (jsonErr) {
+        data = { error: `Server responded with status ${res.status}` };
+      }
+
+      if (res.ok) {
+        setEmailToast({
+          type: 'success',
+          message: data.message || `Overdue notice sent to ${studentUser.email}`
+        });
+      } else {
+        setEmailToast({
+          type: 'error',
+          message: data.error || 'Failed to dispatch email notice'
+        });
+      }
+    } catch (e) {
+      console.error('Error sending email notice:', e);
+      setEmailToast({
+        type: 'error',
+        message: e.message || 'Network error while attempting to send notice'
+      });
+    } finally {
+      setSendingEmailPenaltyId(null);
+      setTimeout(() => {
+        setEmailToast((prev) => (prev ? null : prev));
+      }, 5000);
     }
   };
 
@@ -496,6 +548,31 @@ export default function Borrowing() {
                 </div>
               )}
             </div>
+
+            {emailToast && (
+              <div
+                className={`mx-5 my-3 p-3 rounded-lg text-xs font-semibold flex items-center justify-between transition-all ${
+                  emailToast.type === 'success'
+                    ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                    : 'bg-rose-50 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  {emailToast.type === 'success' ? (
+                    <CheckCircle size={15} className="text-emerald-600 shrink-0" />
+                  ) : (
+                    <AlertCircle size={15} className="text-rose-600 shrink-0" />
+                  )}
+                  <span>{emailToast.message}</span>
+                </div>
+                <button
+                  onClick={() => setEmailToast(null)}
+                  className="text-[11px] underline opacity-75 hover:opacity-100 ml-4 cursor-pointer"
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
             
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
@@ -522,7 +599,7 @@ export default function Borrowing() {
                                 {group.user.first_name} {group.user.last_name}
                               </p>
                               <p className="text-xs text-gray-500 dark:text-slate-400">
-                                {group.user.student_id}
+                                {group.user.student_id} {group.user.email ? `• ${group.user.email}` : ''}
                               </p>
                               <button
                                 onClick={() => toggleUserExpanded(group.user.id)}
@@ -644,12 +721,24 @@ export default function Borrowing() {
                                               </span>
                                             </td>
                                             <td className="py-2.5 text-center">
-                                              <button
-                                                onClick={() => handlePayPenalty(p.id)}
-                                                className="px-3 py-1 bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 rounded text-xs font-bold transition-colors shadow-sm"
-                                              >
-                                                Mark Paid
-                                              </button>
+                                              <div className="flex items-center justify-center gap-1.5">
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleSendEmailNotice(p, group.user)}
+                                                  disabled={sendingEmailPenaltyId === p.id || !group.user?.email}
+                                                  title={group.user?.email ? `Send overdue notice to ${group.user.email}` : 'No email address registered for student'}
+                                                  className="px-2.5 py-1 bg-sky-50 text-sky-700 hover:bg-sky-100 dark:bg-sky-950/40 dark:text-sky-300 dark:hover:bg-sky-900/40 border border-sky-200/60 dark:border-sky-800/60 rounded text-xs font-semibold transition-all inline-flex items-center gap-1 shadow-xs disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                                                >
+                                                  <Mail size={12} className={sendingEmailPenaltyId === p.id ? 'animate-pulse' : ''} />
+                                                  <span>{sendingEmailPenaltyId === p.id ? 'Sending...' : 'Send Notice'}</span>
+                                                </button>
+                                                <button
+                                                  onClick={() => handlePayPenalty(p.id)}
+                                                  className="px-3 py-1 bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 rounded text-xs font-bold transition-colors shadow-sm cursor-pointer"
+                                                >
+                                                  Mark Paid
+                                                </button>
+                                              </div>
                                             </td>
                                           </tr>
                                         ))}
