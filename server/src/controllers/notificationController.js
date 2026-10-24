@@ -1,5 +1,7 @@
 const prisma = require('../db');
 const {
+  sendOtpEmail,
+  sendOverdueNotice,
   generateOtpEmailHtml,
   generateOtpEmailText,
   generateOverdueEmailHtml,
@@ -183,9 +185,68 @@ const previewEmail = async (req, res) => {
   }
 };
 
+// Dispatch real test email to an actual inbox (Brevo / SendGrid)
+const sendTestEmail = async (req, res) => {
+  try {
+    const { 
+      to, 
+      type = 'otp', 
+      otp = '849201', 
+      actionType = 'verify', 
+      studentName = 'Student', 
+      bookTitle, 
+      author, 
+      daysOverdue = 10, 
+      penaltyAmount = 50, 
+      dailyRate = 5 
+    } = req.body;
+
+    if (!to || !to.includes('@')) {
+      return res.status(400).json({ error: 'A valid recipient email address (to) is required.' });
+    }
+
+    if (type === 'otp') {
+      const result = await sendOtpEmail({
+        to,
+        otp,
+        type: actionType,
+        studentName
+      });
+      return res.json({ success: true, message: `Verification code email dispatched to ${to}`, result });
+    } else {
+      const dummyUser = { 
+        email: to, 
+        first_name: studentName.split(' ')[0] || 'Student', 
+        last_name: studentName.split(' ').slice(1).join(' ') || '' 
+      };
+      const dummyBook = { 
+        title: bookTitle || 'Data Structures and Algorithms in Java (4th Edition)', 
+        author: { name: author || 'Robert Lafore' } 
+      };
+      const record = { 
+        borrow_date: new Date().toISOString(), 
+        due_date: new Date().toISOString() 
+      };
+      const result = await sendOverdueNotice({
+        user: dummyUser,
+        book: dummyBook,
+        record,
+        daysOverdue,
+        penaltyAmount,
+        dailyRate
+      });
+      return res.json({ success: true, message: `Overdue penalty notice email dispatched to ${to}`, result });
+    }
+  } catch (error) {
+    console.error('Failed to send test email:', error);
+    res.status(500).json({ error: error.message || 'Failed to dispatch email' });
+  }
+};
+
 module.exports = {
   getNotifications,
   markAsRead,
   markAllAsRead,
-  previewEmail
+  previewEmail,
+  sendTestEmail
 };

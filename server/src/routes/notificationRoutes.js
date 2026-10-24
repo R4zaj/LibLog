@@ -5,11 +5,13 @@ const {
   getNotifications,
   markAsRead,
   markAllAsRead,
-  previewEmail
+  previewEmail,
+  sendTestEmail
 } = require('../controllers/notificationController');
 
-// Email template visual preview (accessible for admin desktop preview / iframes)
+// Email template visual preview and test dispatcher
 router.get('/preview-email', previewEmail);
+router.post('/send-test-email', sendTestEmail);
 
 // Apply auth middleware to all remaining notification routes
 router.use(verifyToken);

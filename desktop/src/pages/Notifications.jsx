@@ -140,6 +140,48 @@ export default function Notifications() {
     window.open(blobUrl, '_blank');
   };
 
+  const handleSendLiveEmail = async () => {
+    const targetEmail = templateType === 'otp' ? otpStudentEmail : penStudentEmail;
+    if (!targetEmail || !targetEmail.includes('@')) {
+      setTestSendStatus({ loading: false, message: 'Please enter a valid recipient email address.', error: true });
+      return;
+    }
+    setTestSendStatus({ loading: true, message: null, error: false });
+    try {
+      const baseUrl = import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api';
+      const payload = templateType === 'otp' ? {
+        to: targetEmail,
+        type: 'otp',
+        otp: otpCode,
+        actionType: otpActionType,
+        studentName: otpStudentName
+      } : {
+        to: targetEmail,
+        type: 'penalty',
+        studentName: penStudentName,
+        bookTitle: penBookTitle,
+        author: penBookAuthor,
+        daysOverdue: penDaysOverdue,
+        penaltyAmount: calculatedPenaltyTotal,
+        dailyRate: penDailyRate
+      };
+
+      const res = await fetch(`${baseUrl}/notifications/send-test-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setTestSendStatus({ loading: false, message: data.message || `Email sent successfully to ${targetEmail}!`, error: false });
+      } else {
+        setTestSendStatus({ loading: false, message: data.error || 'Failed to dispatch email.', error: true });
+      }
+    } catch (e) {
+      setTestSendStatus({ loading: false, message: e.message || 'Network error dispatching email.', error: true });
+    }
+  };
+
   // Regenerate random 6-digit OTP
   const generateRandomOtp = () => {
     const randomCode = Math.floor(100000 + Math.random() * 900000).toString();
@@ -436,13 +478,30 @@ export default function Notifications() {
                     <label className="text-xs font-semibold text-gray-700 dark:text-slate-300 block mb-1.5">
                       Recipient Email Address
                     </label>
-                    <input
-                      type="email"
-                      value={otpStudentEmail}
-                      onChange={(e) => setOtpStudentEmail(e.target.value)}
-                      placeholder="e.g. jdelacruz@calauan.edu.ph"
-                      className="w-full px-3 py-2 text-xs rounded-lg border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg text-gray-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-sky-500"
-                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="email"
+                        value={otpStudentEmail}
+                        onChange={(e) => setOtpStudentEmail(e.target.value)}
+                        placeholder="e.g. your-email@gmail.com"
+                        className="flex-1 px-3 py-2 text-xs rounded-lg border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg text-gray-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-sky-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSendLiveEmail}
+                        disabled={testSendStatus.loading || !otpStudentEmail}
+                        className="px-3 py-2 bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shrink-0 transition-colors shadow-xs"
+                        title="Send live verification email via Brevo"
+                      >
+                        <Send size={13} className={testSendStatus.loading ? 'animate-spin' : ''} />
+                        <span>{testSendStatus.loading ? 'Sending...' : 'Send to Inbox'}</span>
+                      </button>
+                    </div>
+                    {testSendStatus.message && (
+                      <p className={`text-[11px] mt-1.5 font-medium ${testSendStatus.error ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                        {testSendStatus.message}
+                      </p>
+                    )}
                   </div>
 
                   {/* Specification Reference Box */}
@@ -486,6 +545,36 @@ export default function Notifications() {
                         className="w-full px-3 py-2 text-xs rounded-lg border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg text-gray-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-rose-500"
                       />
                     </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-gray-700 dark:text-slate-300 block mb-1.5">
+                      Recipient Email Address
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="email"
+                        value={penStudentEmail}
+                        onChange={(e) => setPenStudentEmail(e.target.value)}
+                        placeholder="e.g. your-email@gmail.com"
+                        className="flex-1 px-3 py-2 text-xs rounded-lg border border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg text-gray-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-rose-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSendLiveEmail}
+                        disabled={testSendStatus.loading || !penStudentEmail}
+                        className="px-3 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shrink-0 transition-colors shadow-xs"
+                        title="Send live overdue notice email via Brevo"
+                      >
+                        <Send size={13} className={testSendStatus.loading ? 'animate-spin' : ''} />
+                        <span>{testSendStatus.loading ? 'Sending...' : 'Send to Inbox'}</span>
+                      </button>
+                    </div>
+                    {testSendStatus.message && (
+                      <p className={`text-[11px] mt-1.5 font-medium ${testSendStatus.error ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                        {testSendStatus.message}
+                      </p>
+                    )}
                   </div>
 
                   <div>
