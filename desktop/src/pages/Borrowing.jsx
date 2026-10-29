@@ -1,6 +1,6 @@
 import { useState, useEffect, useContext, useMemo, Fragment } from 'react';
 import { 
-  ArrowRightLeft, Search, Sun, Moon, Bell, Printer, Maximize, Camera, DollarSign, BookUp, CheckCircle, AlertCircle,
+  ArrowRightLeft, Search, Sun, Moon, Bell, Printer, Maximize, Camera, BookUp, CheckCircle, AlertCircle,
   ChevronDown, ChevronUp, Mail
 } from 'lucide-react';
 import ScannerSim from '../components/ScannerSim';
@@ -90,7 +90,7 @@ export default function Borrowing() {
 
   useEffect(() => {
     fetchStats();
-    if (activeTab === '$ Penalties') {
+    if (activeTab === 'Penalties') {
       setPenaltiesPage(1);
       fetchPenalties();
     }
@@ -319,7 +319,7 @@ export default function Borrowing() {
 
         {/* Tabs */}
         <div className="grid grid-cols-4 gap-2 mt-2">
-          {['Borrow', 'Return', 'Records', '$ Penalties'].map((tab) => (
+          {['Borrow', 'Return', 'Records', 'Penalties'].map((tab) => (
             <button 
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -332,7 +332,7 @@ export default function Borrowing() {
               {tab === 'Borrow' && <BookUp size={16} />}
               {tab === 'Return' && <ArrowRightLeft size={16} />}
               {tab === 'Records' && <Printer size={16} />}
-              {tab === '$ Penalties' && <DollarSign size={16} />}
+
               {tab}
             </button>
           ))}
@@ -521,7 +521,7 @@ export default function Borrowing() {
         )}
 
         {/* PENALTIES TAB */}
-        {activeTab === '$ Penalties' && (
+        {activeTab === 'Penalties' && (
           <div className="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-xl overflow-hidden shadow-sm mt-4 flex flex-col animate-fade-in">
             <div className="p-5 border-b border-gray-200 dark:border-dark-border flex justify-between items-center bg-gray-50 dark:bg-dark-bg">
               <div>
@@ -875,7 +875,7 @@ export default function Borrowing() {
             style={{ minWidth: '340px' }}
           >
             <div className="bg-primary-100 dark:bg-primary-900/30 p-4 rounded-full mb-6">
-              <DollarSign className="text-primary-600 dark:text-primary-400 w-14 h-14" />
+              <CheckCircle className="text-primary-600 dark:text-primary-400 w-14 h-14" />
             </div>
             <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2 text-center">
               Mark as Paid?

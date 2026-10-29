@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Bell, Activity, ArrowRightLeft, DollarSign, Check, ExternalLink } from 'lucide-react';
+import { Bell, Activity, ArrowRightLeft, AlertCircle, Check, ExternalLink } from 'lucide-react';
 
 function formatTimeAgo(dateString) {
   const diff = Date.now() - new Date(dateString).getTime();
@@ -86,7 +86,7 @@ export default function NotificationDropdown() {
     switch (category) {
       case 'ATTENDANCE': return { Icon: Activity, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/30' };
       case 'BORROWING': return { Icon: ArrowRightLeft, color: 'text-orange-500', bg: 'bg-orange-50 dark:bg-orange-900/30' };
-      case 'PENALTIES': return { Icon: DollarSign, color: 'text-red-500', bg: 'bg-red-50 dark:bg-red-900/30' };
+      case 'PENALTIES': return { Icon: AlertCircle, color: 'text-red-500', bg: 'bg-red-50 dark:bg-red-900/30' };
       default: return { Icon: Bell, color: 'text-gray-500 dark:text-gray-400', bg: 'bg-gray-100 dark:bg-gray-800' };
     }
   };
