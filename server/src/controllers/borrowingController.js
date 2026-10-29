@@ -165,6 +165,10 @@ const checkout = async (req, res) => {
       return res.status(400).json({ error: 'Book is not available' });
     }
 
+    if (book.library_use_only && borrowType === 'TAKE_OUT') {
+      return res.status(400).json({ error: 'This book is In Circulation and can only be read inside the library.' });
+    }
+
     if (book.available_copies <= 2 && borrowType === 'TAKE_OUT') {
       return res.status(400).json({ error: 'This book has 2 or fewer copies available and can only be read inside the library.' });
     }

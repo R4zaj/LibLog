@@ -36,12 +36,17 @@ export function BookDetailModal({
               
               {/* Cover Placeholder Hero Well */}
               <View style={styles.coverWell}>
-                <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
-                  <View style={styles.genrePill}>
+                <View style={styles.topPillsRow}>
+                  <View style={styles.pillBadge}>
                     <Text style={styles.genreText} numberOfLines={1}>{book.genre || 'Book'}</Text>
                   </View>
+                  {book.library_use_only && (
+                    <View style={[styles.pillBadge, { backgroundColor: '#fffbeb', borderColor: '#fde68a' }]}>
+                      <Text style={[styles.genreText, { color: '#b45309' }]}>In Circulation • Library Use Only</Text>
+                    </View>
+                  )}
                   {book.is_archived && (
-                    <View style={[styles.genrePill, { backgroundColor: '#fee2e2' }]}>
+                    <View style={[styles.pillBadge, { backgroundColor: '#fee2e2' }]}>
                       <Text style={[styles.genreText, { color: '#dc2626' }]}>Archived</Text>
                     </View>
                   )}
@@ -142,7 +147,9 @@ export function BookDetailModal({
                       <QrCode color="#6C48C5" size={24} />
                     </View>
                     <Text style={styles.footerActionText}>
-                      Locate this book on its shelf and scan its QR barcode to borrow.
+                      {book.library_use_only
+                        ? 'In Circulation: Library use only. Locate on shelf to read inside the library (cannot be taken outside).'
+                        : 'Locate this book on its shelf and scan its QR barcode to borrow.'}
                     </Text>
                   </View>
                 )}
@@ -193,6 +200,24 @@ const styles = StyleSheet.create({
     backgroundColor: '#f4f1fa',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  topPillsRow: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    right: 100,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    alignItems: 'center',
+  },
+  pillBadge: {
+    backgroundColor: '#ffffff',
+    borderRadius: 9999,
+    borderWidth: 1,
+    borderColor: '#ede9f6',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
   genrePill: {
     position: 'absolute',

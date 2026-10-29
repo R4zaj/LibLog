@@ -71,6 +71,7 @@ export interface Book {
   description: string | null;
   qr_code: string | null;
   is_archived: boolean;
+  library_use_only?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -90,6 +91,7 @@ export interface LiteratureBook {
   condition: string;
   genre: string;
   is_archived?: boolean;
+  library_use_only?: boolean;
 }
 
 // GET /attendance/active — today's checked-in users, `department` is program.name computed server-side

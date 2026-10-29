@@ -86,6 +86,14 @@ export default function Borrowing() {
   // Borrow Option State
   const [borrowType, setBorrowType] = useState('TAKE_OUT');
 
+  useEffect(() => {
+    if (scannedBook?.library_use_only) {
+      setBorrowType('READ_IN_LIBRARY');
+    } else if (scannedBook) {
+      setBorrowType('TAKE_OUT');
+    }
+  }, [scannedBook]);
+
   const { fetchWithOfflineSupport } = useOfflineApi();
 
   useEffect(() => {
@@ -377,6 +385,27 @@ export default function Borrowing() {
               />
             )}
 
+            {step === 2 && scannedBook?.library_use_only && (
+              <div className="flex items-start justify-between gap-4 p-4 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/70 text-amber-900 dark:text-amber-200">
+                <div className="flex items-start gap-3">
+                  <AlertCircle size={18} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                  <div className="flex flex-col gap-0.5 text-xs">
+                    <span className="font-bold text-sm">In Circulation: Library Use Only</span>
+                    <span>
+                      <strong>{scannedBook.title}</strong> cannot be borrowed outside the library. Proceeding will check it out as <strong>Read in Library</strong>.
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setStep(1); setScannedBook(null); setError(null); }}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white dark:bg-dark-card border border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40 shrink-0 transition-colors cursor-pointer"
+                >
+                  Change Book
+                </button>
+              </div>
+            )}
+
             {step === 2 && (
               <ScannerSim 
                 title="Scan Student ID"
@@ -399,6 +428,12 @@ export default function Borrowing() {
                     <p className="font-bold text-gray-900 dark:text-slate-200 text-lg">{scannedBook.title}</p>
                     <p className="text-sm text-gray-600 dark:text-slate-300 mb-1">{scannedBook.author?.name || 'Unknown Author'}</p>
                     <p className="text-xs text-gray-400 dark:text-slate-500">ISBN: {scannedBook.isbn}</p>
+                    {scannedBook.library_use_only && (
+                      <div className="mt-2.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                        <AlertCircle size={13} className="shrink-0" />
+                        <span>In Circulation: Library Use Only</span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="bg-gray-50 dark:bg-dark-bg p-4 rounded-lg border border-gray-200 dark:border-dark-border">
@@ -419,11 +454,13 @@ export default function Borrowing() {
                       <span className={`text-sm font-bold whitespace-nowrap ${borrowType === 'READ_IN_LIBRARY' ? 'text-primary-800 dark:text-primary-400' : 'text-gray-600 dark:text-slate-400'}`}>Read in Library</span>
                       <span className="text-[10px] text-gray-500 mt-1 text-center">Due today before closing</span>
                     </label>
-                    <label className={`flex-1 flex flex-col items-center p-3 rounded-lg border-2 cursor-pointer transition-colors ${borrowType === 'TAKE_OUT' ? 'border-primary-600 bg-primary-50 dark:bg-primary-900/20' : 'border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card hover:border-primary-300'}`}>
-                      <input type="radio" name="borrowType" value="TAKE_OUT" checked={borrowType === 'TAKE_OUT'} onChange={() => setBorrowType('TAKE_OUT')} className="sr-only" />
+                    <label className={`flex-1 flex flex-col items-center p-3 rounded-lg border-2 transition-colors ${scannedBook.library_use_only ? 'opacity-50 cursor-not-allowed border-gray-200 dark:border-dark-border bg-gray-100 dark:bg-dark-card' : borrowType === 'TAKE_OUT' ? 'cursor-pointer border-primary-600 bg-primary-50 dark:bg-primary-900/20' : 'cursor-pointer border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card hover:border-primary-300'}`}>
+                      <input type="radio" name="borrowType" value="TAKE_OUT" disabled={Boolean(scannedBook.library_use_only)} checked={borrowType === 'TAKE_OUT'} onChange={() => { if (!scannedBook.library_use_only) setBorrowType('TAKE_OUT'); }} className="sr-only" />
                       <ArrowRightLeft size={24} className={`mb-2 ${borrowType === 'TAKE_OUT' ? 'text-primary-600' : 'text-gray-400'}`} />
                       <span className={`text-sm font-bold whitespace-nowrap ${borrowType === 'TAKE_OUT' ? 'text-primary-800 dark:text-primary-400' : 'text-gray-600 dark:text-slate-400'}`}>Take Out</span>
-                      <span className="text-[10px] text-gray-500 mt-1 text-center">Standard due date applies</span>
+                      <span className={`text-[10px] mt-1 text-center ${scannedBook.library_use_only ? 'text-amber-700 dark:text-amber-400 font-semibold' : 'text-gray-500'}`}>
+                        {scannedBook.library_use_only ? 'Not allowed: book is In Circulation' : 'Standard due date applies'}
+                      </span>
                     </label>
                   </div>
                 </div>

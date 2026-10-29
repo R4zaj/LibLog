@@ -1,5 +1,7 @@
 const prisma = require('../db');
 
+const toBool = (v) => v === true || ['true', 'yes', 'y', '1', 'in circulation', 'library use only'].includes(String(v || '').trim().toLowerCase());
+
 const mapBook = (b) => ({
   id: b.id,
   isbn: b.isbn,
@@ -14,6 +16,7 @@ const mapBook = (b) => ({
   stocks: `${b.total_copies} copies`,
   condition: b.condition,
   is_archived: b.is_archived || false,
+  library_use_only: Boolean(b.library_use_only),
   updated_at: b.updated_at
 });
 
@@ -156,7 +159,7 @@ const getGenres = async (req, res) => {
 
 const createBook = async (req, res) => {
   try {
-    const { isbn, title, authorName, genreName, lccn, year_published, shelf_number, total_copies, condition } = req.body;
+    const { isbn, title, authorName, genreName, lccn, year_published, shelf_number, total_copies, condition, library_use_only } = req.body;
     
     // Connect or create author
     let author_id = null;
@@ -189,6 +192,7 @@ const createBook = async (req, res) => {
         shelf_number: shelf_number || null,
         total_copies: parseInt(total_copies),
         available_copies: parseInt(total_copies),
+        library_use_only: toBool(library_use_only),
         condition: condition || 'GOOD'
       }
     });
@@ -203,7 +207,7 @@ const createBook = async (req, res) => {
 const updateBook = async (req, res) => {
   try {
     const { id } = req.params;
-    const { isbn, title, authorName, genreName, lccn, year_published, shelf_number, total_copies, condition } = req.body;
+    const { isbn, title, authorName, genreName, lccn, year_published, shelf_number, total_copies, condition, library_use_only } = req.body;
     
     // Connect or create author
     let author_id = null;
@@ -246,6 +250,7 @@ const updateBook = async (req, res) => {
         shelf_number: shelf_number || null,
         total_copies: parseInt(total_copies),
         available_copies: newAvailable,
+        library_use_only: library_use_only !== undefined ? toBool(library_use_only) : existingBook.library_use_only,
         condition: condition || 'GOOD'
       }
     });

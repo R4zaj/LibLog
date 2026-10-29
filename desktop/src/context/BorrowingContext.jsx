@@ -104,9 +104,20 @@ export function BorrowingProvider({ children }) {
               setScannedBook(data);
               setStep(2);
               playScannerSound('chime');
-              setScanFeedback({ type: 'success', title: 'Book Verified', message: data.title });
+              setScanFeedback({
+                type: 'success',
+                title: data.library_use_only ? 'Book Verified (Library Use Only)' : 'Book Verified',
+                message: data.library_use_only ? `${data.title} • In Circulation` : data.title
+              });
               setTimeout(() => setScanFeedback(null), 2500);
-              if (!isBorrowingRoute) triggerToast('Book Scanned', `${data.title} ready for checkout. Now scan student ID.`);
+              if (!isBorrowingRoute) {
+                triggerToast(
+                  data.library_use_only ? 'In Circulation Book Scanned' : 'Book Scanned',
+                  data.library_use_only
+                    ? `${data.title} is for library use only. Scan student ID for in-library reading.`
+                    : `${data.title} ready for checkout. Now scan student ID.`
+                );
+              }
             } else {
               setError(data.error || 'Book validation failed');
               playScannerSound('error');

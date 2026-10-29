@@ -108,7 +108,7 @@ export default function Literatures() {
   // Global theme context
   const { isDarkMode, toggleDarkMode } = useTheme();
   const [formData, setFormData] = useState({
-    isbn: '', title: '', authorName: '', genreName: '', lccn: '', year_published: '', shelf_number: '', total_copies: 1, condition: 'GOOD'
+    isbn: '', title: '', authorName: '', genreName: '', lccn: '', year_published: '', shelf_number: '', total_copies: 1, condition: 'GOOD', library_use_only: false
   });
   
   const fileInputRef = useRef(null);
@@ -325,7 +325,7 @@ export default function Literatures() {
 
   const handleAddClick = () => {
     setEditingBook(null);
-    setFormData({ isbn: '', title: '', authorName: '', genreName: '', lccn: '', year_published: '', shelf_number: '', total_copies: 1, condition: 'GOOD' });
+    setFormData({ isbn: '', title: '', authorName: '', genreName: '', lccn: '', year_published: '', shelf_number: '', total_copies: 1, condition: 'GOOD', library_use_only: false });
     setIsModalOpen(true);
   };
 
@@ -340,7 +340,8 @@ export default function Literatures() {
       year_published: book.year !== 'N/A' ? book.year : '',
       shelf_number: book.shelf !== 'N/A' ? book.shelf : '',
       total_copies: book.total || 1,
-      condition: book.condition || 'GOOD'
+      condition: book.condition || 'GOOD',
+      library_use_only: Boolean(book.library_use_only)
     });
     setIsModalOpen(true);
   };
@@ -384,6 +385,7 @@ export default function Literatures() {
     for (let line of lines) {
       const parts = line.split('/').map(p => p.trim());
       if (parts.length < 8) continue;
+      if (parts[0].toLowerCase() === 'title' && parts[3].toLowerCase() === 'isbn') continue;
       
       const title = parts[0];
       const authorName = parts[1];
@@ -393,6 +395,9 @@ export default function Literatures() {
       const year_published = parts[5];
       const total_copies = parseInt(parts[6]) || 1;
       const condition = parts[7].toUpperCase();
+      const library_use_only = parts[8]
+        ? ['YES', 'Y', 'TRUE', '1', 'IN CIRCULATION', 'LIBRARY USE ONLY'].includes(parts[8].toUpperCase())
+        : false;
       
       const shelf_number = genreName ? `${genreName.substring(0, 3).toUpperCase()}-01` : 'GEN-01';
 
@@ -402,7 +407,7 @@ export default function Literatures() {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           },
           body: JSON.stringify({
-            title, authorName, genreName, isbn, lccn, year_published, total_copies, condition, shelf_number
+            title, authorName, genreName, isbn, lccn, year_published, total_copies, condition, shelf_number, library_use_only
           })
         });
         if (res.ok) successCount++;
@@ -479,8 +484,8 @@ export default function Literatures() {
 
   // Export functions
   const handleExportCSV = () => {
-    const headers = ['ISBN', 'Title', 'Author', 'LCCN', 'Year', 'Genre', 'Shelf', 'Total Copies', 'Available'];
-    const rows = books.map(b => [b.isbn, `"${b.title}"`, `"${b.author}"`, b.lccn, b.year, b.genre, b.shelf, b.total, b.available]);
+    const headers = ['ISBN', 'Title', 'Author', 'LCCN', 'Year', 'Genre', 'Shelf', 'Total Copies', 'Available', 'In Circulation'];
+    const rows = books.map(b => [b.isbn, `"${b.title}"`, `"${b.author}"`, b.lccn, b.year, b.genre, b.shelf, b.total, b.available, b.library_use_only ? 'YES' : 'NO']);
     const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
     
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -847,9 +852,16 @@ export default function Literatures() {
                 <td className="px-4 py-3 font-medium text-gray-700 dark:text-slate-300">{book.isbn}</td>
                 <td className="px-4 py-3 whitespace-normal min-w-[200px]">
                   <div className="flex flex-col">
-                    <span className="font-bold text-gray-900 dark:text-slate-200 line-clamp-2">{book.title}</span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-bold text-gray-900 dark:text-slate-200 line-clamp-2">{book.title}</span>
+                      {book.library_use_only && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 whitespace-nowrap" title="In Circulation: Library use only">
+                          In Circulation
+                        </span>
+                      )}
+                    </div>
                     <span className={`text-[10px] font-medium ${book.available > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
-                      {book.available}/{book.total} available
+                      {book.available}/{book.total} available{book.library_use_only ? ' • Library use only' : ''}
                     </span>
                   </div>
                 </td>
@@ -1108,7 +1120,14 @@ export default function Literatures() {
                   <td className="px-4 py-3 font-medium text-gray-700 dark:text-slate-300">{book.isbn}</td>
                   <td className="px-4 py-3 whitespace-normal min-w-[200px]">
                     <div className="flex flex-col">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="font-bold text-gray-900 dark:text-slate-200 line-clamp-2">{book.title}</span>
+                      {book.library_use_only && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 whitespace-nowrap" title="In Circulation: Library use only">
+                          In Circulation
+                        </span>
+                      )}
+                    </div>
                       <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">Archived</span>
                     </div>
                   </td>
@@ -1663,6 +1682,27 @@ export default function Literatures() {
                   </select>
                 </div>
               </div>
+              <div className="px-6 pb-6">
+                <label className={`flex items-start justify-between gap-4 p-3.5 rounded-lg border cursor-pointer transition-colors ${formData.library_use_only ? 'bg-amber-50/70 dark:bg-amber-950/25 border-amber-300 dark:border-amber-800' : 'bg-gray-50/70 dark:bg-dark-bg border-gray-200 dark:border-dark-border hover:border-gray-300 dark:hover:border-slate-600'}`}>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-sm font-semibold text-gray-800 dark:text-slate-200">
+                      In Circulation (Library Use Only)
+                    </span>
+                    <span className="text-xs text-gray-500 dark:text-slate-400">
+                      Restrict this book (e.g., in publication or special cases) so it cannot be borrowed outside the library.
+                    </span>
+                  </div>
+                  <div className="relative inline-flex items-center shrink-0 mt-0.5">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(formData.library_use_only)}
+                      onChange={e => setFormData({ ...formData, library_use_only: e.target.checked })}
+                      className="sr-only peer"
+                    />
+                    <div className="w-10 h-5 bg-gray-300 dark:bg-slate-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary-500 rounded-full peer peer-checked:bg-amber-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-5"></div>
+                  </div>
+                </label>
+              </div>
               <div className="px-6 py-4 border-t border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-bg flex justify-end gap-3 mt-auto shrink-0">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 border border-gray-300 dark:border-dark-border text-gray-700 dark:text-slate-300 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-dark-hover">Cancel</button>
                 <button type="submit" className="px-4 py-2 bg-primary-800 text-white rounded-md text-sm font-medium hover:bg-primary-900 shadow-sm">{editingBook ? 'Save Changes' : 'Add Literature'}</button>
@@ -1685,14 +1725,14 @@ export default function Literatures() {
             </div>
             
             <div className="p-6 flex flex-col gap-4">
-              <p className="text-xs text-gray-500 dark:text-slate-400">Paste your rows below using the forward slash delimiter <code>/</code>.<br/>Format: <strong>Title / Author / Genre / ISBN / LCCN / Year Published / Total Copies / Condition</strong></p>
+              <p className="text-xs text-gray-500 dark:text-slate-400">Paste your rows below using the forward slash delimiter <code>/</code>.<br/>Format: <strong>Title / Author / Genre / ISBN / LCCN / Year Published / Total Copies / Condition / In Circulation (YES/NO, optional)</strong></p>
               
               <textarea 
                 value={importText}
                 onChange={e => setImportText(e.target.value)}
                 rows={6}
                 className="w-full border border-gray-300 dark:border-dark-border rounded-lg p-3 text-sm focus:ring-2 focus:ring-purple-500 outline-none resize-none dark:bg-dark-bg dark:text-slate-300"
-                placeholder="Example:&#10;Myles Textbook for Midwives / Jayne E. Marshall / Midwifery / 978-0-323-40115-4 / RG950 .M87 / 2020 / 5 / EXCELLENT"
+                placeholder="Example:&#10;Myles Textbook for Midwives / Jayne E. Marshall / Midwifery / 978-0-323-40115-4 / RG950 .M87 / 2020 / 5 / EXCELLENT / NO&#10;Philippine Nursing Journal Vol. 94 / PNA / Nursing / 978-971-95123-0-1 / RT1 .P55 / 2024 / 2 / EXCELLENT / YES"
               />
               
               <div 
@@ -1724,7 +1764,21 @@ export default function Literatures() {
                         reader.readAsArrayBuffer(file);
                       } else {
                         const reader = new FileReader();
-                        reader.onload = (evt) => setImportText(evt.target.result);
+                        reader.onload = (evt) => {
+                          const raw = String(evt.target.result || '');
+                          if (file.name.toLowerCase().endsWith('.csv') && !raw.includes(' / ')) {
+                            const wb = XLSX.read(raw, { type: 'string' });
+                            const ws = wb.Sheets[wb.SheetNames[0]];
+                            const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+                            const slashFormat = rows
+                              .filter(row => row.length > 0)
+                              .map(row => row.map(cell => String(cell ?? '').trim()).join(' / '))
+                              .join('\n');
+                            setImportText(slashFormat);
+                          } else {
+                            setImportText(raw);
+                          }
+                        };
                         reader.readAsText(file);
                       }
                     }
