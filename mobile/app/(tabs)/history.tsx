@@ -183,7 +183,7 @@ export default function HistoryScreen() {
             id: `att-in-${log.id}`,
             type: 'ATTENDANCE_IN',
             timestamp: logTime,
-            title: 'Time in',
+            title: 'Logged In',
             subtitle: formattedTime
           });
         } else if (log.action === 'CHECK_OUT') {
@@ -191,7 +191,7 @@ export default function HistoryScreen() {
             id: `att-out-${log.id}`,
             type: 'ATTENDANCE_OUT',
             timestamp: logTime,
-            title: 'Time out',
+            title: 'Logged Out',
             subtitle: log.duration_minutes ? `Duration: ${log.duration_minutes} min` : formattedTime
           });
         }
@@ -208,7 +208,7 @@ export default function HistoryScreen() {
             id: `bor-${b.id}`,
             type: 'BORROW',
             timestamp: borrowTime,
-            title: 'Checked Out',
+            title: 'Borrowed',
             subtitle: b.book?.title || 'Library Book'
           });
         }
@@ -217,7 +217,7 @@ export default function HistoryScreen() {
             id: `ret-${b.id}`,
             type: 'RETURN',
             timestamp: returnTime,
-            title: 'Checked In',
+            title: 'Returned',
             subtitle: b.book?.title || 'Library Book'
           });
         }

@@ -86,7 +86,7 @@ export function AttendanceScannerProvider({ children }) {
       const data = await res.json();
       if (res.ok) {
         const userName = data.offlineQueued ? `User ${identifier}` : `${data.user.first_name} ${data.user.last_name}`;
-        const actionText = data.action === 'CHECK_IN' ? 'Checked In' : 'Checked Out';
+        const actionText = data.action === 'CHECK_IN' ? 'Logged In' : 'Logged Out';
         const scanData = {
           user: userName,
           action: data.offlineQueued ? 'CHECK_IN' : data.action,
@@ -316,7 +316,7 @@ export function AttendanceScannerProvider({ children }) {
              <div className="flex-1">
                 <p className="font-bold text-gray-900 dark:text-slate-200 text-sm">{toast.user}</p>
                 <p className={`text-xs font-semibold ${toast.error ? 'text-red-700 dark:text-red-400' : toast.action === 'CHECK_IN' ? 'text-green-700 dark:text-green-400' : 'text-orange-700 dark:text-orange-400'}`}>
-                   {toast.error ? `Scan not recorded • ${toast.time}` : `${toast.action === 'CHECK_IN' ? 'Checked In' : 'Checked Out'} • ${toast.time}`}
+                   {toast.error ? `Scan not recorded • ${toast.time}` : `${toast.action === 'CHECK_IN' ? 'Logged In' : 'Logged Out'} • ${toast.time}`}
                 </p>
                 {toast.duration && (
                    <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">Duration: {toast.duration} mins</p>

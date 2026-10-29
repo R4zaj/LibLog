@@ -173,7 +173,7 @@ const getOverview = async (req, res) => {
         id: `att-${a.id}`,
         type: a.action,
         user: `${a.user.first_name} ${a.user.last_name}`,
-        details: a.action === 'CHECK_IN' ? 'checked into the library' : 'checked out of the library',
+        details: a.action === 'CHECK_IN' ? 'logged in to the library' : 'logged out of the library',
         date: a.logged_at
       });
     });
@@ -234,7 +234,7 @@ const getFullLog = async (req, res) => {
         id: `att-${a.id}`,
         type: a.action,
         user: `${a.user.first_name} ${a.user.last_name}`,
-        details: a.action === 'CHECK_IN' ? 'checked into the library' : 'checked out of the library',
+        details: a.action === 'CHECK_IN' ? 'logged in to the library' : 'logged out of the library',
         date: a.logged_at
       });
     });

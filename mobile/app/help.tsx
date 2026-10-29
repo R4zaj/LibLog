@@ -25,7 +25,7 @@ export default function HelpScreen() {
           </View>
           <Text style={styles.cardTitle}>Library Entry</Text>
           <Text style={styles.cardBody}>
-            Tap your avatar in the top right corner of the dashboard to view your unique Library ID QR code. Scan this code at the entrance or front desk to check in.
+            Tap your avatar in the top right corner of the dashboard to view your unique Library ID QR code. Scan this code at the entrance or front desk to log in.
           </Text>
         </View>
 

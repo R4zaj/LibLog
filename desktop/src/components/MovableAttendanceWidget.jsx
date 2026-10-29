@@ -222,7 +222,7 @@ export default function MovableAttendanceWidget({ videoElement, onStop, lastScan
           {/* Footer Bar */}
           <div className="px-3 py-2 bg-gray-50/70 dark:bg-dark-bg/60 text-[10px] text-gray-500 dark:text-slate-400 flex items-center justify-between border-t border-gray-100 dark:border-dark-border">
             {lastScan ? (
-              <div className="flex items-center gap-1.5 truncate max-w-[190px]" title={`${lastScan.user} - ${lastScan.action}`}>
+              <div className="flex items-center gap-1.5 truncate max-w-[190px]" title={`${lastScan.user} - ${lastScan.action === 'CHECK_IN' ? 'Logged In' : 'Logged Out'}`}>
                 {lastScan.action === 'CHECK_IN' ? (
                   <LogIn size={11} className="text-green-600 shrink-0" />
                 ) : (

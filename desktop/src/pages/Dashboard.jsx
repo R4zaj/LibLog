@@ -237,7 +237,7 @@ export default function Dashboard() {
               <UserCheck size={24} />
             </div>
             <h3 className="font-bold text-gray-800 dark:text-slate-300 text-sm">Scan Student</h3>
-            <span className="text-[10px] text-gray-400 dark:text-slate-500 mt-1">QR code check-in or check-out</span>
+            <span className="text-[10px] text-gray-400 dark:text-slate-500 mt-1">QR code log-in or log-out</span>
           </div>
           <div onClick={() => navigate('/literatures')} className="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-100 dark:border-dark-border border-t-4 border-t-primary-500 p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:-translate-y-1 transition-transform">
             <div className="w-12 h-12 rounded-full bg-primary-50 text-primary-600 flex items-center justify-center mb-3">
@@ -523,7 +523,7 @@ export default function Dashboard() {
                 <div className="flex-1 border border-dashed border-gray-200 dark:border-dark-border rounded-lg flex flex-col items-center justify-center p-8 bg-gray-50/50">
                   <Users size={32} className="text-gray-300 mb-2" />
                   <span className="text-sm font-bold text-gray-600 dark:text-slate-300">Library is quiet right now</span>
-                  <span className="text-xs text-gray-400 dark:text-slate-500 text-center mt-1">Students will appear here as they check in</span>
+                  <span className="text-xs text-gray-400 dark:text-slate-500 text-center mt-1">Students will appear here as they log in</span>
                 </div>
               ) : (
                 <div className="overflow-y-auto max-h-[220px] space-y-2 pr-1">
@@ -581,7 +581,7 @@ export default function Dashboard() {
                     </div>
                     <div className="flex flex-col flex-1 pb-2">
                       <div className="flex justify-between items-start">
-                        <p className="text-sm font-bold text-gray-800 dark:text-slate-300">{act.user} <span className={`px-1.5 py-0.5 ml-1 text-[8px] rounded uppercase ${act.type === 'BORROW' ? 'bg-orange-50 text-orange-600 border border-orange-100' : 'bg-gray-100 text-gray-500 dark:text-slate-400 border border-gray-200 dark:border-dark-border'}`}>{act.type.replace('_', ' ')}</span></p>
+                        <p className="text-sm font-bold text-gray-800 dark:text-slate-300">{act.user} <span className={`px-1.5 py-0.5 ml-1 text-[8px] rounded uppercase ${act.type === 'BORROW' ? 'bg-orange-50 text-orange-600 border border-orange-100' : 'bg-gray-100 text-gray-500 dark:text-slate-400 border border-gray-200 dark:border-dark-border'}`}>{act.type === 'CHECK_IN' ? 'LOGGED IN' : act.type === 'CHECK_OUT' ? 'LOGGED OUT' : act.type.replace('_', ' ')}</span></p>
                         <span className="text-xs text-gray-400 dark:text-slate-500 flex items-center gap-1"><Clock size={10} /> {new Date(act.date).toLocaleDateString()}</span>
                       </div>
                       <span className="text-xs text-gray-500 dark:text-slate-400 line-clamp-1">{act.user} {act.details}</span>
@@ -663,7 +663,7 @@ export default function Dashboard() {
                             <p className="text-sm font-bold text-gray-800 dark:text-slate-300">
                               {act.user}
                               <span className={`px-1.5 py-0.5 ml-2 text-[10px] rounded uppercase ${act.type === 'BORROW' ? 'bg-orange-50 text-orange-600 border border-orange-100' : 'bg-gray-100 text-gray-500 dark:text-slate-400 border border-gray-200 dark:border-dark-border'}`}>
-                                {act.type.replace('_', ' ')}
+                                {act.type === 'CHECK_IN' ? 'LOGGED IN' : act.type === 'CHECK_OUT' ? 'LOGGED OUT' : act.type.replace('_', ' ')}
                               </span>
                             </p>
                             <span className="text-xs text-gray-400 dark:text-slate-500 flex items-center gap-1">

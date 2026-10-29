@@ -166,7 +166,7 @@ export default function Attendance() {
             <h2 className="text-2xl font-bold text-gray-800 dark:text-slate-300 flex items-center gap-2">
               <UserCheck size={24} className="text-gray-500 dark:text-slate-400" /> Attendance Tracking
             </h2>
-            <span className="text-sm text-gray-500 dark:text-slate-400">Monitor student check-ins, occupancy, and daily attendance logs</span>
+            <span className="text-sm text-gray-500 dark:text-slate-400">Monitor student log-ins, occupancy, and daily attendance logs</span>
           </div>
           <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2 border border-gray-200 dark:border-dark-border rounded-lg text-sm font-medium text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-dark-hover dark:bg-dark-bg bg-white dark:bg-dark-card">
             <Printer size={16} /> Print
@@ -177,7 +177,7 @@ export default function Attendance() {
         <div className="flex flex-col gap-4 relative">
           <ScannerSim 
             title="Scan Student QR Code"
-            subtitle="Scan or enter QR code to check in/out"
+            subtitle="Scan or enter QR code to log in/out"
             boxTitle="Student QR Scanner"
             prefix="CCC-"
             placeholder="2024-0001"
@@ -202,7 +202,7 @@ export default function Attendance() {
                 <div>
                   <p className="font-bold text-gray-900 dark:text-slate-200 text-sm">{lastScan.user}</p>
                   <p className={`text-xs font-semibold ${lastScan.action === 'CHECK_IN' ? 'text-green-700' : 'text-orange-700'}`}>
-                    {lastScan.action === 'CHECK_IN' ? 'Checked In' : 'Checked Out'} • {lastScan.time}
+                    {lastScan.action === 'CHECK_IN' ? 'Logged In' : 'Logged Out'} • {lastScan.time}
                   </p>
                   {lastScan.duration && (
                     <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">Duration: {lastScan.duration} mins</p>
@@ -229,12 +229,12 @@ export default function Attendance() {
             <div className="bg-purple-50/50 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-900/50 rounded-lg p-4 flex flex-col items-center justify-center text-center">
               <LogIn size={20} className="text-purple-600 dark:text-purple-400 mb-2" />
               <span className="text-2xl font-bold text-purple-900 dark:text-purple-400 leading-none mb-1">{stats.checkIns}</span>
-              <span className="text-[10px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Check-ins</span>
+              <span className="text-[10px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Logged In</span>
             </div>
             <div className="bg-cyan-50/50 dark:bg-cyan-900/10 border border-cyan-100 dark:border-cyan-900/50 rounded-lg p-4 flex flex-col items-center justify-center text-center">
               <LogOut size={20} className="text-cyan-600 dark:text-cyan-400 mb-2" />
               <span className="text-2xl font-bold text-cyan-900 dark:text-cyan-400 leading-none mb-1">{stats.checkOuts}</span>
-              <span className="text-[10px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Check-outs</span>
+              <span className="text-[10px] font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Logged Out</span>
             </div>
             <div className="bg-yellow-50/50 dark:bg-orange-900/10 border border-yellow-100 dark:border-orange-900/50 rounded-lg p-4 flex flex-col items-center justify-center text-center">
               <Users size={20} className="text-yellow-600 dark:text-orange-400 mb-2" />
@@ -257,7 +257,7 @@ export default function Attendance() {
             </div>
             <div className="flex flex-col">
               <h3 className="font-bold text-gray-800 dark:text-slate-300 text-sm">Weekly Heatmap</h3>
-              <span className="text-xs text-gray-500 dark:text-slate-400">Check-in density by day and hour</span>
+              <span className="text-xs text-gray-500 dark:text-slate-400">Log-in density by day and hour</span>
             </div>
           </div>
           
@@ -291,7 +291,7 @@ export default function Attendance() {
                           <div 
                             key={hIdx} 
                             className={`flex-1 h-6 rounded-sm ${bgClass} transition-colors`}
-                            title={`${cell.count} check-in${cell.count !== 1 ? 's' : ''}`}
+                            title={`${cell.count} log-in${cell.count !== 1 ? 's' : ''}`}
                           >
                           </div>
                         );
@@ -395,7 +395,7 @@ export default function Attendance() {
                     <Users size={20} className="text-gray-400 dark:text-slate-500" />
                   </div>
                   <span className="text-sm font-bold text-gray-700 dark:text-slate-300">No students inside</span>
-                  <span className="text-xs text-gray-400 dark:text-slate-500 text-center mt-1">The library is currently empty. Scanned check-ins will appear here immediately.</span>
+                  <span className="text-xs text-gray-400 dark:text-slate-500 text-center mt-1">The library is currently empty. Scanned log-ins will appear here immediately.</span>
                 </div>
               ) : (
                 <div className="overflow-y-auto max-h-72 space-y-2 pr-1">

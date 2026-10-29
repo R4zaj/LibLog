@@ -446,7 +446,7 @@ export default function StudentActivities() {
                             log.action === 'CHECK_IN' ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'
                           }`}>
                             {log.action === 'CHECK_IN' ? <UserCheck size={14} /> : <History size={14} />}
-                            {log.action === 'CHECK_IN' ? 'Check In' : 'Check Out'}
+                            {log.action === 'CHECK_IN' ? 'Logged In' : 'Logged Out'}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right text-sm text-gray-600 dark:text-slate-300">

@@ -41,8 +41,8 @@ export default function ActivityFeed() {
             <div className="flex flex-col flex-1">
               <span className="text-sm font-semibold text-gray-800">{activity.user}</span>
               <span className="text-xs text-gray-500">
-                {activity.type === 'CHECK_IN' && `Checked in • ${activity.program}`}
-                {activity.type === 'CHECK_OUT' && `Checked out • ${activity.program}`}
+                {activity.type === 'CHECK_IN' && `Logged in • ${activity.program}`}
+                {activity.type === 'CHECK_OUT' && `Logged out • ${activity.program}`}
                 {activity.type === 'BORROW' && `Borrowed "${activity.book}"`}
                 {activity.type === 'RETURN' && `Returned "${activity.book}"`}
               </span>

@@ -457,7 +457,7 @@ export default function Borrowing() {
                     <label className={`flex-1 flex flex-col items-center p-3 rounded-lg border-2 transition-colors ${scannedBook.library_use_only ? 'opacity-50 cursor-not-allowed border-gray-200 dark:border-dark-border bg-gray-100 dark:bg-dark-card' : borrowType === 'TAKE_OUT' ? 'cursor-pointer border-primary-600 bg-primary-50 dark:bg-primary-900/20' : 'cursor-pointer border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card hover:border-primary-300'}`}>
                       <input type="radio" name="borrowType" value="TAKE_OUT" disabled={Boolean(scannedBook.library_use_only)} checked={borrowType === 'TAKE_OUT'} onChange={() => { if (!scannedBook.library_use_only) setBorrowType('TAKE_OUT'); }} className="sr-only" />
                       <ArrowRightLeft size={24} className={`mb-2 ${borrowType === 'TAKE_OUT' ? 'text-primary-600' : 'text-gray-400'}`} />
-                      <span className={`text-sm font-bold whitespace-nowrap ${borrowType === 'TAKE_OUT' ? 'text-primary-800 dark:text-primary-400' : 'text-gray-600 dark:text-slate-400'}`}>Take Out</span>
+                      <span className={`text-sm font-bold whitespace-nowrap ${borrowType === 'TAKE_OUT' ? 'text-primary-800 dark:text-primary-400' : 'text-gray-600 dark:text-slate-400'}`}>Borrow</span>
                       <span className={`text-[10px] mt-1 text-center ${scannedBook.library_use_only ? 'text-amber-700 dark:text-amber-400 font-semibold' : 'text-gray-500'}`}>
                         {scannedBook.library_use_only ? 'Not allowed: book is In Circulation' : 'Standard due date applies'}
                       </span>
@@ -849,7 +849,7 @@ export default function Borrowing() {
                         </td>
                         <td className="px-6 py-4">
                           <span className="text-[11px] font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded whitespace-nowrap">
-                            {record.type === 'READ_IN_LIBRARY' ? 'Read in Library' : 'Take Out'}
+                            {record.type === 'READ_IN_LIBRARY' ? 'Read in Library' : 'Borrow'}
                           </span>
                         </td>
                         <td className="px-6 py-4">

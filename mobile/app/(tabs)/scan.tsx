@@ -286,7 +286,7 @@ export default function ScanScreen() {
                         color={theme.text}
                         marginBottom={2}
                       >
-                        {isCheckIn ? 'Checked In' : 'Checked Out'}
+                        {isCheckIn ? 'Logged In' : 'Logged Out'}
                       </Text>
                       <Text fontSize={12} color={theme.textSecondary} fontWeight="500">
                         {dateString}

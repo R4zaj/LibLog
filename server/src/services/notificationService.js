@@ -18,10 +18,10 @@ async function notifyAttendance({ user, action, duration = 0, logId = null, tx =
   const mobileNotif = tx.notification.create({
     data: {
       category: 'ATTENDANCE',
-      title: isCheckIn ? 'Checked In' : 'Checked Out',
+      title: isCheckIn ? 'Logged In' : 'Logged Out',
       message: isCheckIn
-        ? 'You have successfully checked in to the library.'
-        : `You have checked out of the library. Duration: ${duration} mins.`,
+        ? 'You have successfully logged in to the library.'
+        : `You have logged out of the library. Duration: ${duration} mins.`,
       target_user_id: user.id,
       triggered_by: user.id,
       ref_table: 'attendance_logs',
@@ -33,10 +33,10 @@ async function notifyAttendance({ user, action, duration = 0, logId = null, tx =
   const desktopNotif = tx.notification.create({
     data: {
       category: 'ATTENDANCE',
-      title: isCheckIn ? 'Student Check-In' : 'Student Check-Out',
+      title: isCheckIn ? 'Student Logged In' : 'Student Logged Out',
       message: isCheckIn
-        ? `${fullName} ${studentIdentifier} has checked in to the library.`.replace(/\s+/g, ' ')
-        : `${fullName} ${studentIdentifier} has checked out (Duration: ${duration} mins).`.replace(/\s+/g, ' '),
+        ? `${fullName} ${studentIdentifier} has logged in to the library.`.replace(/\s+/g, ' ')
+        : `${fullName} ${studentIdentifier} has logged out (Duration: ${duration} mins).`.replace(/\s+/g, ' '),
       target_user_id: null, // Broadcast to desktop staff
       triggered_by: user.id,
       ref_table: 'attendance_logs',
