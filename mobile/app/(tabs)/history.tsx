@@ -150,7 +150,7 @@ export default function HistoryScreen() {
     if (!user?.id) return;
     setLoading(true);
     try {
-      const [attendanceRes, borrowRes] = await Promise.all([
+      const [attendanceRes, borrowRes, penaltiesRes] = await Promise.all([
         api.get('/attendance/my-history').catch(err => {
           console.warn('Failed to fetch attendance history:', err?.message);
           return { data: [] };
@@ -160,6 +160,10 @@ export default function HistoryScreen() {
             console.warn('Failed to fetch borrow history:', err?.message);
             return { data: [] };
           });
+        }),
+        api.get(`/borrowing/user/${user.id}/penalties`).catch(err => {
+          console.warn('Failed to fetch user penalties:', err?.message);
+          return { data: null };
         })
       ]);
 
@@ -223,10 +227,42 @@ export default function HistoryScreen() {
         }
       });
 
-      // Mock penalty event if applicable
-      if (Number(user?.penalty_balance) > 0) {
+      // Process real penalty events (unpaid and paid)
+      const fetchedPenalties = penaltiesRes?.data?.penalties;
+      if (Array.isArray(fetchedPenalties) && fetchedPenalties.length > 0) {
+        fetchedPenalties.forEach((p: any) => {
+          const amountStr = `₱${Number(p.amount || 0).toFixed(2)}`;
+          const rateStr = `₱${Number(p.daily_rate || 5).toFixed(2)}/day`;
+          const daysCount = Number(p.days_overdue || 0);
+          const daysStr = daysCount > 0 ? `${daysCount} day${daysCount !== 1 ? 's' : ''} overdue` : '';
+
+          if (p.status === 'PAID') {
+            newEvents.push({
+              id: `pen-paid-${p.id}`,
+              type: 'PENALTY',
+              timestamp: p.paid_at || p.created_at || new Date().toISOString(),
+              title: `Penalty Paid • ${amountStr}`,
+              subtitle: `${p.book_title || 'Library Book'}${daysStr ? ` (${daysStr})` : ''}`
+            });
+          } else if (p.status === 'UNPAID') {
+            const label =
+              p.type === 'DAMAGE'
+                ? 'Damage Penalty'
+                : p.type === 'LOST'
+                ? 'Lost Book Penalty'
+                : 'Overdue Penalty';
+            newEvents.push({
+              id: `pen-unpaid-${p.id}`,
+              type: 'PENALTY',
+              timestamp: p.return_date || p.created_at || p.due_date || new Date().toISOString(),
+              title: `${label} • ${amountStr} (Unpaid)`,
+              subtitle: `${p.book_title || 'Library Book'}${daysStr ? ` • ${daysStr} (${rateStr})` : ''}`
+            });
+          }
+        });
+      } else if (Number(user?.penalty_balance) > 0) {
         newEvents.push({
-          id: `pen-mock`,
+          id: `pen-fallback`,
           type: 'PENALTY',
           timestamp: new Date().toISOString(),
           title: 'Pending Penalty Balance',

@@ -1,6 +1,7 @@
 const prisma = require('../db');
 const jwt = require('jsonwebtoken');
 const { notifyBorrow, notifyReturn, notifyPenalty, notifyPenaltyPaid } = require('../services/notificationService');
+const { calculateOverdueDetails, buildBorrowPenaltyInfo, syncUserPenaltyBalance } = require('../utils/penaltyCalculator');
 
 const getStats = async (req, res) => {
   try {
@@ -121,7 +122,9 @@ const validateUser = async (req, res) => {
     }
 
     const settings = await prisma.librarySettings.findFirst();
-    if (settings && parseFloat(user.penalty_balance) >= parseFloat(settings.suspension_threshold)) {
+    const livePenaltyBalance = await syncUserPenaltyBalance(prisma, user.id, settings);
+    user.penalty_balance = livePenaltyBalance.toFixed(2);
+    if (settings && livePenaltyBalance >= parseFloat(settings.suspension_threshold)) {
       return res.status(400).json({ error: `User is suspended due to unpaid penalties (Threshold: ₱${settings.suspension_threshold}).` });
     }
 
@@ -382,6 +385,8 @@ const returnBook = async (req, res) => {
         }
       }
 
+      await syncUserPenaltyBalance(tx, record.user_id);
+
       await notifyReturn({
         user: record.user,
         book: record.book,
@@ -503,6 +508,8 @@ const payPenalty = async (req, res) => {
         }
       });
 
+      await syncUserPenaltyBalance(tx, penalty.user_id, settings);
+
       await notifyPenaltyPaid({
         user: penalty.user,
         amount: finalAmount,
@@ -525,25 +532,36 @@ const getUserActiveBorrowRecords = async (req, res) => {
       return res.status(400).json({ error: 'Invalid user ID' });
     }
 
-    const records = await prisma.borrowRecord.findMany({
-      where: {
-        user_id: userId,
-        status: { in: ['BORROWED', 'OVERDUE'] }
-      },
-      include: {
-        book: {
-          include: {
-            author: true,
-            genre: true
+    const [settings, records] = await Promise.all([
+      prisma.librarySettings.findFirst(),
+      prisma.borrowRecord.findMany({
+        where: {
+          user_id: userId,
+          status: { in: ['BORROWED', 'OVERDUE'] }
+        },
+        include: {
+          book: {
+            include: {
+              author: true,
+              genre: true
+            }
+          },
+          penalties: {
+            orderBy: { created_at: 'desc' }
           }
+        },
+        orderBy: {
+          due_date: 'asc'
         }
-      },
-      orderBy: {
-        due_date: 'asc'
-      }
-    });
+      })
+    ]);
 
-    res.json(records);
+    const enriched = records.map(record => ({
+      ...record,
+      penalty_info: buildBorrowPenaltyInfo(record, settings)
+    }));
+
+    res.json(enriched);
   } catch (error) {
     console.error('Error fetching user active borrows:', error);
     res.status(500).json({ error: 'Server error' });
@@ -559,28 +577,199 @@ const getUserBorrowHistory = async (req, res) => {
 
     const limit = parseInt(req.query.limit) || 50;
 
-    const records = await prisma.borrowRecord.findMany({
-      where: {
-        user_id: userId
-      },
-      take: limit,
-      include: {
-        book: {
-          include: {
-            author: true,
-            genre: true
+    const [settings, records] = await Promise.all([
+      prisma.librarySettings.findFirst(),
+      prisma.borrowRecord.findMany({
+        where: {
+          user_id: userId
+        },
+        take: limit,
+        include: {
+          book: {
+            include: {
+              author: true,
+              genre: true
+            }
+          },
+          penalties: {
+            orderBy: { created_at: 'desc' }
           }
+        },
+        orderBy: {
+          borrow_date: 'desc'
         }
-      },
-      orderBy: {
-        borrow_date: 'desc'
-      }
-    });
+      })
+    ]);
 
-    res.json(records);
+    const enriched = records.map(record => ({
+      ...record,
+      penalty_info: buildBorrowPenaltyInfo(record, settings)
+    }));
+
+    res.json(enriched);
   } catch (error) {
     console.error('Error fetching user borrow history:', error);
     res.status(500).json({ error: 'Server error' });
+  }
+};
+
+const getUserPenalties = async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id, 10);
+    if (isNaN(userId)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+
+    const settings = await prisma.librarySettings.findFirst();
+    const dailyRate = settings && settings.penalty_fee_per_day
+      ? parseFloat(settings.penalty_fee_per_day)
+      : 5.0;
+
+    const activeBorrows = await prisma.borrowRecord.findMany({
+      where: {
+        user_id: userId,
+        status: { in: ['BORROWED', 'OVERDUE'] },
+        return_date: null
+      },
+      include: {
+        penalties: {
+          where: { status: 'UNPAID', type: 'OVERDUE' }
+        }
+      }
+    });
+
+    for (const record of activeBorrows) {
+      const details = calculateOverdueDetails(record, settings, record.penalties[0] || null);
+      if (details.daysOverdue > 0) {
+        if (record.status !== 'OVERDUE') {
+          await prisma.borrowRecord.update({
+            where: { id: record.id },
+            data: { status: 'OVERDUE' }
+          });
+        }
+        if (!record.penalties || record.penalties.length === 0) {
+          await prisma.penalty.create({
+            data: {
+              borrow_id: record.id,
+              user_id: userId,
+              type: 'OVERDUE',
+              amount: details.penaltyAmount,
+              days_overdue: details.daysOverdue,
+              status: 'UNPAID'
+            }
+          });
+        } else if (
+          record.penalties[0].days_overdue !== details.daysOverdue ||
+          parseFloat(record.penalties[0].amount) !== details.penaltyAmount
+        ) {
+          await prisma.penalty.update({
+            where: { id: record.penalties[0].id },
+            data: {
+              days_overdue: details.daysOverdue,
+              amount: details.penaltyAmount
+            }
+          });
+        }
+      }
+    }
+
+    const penalties = await prisma.penalty.findMany({
+      where: { user_id: userId },
+      include: {
+        borrow: {
+          include: {
+            book: {
+              include: { author: true }
+            }
+          }
+        }
+      },
+      orderBy: { created_at: 'desc' }
+    });
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const weekStart = new Date(todayStart);
+    weekStart.setDate(weekStart.getDate() - 6);
+
+    let totalUnpaid = 0;
+    let todayAccrual = 0;
+    let weekAccrual = 0;
+    let unpaidCount = 0;
+
+    const mappedPenalties = penalties.map(p => {
+      const details = calculateOverdueDetails(p.borrow, settings, p);
+      const isUnpaid = p.status === 'UNPAID';
+      const amount = isUnpaid ? details.penaltyAmount : parseFloat(p.amount || 0);
+      const daysOverdue = isUnpaid ? details.daysOverdue : (p.days_overdue || details.daysOverdue);
+
+      if (isUnpaid && p.type === 'OVERDUE' && (p.days_overdue !== details.daysOverdue || parseFloat(p.amount) !== details.penaltyAmount)) {
+        prisma.penalty.update({
+          where: { id: p.id },
+          data: {
+            days_overdue: details.daysOverdue,
+            amount: details.penaltyAmount
+          }
+        }).catch(err => console.error('Failed to sync user penalty in DB:', err.message));
+      }
+
+      if (isUnpaid) {
+        unpaidCount++;
+        totalUnpaid += amount;
+
+        if (!details.isReturned && daysOverdue > 0 && p.type === 'OVERDUE') {
+          todayAccrual += details.dailyRate;
+          weekAccrual += Math.min(daysOverdue, 7) * details.dailyRate;
+        } else {
+          const refDate = new Date(details.returnDate || p.created_at);
+          if (refDate >= todayStart) {
+            todayAccrual += amount;
+          }
+          if (refDate >= weekStart) {
+            weekAccrual += amount;
+          }
+        }
+      }
+
+      return {
+        id: p.id,
+        borrow_id: p.borrow_id,
+        book_title: p.borrow?.book?.title || 'Library Book',
+        book_author: p.borrow?.book?.author?.name || 'Unknown Author',
+        type: p.type,
+        status: p.status,
+        days_overdue: daysOverdue,
+        daily_rate: details.dailyRate,
+        amount,
+        is_returned: details.isReturned,
+        due_date: p.borrow?.due_date || null,
+        return_date: details.returnDate || null,
+        paid_at: p.paid_at || null,
+        created_at: p.created_at
+      };
+    });
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { penalty_balance: totalUnpaid }
+    }).catch(() => {});
+
+    res.json({
+      totalUnpaid,
+      todayAccrual,
+      weekAccrual,
+      unpaidCount,
+      rules: {
+        penalty_fee_per_day: dailyRate,
+        damage_fee: settings?.damage_fee ? parseFloat(settings.damage_fee) : 5.0,
+        lost_book_fee: settings?.lost_book_fee ? parseFloat(settings.lost_book_fee) : 5.0,
+        suspension_threshold: settings?.suspension_threshold ? parseFloat(settings.suspension_threshold) : 100.0
+      },
+      penalties: mappedPenalties
+    });
+  } catch (error) {
+    console.error('Get User Penalties Error:', error);
+    res.status(500).json({ error: 'Server error fetching user penalties' });
   }
 };
 
@@ -689,6 +878,7 @@ module.exports = {
   getUserActiveBorrow,
   getUserActiveBorrowRecords,
   getUserBorrowHistory,
+  getUserPenalties,
   getAllBorrowRecords,
   returnBook,
   getPenalties,

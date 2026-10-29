@@ -81,6 +81,110 @@ function calculateOverdueDetails(borrow, settings, storedPenalty = null) {
   };
 }
 
+function buildBorrowPenaltyInfo(borrow, settings) {
+  const penaltyFeePerDay = settings && settings.penalty_fee_per_day
+    ? parseFloat(settings.penalty_fee_per_day)
+    : 5.0;
+
+  const penalties = Array.isArray(borrow?.penalties) ? borrow.penalties : [];
+  const unpaidPenalty = penalties.find(p => p.status === 'UNPAID');
+  const paidPenalty = penalties.find(p => p.status === 'PAID');
+  const targetPenalty = unpaidPenalty || paidPenalty || null;
+
+  const details = calculateOverdueDetails(borrow, settings, targetPenalty);
+
+  if (unpaidPenalty) {
+    return {
+      penalty_id: unpaidPenalty.id,
+      status: 'UNPAID',
+      type: unpaidPenalty.type || 'OVERDUE',
+      days_overdue: details.daysOverdue,
+      amount: details.penaltyAmount,
+      daily_rate: details.dailyRate,
+      paid_at: null
+    };
+  }
+
+  if (!details.isReturned && details.daysOverdue > 0) {
+    return {
+      penalty_id: null,
+      status: 'UNPAID',
+      type: 'OVERDUE',
+      days_overdue: details.daysOverdue,
+      amount: details.penaltyAmount,
+      daily_rate: details.dailyRate,
+      paid_at: null
+    };
+  }
+
+  if (paidPenalty) {
+    return {
+      penalty_id: paidPenalty.id,
+      status: 'PAID',
+      type: paidPenalty.type || 'OVERDUE',
+      days_overdue: paidPenalty.days_overdue || details.daysOverdue,
+      amount: parseFloat(paidPenalty.amount || 0),
+      daily_rate: details.dailyRate,
+      paid_at: paidPenalty.paid_at || null
+    };
+  }
+
+  return {
+    penalty_id: null,
+    status: 'NONE',
+    type: null,
+    days_overdue: 0,
+    amount: 0,
+    daily_rate: penaltyFeePerDay,
+    paid_at: null
+  };
+}
+
+async function syncUserPenaltyBalance(tx, userId, settingsArg = null) {
+  if (!userId) return 0;
+  const settings = settingsArg || await tx.librarySettings.findFirst();
+  const [unpaidPenalties, activeBorrows] = await Promise.all([
+    tx.penalty.findMany({
+      where: { user_id: userId, status: 'UNPAID' },
+      include: { borrow: true }
+    }),
+    tx.borrowRecord.findMany({
+      where: {
+        user_id: userId,
+        status: { in: ['BORROWED', 'OVERDUE'] },
+        return_date: null
+      },
+      include: {
+        penalties: { where: { status: 'UNPAID' } }
+      }
+    })
+  ]);
+
+  let totalUnpaid = 0;
+  for (const p of unpaidPenalties) {
+    const details = calculateOverdueDetails(p.borrow, settings, p);
+    totalUnpaid += details.penaltyAmount;
+  }
+
+  for (const record of activeBorrows) {
+    if (!record.penalties || record.penalties.length === 0) {
+      const details = calculateOverdueDetails(record, settings, null);
+      if (details.daysOverdue > 0) {
+        totalUnpaid += details.penaltyAmount;
+      }
+    }
+  }
+
+  await tx.user.update({
+    where: { id: userId },
+    data: { penalty_balance: totalUnpaid }
+  });
+
+  return totalUnpaid;
+}
+
 module.exports = {
-  calculateOverdueDetails
+  calculateOverdueDetails,
+  buildBorrowPenaltyInfo,
+  syncUserPenaltyBalance
 };

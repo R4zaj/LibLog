@@ -8,6 +8,7 @@ const {
   getUserActiveBorrow,
   getUserActiveBorrowRecords,
   getUserBorrowHistory,
+  getUserPenalties,
   getAllBorrowRecords,
   returnBook,
   getPenalties,
@@ -24,6 +25,7 @@ router.post('/checkout', checkout);
 router.get('/user-active-borrow/:bookIdentifier/:userIdentifier', getUserActiveBorrow);
 router.get('/user/:id', getUserActiveBorrowRecords);
 router.get('/user/:id/history', getUserBorrowHistory);
+router.get('/user/:id/penalties', getUserPenalties);
 router.post('/return', returnBook);
 router.get('/penalties', getPenalties);
 router.post('/penalties/:id/pay', payPenalty);

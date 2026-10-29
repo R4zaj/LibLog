@@ -2,6 +2,7 @@ const prisma = require('../db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { sendOtpEmail } = require('../services/emailService');
+const { syncUserPenaltyBalance } = require('../utils/penaltyCalculator');
 
 const otpStore = new Map(); // Store OTPs in memory: { email: { otp, expiresAt } }
 
@@ -255,6 +256,7 @@ const register = async (req, res) => {
     const token = generateToken(user);
     const { password_hash, ...userWithoutPassword } = user;
     userWithoutPassword.stats = await computeUserStats(user.id);
+    userWithoutPassword.penalty_balance = (await syncUserPenaltyBalance(prisma, user.id)).toFixed(2);
     res.status(201).json({ user: userWithoutPassword, token });
   } catch (error) {
     console.error('Register error:', error);
@@ -303,6 +305,7 @@ const login = async (req, res) => {
     const token = generateToken(user);
     const { password_hash, ...userWithoutPassword } = user;
     userWithoutPassword.stats = await computeUserStats(user.id);
+    userWithoutPassword.penalty_balance = (await syncUserPenaltyBalance(prisma, user.id)).toFixed(2);
     const crypto = require('crypto');
     userWithoutPassword.offline_secret = crypto.createHmac('sha256', process.env.JWT_SECRET).update(user.student_id).digest('hex');
     res.json({ user: userWithoutPassword, token });
@@ -325,6 +328,7 @@ const getMe = async (req, res) => {
 
     const { password_hash, ...userWithoutPassword } = user;
     userWithoutPassword.stats = await computeUserStats(req.user.id);
+    userWithoutPassword.penalty_balance = (await syncUserPenaltyBalance(prisma, req.user.id)).toFixed(2);
     const crypto = require('crypto');
     userWithoutPassword.offline_secret = crypto.createHmac('sha256', process.env.JWT_SECRET).update(user.student_id).digest('hex');
 
@@ -375,6 +379,7 @@ const updateProfile = async (req, res) => {
     
     const { password_hash, ...userWithoutPassword } = user;
     userWithoutPassword.stats = await computeUserStats(user.id);
+    userWithoutPassword.penalty_balance = (await syncUserPenaltyBalance(prisma, user.id)).toFixed(2);
     res.json({ user: userWithoutPassword, message: 'Profile updated successfully' });
   } catch (error) {
     console.error('Update profile error:', error);

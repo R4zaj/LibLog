@@ -15,6 +15,7 @@ import type {
   BorrowRecordWithBook,
   LiteratureBook,
   AttendanceLog,
+  UserPenaltiesResponse,
 } from '../../types/api';
 import { TabBarVisibilityContext } from './_layout';
 import { BookDetailModal } from '../../components/BookDetailModal';
@@ -53,7 +54,9 @@ export default function Home() {
   const { setTabBarVisible } = React.useContext(TabBarVisibilityContext);
   const lastOffsetY = React.useRef(0);
   const [attendanceLogs, setAttendanceLogs] = useState<AttendanceLog[]>([]);
-  const [penaltyRange, setPenaltyRange] = useState<'day' | 'week' | 'all'>('day');
+  const [penaltyRange, setPenaltyRange] = useState<'day' | 'week' | 'all'>('all');
+  const [penaltyData, setPenaltyData] = useState<UserPenaltiesResponse | null>(null);
+  const [penaltiesModalOpen, setPenaltiesModalOpen] = useState(false);
 
   const fetchDashboardData = useCallback(async () => {
     if (!user?.id) return; // don't hit authenticated-adjacent endpoints before login resolves
@@ -73,19 +76,26 @@ export default function Home() {
     };
 
     try {
-      const [annRes, borrowRes, booksRes, attendanceRes] = await Promise.all([
+      const [annRes, borrowRes, booksRes, attendanceRes, penaltiesRes] = await Promise.all([
         safeGet<Announcement[]>(api.get<Announcement[]>('/announcements/active'), []),
         user?.id
           ? safeGet<BorrowRecordWithBook[]>(api.get<BorrowRecordWithBook[]>(`/borrowing/user/${user.id}`), [])
           : Promise.resolve({ data: [] as BorrowRecordWithBook[] }),
         safeGet<LiteratureBook[]>(api.get<LiteratureBook[]>('/literatures/books'), []),
         safeGet<AttendanceLog[]>(api.get<AttendanceLog[]>('/attendance/my-history'), []),
+        user?.id
+          ? safeGet<UserPenaltiesResponse | null>(api.get<UserPenaltiesResponse>(`/borrowing/user/${user.id}/penalties`), null)
+          : Promise.resolve({ data: null }),
       ]);
 
       setActiveBorrows(borrowRes.data);
       setBooks((booksRes.data || []).filter((b) => !b.is_archived));
       setAttendanceLogs(attendanceRes.data);
+      if (penaltiesRes.data) {
+        setPenaltyData(penaltiesRes.data);
+      }
 
+      const liveDailyRate = penaltiesRes.data?.rules?.penalty_fee_per_day ?? 5.0;
       const rawAnnouncements = annRes.data || [];
       const rawBorrows = borrowRes.data || [];
       const now = new Date();
@@ -97,11 +107,14 @@ export default function Home() {
         .forEach((b) => {
           if (!seenOverdueBookIds.has(b.book_id)) {
             seenOverdueBookIds.add(b.book_id);
-            const daysOverdue = Math.abs(Math.ceil((new Date(b.due_date).getTime() - now.getTime()) / (1000 * 3600 * 24)));
+            const fallbackDays = Math.max(1, Math.abs(Math.ceil((new Date(b.due_date).getTime() - now.getTime()) / (1000 * 3600 * 24))));
+            const daysOverdue = b.penalty_info && b.penalty_info.days_overdue > 0 ? b.penalty_info.days_overdue : fallbackDays;
+            const rate = b.penalty_info?.daily_rate ?? liveDailyRate;
+            const feeAmount = b.penalty_info && b.penalty_info.amount > 0 ? b.penalty_info.amount : daysOverdue * rate;
             overdueNotifications.push({
               id: `overdue-${b.id}`,
               title: 'Book Overdue',
-              body: `"${b.book?.title}" is ${daysOverdue} day${daysOverdue !== 1 ? 's' : ''} overdue. Please return it immediately.`,
+              body: `"${b.book?.title}" is ${daysOverdue} day${daysOverdue !== 1 ? 's' : ''} overdue • Penalty: ₱${feeAmount.toFixed(2)} (₱${rate.toFixed(2)}/day). Please return it immediately.`,
               created_at: b.due_date,
               is_overdue: true,
             });
@@ -295,55 +308,90 @@ export default function Home() {
         </View>
 
         {/* Right Card: Penalties */}
-        <View style={styles.gridCard}>
-          <Text style={styles.gridCardTitle}>Penalties</Text>
-          <View style={styles.penaltyValueCont}>
-            <Text style={styles.currencySymbol}>₱</Text>
-            <Text style={styles.penaltyValue}>
-              {(() => {
-                if (penaltyRange === 'all') return Number(user?.penalty_balance || 0).toFixed(2);
-                
-                // Derive estimated day/week penalties from activeBorrows
-                const now = new Date().getTime();
-                const overdues = activeBorrows.filter(b => b.status === 'OVERDUE' || (b.status === 'BORROWED' && new Date(b.due_date).getTime() < now));
-                let totalEstimated = 0;
-                
-                overdues.forEach(b => {
-                  const daysOverdue = Math.abs(Math.ceil((new Date(b.due_date).getTime() - now) / (1000 * 3600 * 24)));
-                  // Mock 5 pesos per day penalty
-                  const penaltyPerDay = 5;
-                  if (penaltyRange === 'day' && daysOverdue > 0) {
-                     // Assume today accrued a daily penalty if overdue
-                     totalEstimated += penaltyPerDay;
-                  } else if (penaltyRange === 'week' && daysOverdue > 0) {
-                     // Max 7 days of penalty for this week
-                     totalEstimated += Math.min(daysOverdue, 7) * penaltyPerDay;
-                  }
-                });
-                return totalEstimated.toFixed(2);
-              })()}
-            </Text>
-          </View>
-          
-          <View style={styles.segmentedPill}>
-            {['Day', 'Week', 'All'].map((tab) => {
-              const isActive = penaltyRange === tab.toLowerCase();
-              return (
-                <TouchableOpacity 
-                  key={tab} 
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setPenaltyRange(tab.toLowerCase() as 'day' | 'week' | 'all');
+        {(() => {
+          const dailyRate = penaltyData?.rules?.penalty_fee_per_day ?? 5.0;
+          const totalUnpaid = penaltyData ? penaltyData.totalUnpaid : Number(user?.penalty_balance || 0);
+          const unpaidCount = penaltyData?.unpaidCount ?? 0;
+
+          const computeFallbackRange = (range: 'day' | 'week') => {
+            const nowMs = Date.now();
+            const overdues = activeBorrows.filter(
+              (b) => b.status === 'OVERDUE' || (b.status === 'BORROWED' && new Date(b.due_date).getTime() < nowMs)
+            );
+            let sum = 0;
+            overdues.forEach((b) => {
+              const d = b.penalty_info?.days_overdue || Math.max(1, Math.abs(Math.ceil((new Date(b.due_date).getTime() - nowMs) / (1000 * 3600 * 24))));
+              const r = b.penalty_info?.daily_rate ?? dailyRate;
+              if (range === 'day' && d > 0) sum += r;
+              if (range === 'week' && d > 0) sum += Math.min(d, 7) * r;
+            });
+            return sum;
+          };
+
+          const displayedAmount =
+            penaltyRange === 'all'
+              ? totalUnpaid
+              : penaltyRange === 'week'
+              ? penaltyData?.weekAccrual ?? computeFallbackRange('week')
+              : penaltyData?.todayAccrual ?? computeFallbackRange('day');
+
+          const hasUnpaid = totalUnpaid > 0;
+
+          return (
+            <View style={[styles.gridCard, hasUnpaid && { borderColor: '#fecaca' }]}>
+              <TouchableOpacity
+                activeOpacity={0.75}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setPenaltiesModalOpen(true);
+                }}
+              >
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <Text style={[styles.gridCardTitle, { marginBottom: 0 }]}>Penalties</Text>
+                  <ChevronRight size={16} color={hasUnpaid ? '#ef4444' : theme.textSecondary} />
+                </View>
+                <View style={styles.penaltyValueCont}>
+                  <Text style={[styles.currencySymbol, displayedAmount > 0 && { color: '#ef4444' }]}>₱</Text>
+                  <Text style={[styles.penaltyValue, displayedAmount > 0 && { color: '#ef4444' }]}>
+                    {displayedAmount.toFixed(2)}
+                  </Text>
+                </View>
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: '600',
+                    color: hasUnpaid ? '#dc2626' : theme.textSecondary,
+                    marginTop: 4,
                   }}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  style={[styles.segmentTab, isActive && styles.segmentTabActive]}
+                  numberOfLines={1}
                 >
-                  <Text style={[styles.segmentTabText, isActive && styles.segmentTabTextActive]}>{tab}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
+                  {hasUnpaid
+                    ? `${unpaidCount || 1} unpaid • ₱${dailyRate.toFixed(2)}/day`
+                    : `Fee rate: ₱${dailyRate.toFixed(2)}/day`}
+                </Text>
+              </TouchableOpacity>
+
+              <View style={[styles.segmentedPill, { marginTop: 12 }]}>
+                {['Day', 'Week', 'All'].map((tab) => {
+                  const isActive = penaltyRange === tab.toLowerCase();
+                  return (
+                    <TouchableOpacity
+                      key={tab}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setPenaltyRange(tab.toLowerCase() as 'day' | 'week' | 'all');
+                      }}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      style={[styles.segmentTab, isActive && styles.segmentTabActive]}
+                    >
+                      <Text style={[styles.segmentTabText, isActive && styles.segmentTabTextActive]}>{tab}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          );
+        })()}
       </View>
 
       {/* Upcoming Borrows */}
@@ -363,18 +411,31 @@ export default function Home() {
             <View style={styles.borrowsList}>
               {activeBorrows.slice(0, 3).map((borrow, idx) => {
                 const daysLeft = Math.ceil((new Date(borrow.due_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                const isOverdueItem = borrow.status === 'OVERDUE' || daysLeft < 0;
+                const dailyRate = borrow.penalty_info?.daily_rate ?? penaltyData?.rules?.penalty_fee_per_day ?? 5.0;
+                const overdueDays =
+                  borrow.penalty_info && borrow.penalty_info.days_overdue > 0
+                    ? borrow.penalty_info.days_overdue
+                    : Math.max(1, Math.abs(daysLeft));
+                const overdueFee =
+                  borrow.penalty_info && borrow.penalty_info.amount > 0
+                    ? borrow.penalty_info.amount
+                    : isOverdueItem
+                    ? overdueDays * dailyRate
+                    : 0;
+
                 let statusBg = '#ecfdf5';
                 let statusColor = '#10b981';
                 let statusText = 'Available';
                 
-                if (daysLeft <= 0) {
+                if (isOverdueItem) {
                   statusBg = '#fef2f2';
                   statusColor = '#ef4444';
-                  statusText = `Overdue by ${Math.abs(daysLeft)} day${Math.abs(daysLeft) !== 1 ? 's' : ''}`;
+                  statusText = `Overdue by ${overdueDays} day${overdueDays !== 1 ? 's' : ''}`;
                 } else if (daysLeft <= 2) {
                   statusBg = '#fef3c7';
                   statusColor = '#b45309';
-                  statusText = `Due in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}`;
+                  statusText = daysLeft === 0 ? 'Due today' : `Due in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}`;
                 } else {
                   statusText = `${daysLeft} days left`;
                 }
@@ -391,10 +452,17 @@ export default function Home() {
                     </View>
                     <View style={styles.borrowRowContent}>
                       <Text style={styles.borrowRowTitle} numberOfLines={1}>{borrow.book?.title || 'Unknown Book'}</Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-                        <View style={[styles.borrowStatusPill, { backgroundColor: statusBg, marginRight: 8 }]}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                        <View style={[styles.borrowStatusPill, { backgroundColor: statusBg }]}>
                           <Text style={[styles.borrowStatusText, { color: statusColor, fontWeight: '700' }]}>{statusText}</Text>
                         </View>
+                        {isOverdueItem && overdueFee > 0 && (
+                          <View style={[styles.borrowStatusPill, { backgroundColor: '#fff1f2' }]}>
+                            <Text style={[styles.borrowStatusText, { color: '#be123c', fontWeight: '800' }]}>
+                              ₱{overdueFee.toFixed(2)}
+                            </Text>
+                          </View>
+                        )}
                         <Text style={styles.borrowRowDate}>{new Date(borrow.due_date).toLocaleDateString()}</Text>
                       </View>
                     </View>
@@ -561,7 +629,143 @@ export default function Home() {
         onClose={() => setSelectedBook(null)}
         isFavorite={selectedBook ? isFavorite(selectedBook.id) : false}
         onToggleFavorite={() => selectedBook && toggleFavorite(selectedBook)}
+        penaltyPerDay={penaltyData?.rules?.penalty_fee_per_day}
       />
+
+      {/* Penalty Fee Breakdown Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={penaltiesModalOpen}
+        onRequestClose={() => setPenaltiesModalOpen(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setPenaltiesModalOpen(false)}>
+          <View style={[styles.modalContent, { paddingBottom: 20 }]} onStartShouldSetResponder={() => true}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Penalty Fees</Text>
+              <Pressable
+                onPress={() => setPenaltiesModalOpen(false)}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: theme.background, borderWidth: 1, borderColor: theme.border, justifyContent: 'center', alignItems: 'center' }}
+              >
+                <X size={20} color={theme.textSecondary} />
+              </Pressable>
+            </View>
+
+            {(() => {
+              const totalUnpaid = penaltyData ? penaltyData.totalUnpaid : Number(user?.penalty_balance || 0);
+              const dailyRate = penaltyData?.rules?.penalty_fee_per_day ?? 5.0;
+              const damageFee = penaltyData?.rules?.damage_fee ?? 5.0;
+              const lostFee = penaltyData?.rules?.lost_book_fee ?? 5.0;
+              const items = penaltyData?.penalties || [];
+
+              return (
+                <>
+                  {/* Total Unpaid Banner */}
+                  <View
+                    style={{
+                      backgroundColor: totalUnpaid > 0 ? '#fef2f2' : '#ecfdf5',
+                      borderWidth: 1,
+                      borderColor: totalUnpaid > 0 ? '#fecaca' : '#a7f3d0',
+                      borderRadius: 16,
+                      padding: 16,
+                      marginBottom: 12,
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <View style={{ flex: 1, marginRight: 12 }}>
+                      <Text style={{ fontSize: 12, fontWeight: '700', color: totalUnpaid > 0 ? '#b91c1c' : '#047857', textTransform: 'uppercase' }}>
+                        Total Unpaid Penalty
+                      </Text>
+                      <Text style={{ fontSize: 12, fontWeight: '500', color: totalUnpaid > 0 ? '#dc2626' : '#059669', marginTop: 2 }}>
+                        {totalUnpaid > 0 ? 'Settle at the library circulation desk' : 'Your account is in good standing'}
+                      </Text>
+                    </View>
+                    <Text style={{ fontSize: 24, fontWeight: '800', color: totalUnpaid > 0 ? '#dc2626' : '#059669' }}>
+                      ₱{totalUnpaid.toFixed(2)}
+                    </Text>
+                  </View>
+
+                  {/* Library Penalty Fee Schedule */}
+                  <View
+                    style={{
+                      backgroundColor: theme.background,
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                      borderRadius: 14,
+                      padding: 12,
+                      marginBottom: 14,
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <View style={{ flex: 1, alignItems: 'center' }}>
+                      <Text style={{ fontSize: 11, color: theme.textSecondary, fontWeight: '600' }}>Overdue</Text>
+                      <Text style={{ fontSize: 13, color: theme.text, fontWeight: '800', marginTop: 2 }}>₱{dailyRate.toFixed(2)}/day</Text>
+                    </View>
+                    <View style={{ width: 1, backgroundColor: theme.border }} />
+                    <View style={{ flex: 1, alignItems: 'center' }}>
+                      <Text style={{ fontSize: 11, color: theme.textSecondary, fontWeight: '600' }}>Damaged</Text>
+                      <Text style={{ fontSize: 13, color: theme.text, fontWeight: '800', marginTop: 2 }}>₱{damageFee.toFixed(2)}</Text>
+                    </View>
+                    <View style={{ width: 1, backgroundColor: theme.border }} />
+                    <View style={{ flex: 1, alignItems: 'center' }}>
+                      <Text style={{ fontSize: 11, color: theme.textSecondary, fontWeight: '600' }}>Lost Book</Text>
+                      <Text style={{ fontSize: 13, color: theme.text, fontWeight: '800', marginTop: 2 }}>₱{lostFee.toFixed(2)}</Text>
+                    </View>
+                  </View>
+
+                  {/* Penalties List */}
+                  <ScrollView style={styles.notifList} showsVerticalScrollIndicator={false}>
+                    {items.length === 0 ? (
+                      <Text style={styles.noNotifsText}>No penalty records found.</Text>
+                    ) : (
+                      items.map((p) => {
+                        const isUnpaid = p.status === 'UNPAID';
+                        return (
+                          <View key={String(p.id)} style={styles.notifItem}>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                              <View style={{ flex: 1, marginRight: 12 }}>
+                                <Text style={styles.notifTitle} numberOfLines={2}>{p.book_title}</Text>
+                                <Text style={[styles.notifMessage, { marginTop: 3 }]}>
+                                  {p.days_overdue > 0 ? `${p.days_overdue} day${p.days_overdue !== 1 ? 's' : ''} overdue • ` : ''}
+                                  {p.is_returned ? 'Returned' : 'Not Returned'}
+                                </Text>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 }}>
+                                  <View
+                                    style={{
+                                      backgroundColor: isUnpaid ? '#fef2f2' : '#ecfdf5',
+                                      paddingHorizontal: 8,
+                                      paddingVertical: 2,
+                                      borderRadius: 9999,
+                                    }}
+                                  >
+                                    <Text style={{ fontSize: 10, fontWeight: '700', color: isUnpaid ? '#dc2626' : '#059669' }}>
+                                      {p.status}
+                                    </Text>
+                                  </View>
+                                  <Text style={{ fontSize: 11, color: theme.textSecondary, fontWeight: '500' }}>
+                                    {p.type} • ₱{Number(p.daily_rate || dailyRate).toFixed(2)}/day
+                                  </Text>
+                                </View>
+                              </View>
+                              <Text style={{ fontSize: 17, fontWeight: '800', color: isUnpaid ? '#dc2626' : theme.text }}>
+                                ₱{Number(p.amount).toFixed(2)}
+                              </Text>
+                            </View>
+                          </View>
+                        );
+                      })
+                    )}
+                  </ScrollView>
+                </>
+              );
+            })()}
+          </View>
+        </Pressable>
+      </Modal>
 
       {/* Announcements Modal */}
       <Modal

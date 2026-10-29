@@ -1,7 +1,7 @@
 const prisma = require('../db');
 const { notifyOverdue } = require('./notificationService');
 const { sendOverdueNotice } = require('./emailService');
-const { calculateOverdueDetails } = require('../utils/penaltyCalculator');
+const { calculateOverdueDetails, syncUserPenaltyBalance } = require('../utils/penaltyCalculator');
 
 /**
  * Overdue Detection and Reminder Engine
@@ -86,6 +86,8 @@ async function checkAndProcessOverdueBooks() {
           results.penaltiesUpdated++;
         }
       }
+
+      await syncUserPenaltyBalance(prisma, record.user_id, settings);
 
       // Check if overdue notification/email was already sent today for this borrow record
       const notifiedToday = await prisma.notification.findFirst({

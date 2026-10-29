@@ -1,8 +1,12 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, Modal, TouchableOpacity, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { Heart, X, MapPin, CheckCircle2, BookOpen, QrCode, ArrowLeft, Archive } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LiteratureBook } from '../types/api';
+import { LiteratureBook, UserPenaltiesResponse } from '../types/api';
+import { useAuth } from '../context/AuthContext';
+import api from '../api';
+
+let cachedDailyPenaltyRate: number | null = null;
 
 interface BookDetailModalProps {
   isOpen: boolean;
@@ -10,6 +14,7 @@ interface BookDetailModalProps {
   onClose: () => void;
   isFavorite: boolean;
   onToggleFavorite: () => void;
+  penaltyPerDay?: number;
 }
 
 export function BookDetailModal({
@@ -18,8 +23,39 @@ export function BookDetailModal({
   onClose,
   isFavorite,
   onToggleFavorite,
+  penaltyPerDay,
 }: BookDetailModalProps) {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+  const [fetchedRate, setFetchedRate] = useState<number | null>(cachedDailyPenaltyRate);
+
+  useEffect(() => {
+    if (typeof penaltyPerDay === 'number' && penaltyPerDay > 0) {
+      cachedDailyPenaltyRate = penaltyPerDay;
+      setFetchedRate(penaltyPerDay);
+      return;
+    }
+    if (!isOpen || cachedDailyPenaltyRate !== null || !user?.id) return;
+    let active = true;
+    api
+      .get<UserPenaltiesResponse>(`/borrowing/user/${user.id}/penalties`)
+      .then((res) => {
+        const rate = res.data?.rules?.penalty_fee_per_day;
+        if (typeof rate === 'number' && rate > 0) {
+          cachedDailyPenaltyRate = rate;
+          if (active) setFetchedRate(rate);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [isOpen, penaltyPerDay, user?.id]);
+
+  const effectivePenaltyRate =
+    typeof penaltyPerDay === 'number' && penaltyPerDay > 0
+      ? penaltyPerDay
+      : fetchedRate ?? 5.0;
 
   if (!book) return null;
 
@@ -129,6 +165,17 @@ export function BookDetailModal({
                     <Text style={styles.secondaryLabel}>Call No. / LCCN</Text>
                     <Text style={styles.secondaryValue}>{book.lccn}</Text>
                   </View>
+                  {!book.library_use_only && !book.is_archived && (
+                    <>
+                      <View style={styles.secondaryDivider} />
+                      <View style={styles.secondaryRow}>
+                        <Text style={styles.secondaryLabel}>Overdue Penalty</Text>
+                        <Text style={[styles.secondaryValue, { color: '#dc2626', fontWeight: '700' }]}>
+                          ₱{effectivePenaltyRate.toFixed(2)} / day
+                        </Text>
+                      </View>
+                    </>
+                  )}
                 </View>
 
                 {/* Footer Action Card */}

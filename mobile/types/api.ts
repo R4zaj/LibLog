@@ -44,6 +44,7 @@ export interface BorrowRecord {
 // /borrowing/user/:id and /borrowing/user/:id/history join book (+ author, genre) onto each
 // record — not part of the raw Prisma BorrowRecord shape, so it's a named extension here.
 export interface BorrowRecordWithBook extends BorrowRecord {
+  penalty_info?: BorrowPenaltyInfo;
   book?: {
     title: string;
     author?: { name: string };
@@ -168,6 +169,49 @@ export interface Notification {
   ref_id: number | null;
   created_at: string;
   trigger_user?: { first_name: string; last_name: string; role: UserRole };
+}
+
+export interface BorrowPenaltyInfo {
+  penalty_id: number | null;
+  status: 'UNPAID' | 'PAID' | 'NONE';
+  type: 'OVERDUE' | 'DAMAGE' | 'LOST' | null;
+  days_overdue: number;
+  amount: number;
+  daily_rate: number;
+  paid_at: string | null;
+}
+
+export interface PenaltyRules {
+  penalty_fee_per_day: number;
+  damage_fee: number;
+  lost_book_fee: number;
+  suspension_threshold: number;
+}
+
+export interface UserPenaltyItem {
+  id: number | string;
+  borrow_id: number;
+  book_title: string;
+  book_author: string;
+  type: 'OVERDUE' | 'DAMAGE' | 'LOST';
+  status: 'UNPAID' | 'PAID' | 'WAIVED';
+  days_overdue: number;
+  daily_rate: number;
+  amount: number;
+  is_returned: boolean;
+  due_date: string | null;
+  return_date: string | null;
+  paid_at: string | null;
+  created_at: string;
+}
+
+export interface UserPenaltiesResponse {
+  totalUnpaid: number;
+  todayAccrual: number;
+  weekAccrual: number;
+  unpaidCount: number;
+  rules: PenaltyRules;
+  penalties: UserPenaltyItem[];
 }
 
 // GET /api/auth/qr-token response

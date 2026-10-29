@@ -10,7 +10,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useFocusEffect, useRouter } from 'expo-router';
 import api from '../../api';
 import { TabBarVisibilityContext } from './_layout';
-import type { BorrowRecordWithBook } from '../../types/api';
+import type { BorrowRecordWithBook, UserPenaltiesResponse } from '../../types/api';
 
 export default function Borrowed() {
   const { theme } = useAppTheme();
@@ -19,6 +19,7 @@ export default function Borrowed() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'active' | 'history'>('active');
   const [borrows, setBorrows] = useState<BorrowRecordWithBook[]>([]);
+  const [penaltySummary, setPenaltySummary] = useState<UserPenaltiesResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [fetchError, setFetchError] = useState(false);
   const insets = useSafeAreaInsets();
@@ -29,8 +30,12 @@ export default function Borrowed() {
   const fetchBorrows = useCallback(async () => {
     try {
       setIsLoading(true);
-      const res = await api.get<BorrowRecordWithBook[]>(`/borrowing/user/${user?.id}/history`);
+      const [res, penRes] = await Promise.all([
+        api.get<BorrowRecordWithBook[]>(`/borrowing/user/${user?.id}/history`),
+        api.get<UserPenaltiesResponse>(`/borrowing/user/${user?.id}/penalties`).catch(() => ({ data: null }))
+      ]);
       setBorrows(res.data || []);
+      if (penRes.data) setPenaltySummary(penRes.data);
       setFetchError(false);
     } catch (e) {
       console.error('Failed to fetch borrows', e);
@@ -70,6 +75,9 @@ export default function Borrowed() {
     (b) => b.status === 'OVERDUE' || (b.due_date && daysLeftFor(b.due_date) < 0)
   ).length;
 
+  const dailyRate = penaltySummary?.rules?.penalty_fee_per_day ?? 5.0;
+  const totalUnpaid = penaltySummary?.totalUnpaid ?? 0;
+
   const currentList = activeTab === 'active' ? activeBorrows : historyBorrows;
 
   const renderItem = ({ item: record, index }: { item: BorrowRecordWithBook; index: number }) => {
@@ -80,6 +88,10 @@ export default function Borrowed() {
     const dueDateStr = new Date(record.due_date).toLocaleDateString();
     const borrowDateStr = new Date(record.borrow_date).toLocaleDateString();
     const isLast = index === currentList.length - 1;
+    const pInfo = record.penalty_info;
+    const itemRate = pInfo?.daily_rate ?? dailyRate;
+    const overdueDays = pInfo && pInfo.days_overdue > 0 ? pInfo.days_overdue : Math.max(1, Math.abs(daysLeft));
+    const overdueFee = pInfo && pInfo.amount > 0 ? pInfo.amount : overdueDays * itemRate;
 
     return (
       <YStack
@@ -104,38 +116,77 @@ export default function Borrowed() {
             <Text fontSize={18} fontWeight="600" color={theme.text} marginBottom={3} numberOfLines={2}>
               {record.book?.title}
             </Text>
-            <Text fontSize={14} fontWeight="500" color={theme.textSecondary} marginBottom="$2" numberOfLines={1}>
+            <Text fontSize={14} fontWeight="500" color={theme.textSecondary} marginBottom="$1.5" numberOfLines={1}>
               {record.book?.author?.name || 'Unknown Author'}
             </Text>
-            <Text fontSize={12} fontWeight="500" color={theme.textSecondary} marginBottom="$2">
+            <Text fontSize={12} fontWeight="500" color={theme.textSecondary} marginBottom={isReturned ? "$2" : 2}>
               Borrowed: {borrowDateStr}
             </Text>
+            {!isReturned && (
+              <Text fontSize={12} fontWeight="500" color={theme.textSecondary} marginBottom="$2">
+                Due: {dueDateStr} • Overdue fee: ₱{itemRate.toFixed(2)}/day
+              </Text>
+            )}
             
-            <XStack>
+            <XStack flexWrap="wrap" gap="$2">
               {isReturned ? (
-                <XStack
-                  alignItems="center"
-                  backgroundColor="#ecfdf5"
-                  paddingHorizontal="$3"
-                  paddingVertical="$1.5"
-                  borderRadius={10}
-                >
-                  <Text color="#10b981" fontWeight="700" fontSize={12}>
-                    Returned
-                  </Text>
-                </XStack>
+                <>
+                  <XStack
+                    alignItems="center"
+                    backgroundColor="#ecfdf5"
+                    paddingHorizontal="$3"
+                    paddingVertical="$1.5"
+                    borderRadius={10}
+                  >
+                    <Text color="#10b981" fontWeight="700" fontSize={12}>
+                      Returned
+                    </Text>
+                  </XStack>
+                  {pInfo && pInfo.amount > 0 && (
+                    <XStack
+                      alignItems="center"
+                      backgroundColor={pInfo.status === 'UNPAID' ? '#fef2f2' : '#f1f5f9'}
+                      paddingHorizontal="$3"
+                      paddingVertical="$1.5"
+                      borderRadius={10}
+                    >
+                      <Text
+                        color={pInfo.status === 'UNPAID' ? '#ef4444' : '#475569'}
+                        fontWeight="700"
+                        fontSize={12}
+                      >
+                        {pInfo.status === 'UNPAID'
+                          ? `Unpaid Fee: ₱${pInfo.amount.toFixed(2)}`
+                          : `Paid Fee: ₱${pInfo.amount.toFixed(2)}`}
+                      </Text>
+                    </XStack>
+                  )}
+                </>
               ) : isOverdue ? (
-                <XStack
-                  alignItems="center"
-                  backgroundColor="#fef2f2"
-                  paddingHorizontal="$3"
-                  paddingVertical="$1.5"
-                  borderRadius={10}
-                >
-                  <Text color="#ef4444" fontWeight="700" fontSize={12}>
-                    Overdue by {Math.abs(daysLeft)} day{Math.abs(daysLeft) !== 1 ? 's' : ''}
-                  </Text>
-                </XStack>
+                <>
+                  <XStack
+                    alignItems="center"
+                    backgroundColor="#fef2f2"
+                    paddingHorizontal="$3"
+                    paddingVertical="$1.5"
+                    borderRadius={10}
+                  >
+                    <Text color="#ef4444" fontWeight="700" fontSize={12}>
+                      Overdue by {overdueDays} day{overdueDays !== 1 ? 's' : ''}
+                    </Text>
+                  </XStack>
+                  <XStack
+                    alignItems="center"
+                    backgroundColor="#fff1f2"
+                    paddingHorizontal="$3"
+                    paddingVertical="$1.5"
+                    borderRadius={10}
+                  >
+                    <Text color="#be123c" fontWeight="800" fontSize={12}>
+                      Penalty: ₱{overdueFee.toFixed(2)}
+                    </Text>
+                  </XStack>
+                </>
               ) : isDueSoon ? (
                 <XStack
                   alignItems="center"
@@ -191,11 +242,36 @@ export default function Borrowed() {
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.pillContainer }}>
       {/* Header */}
       <YStack paddingTop="$4" paddingHorizontal="$5" paddingBottom="$4" backgroundColor={theme.card}>
-        <Text fontSize={24} fontWeight="800" color={theme.text} marginBottom="$3">
+        <Text fontSize={24} fontWeight="800" color={theme.text} marginBottom="$2">
           {activeTab === 'active' 
             ? `You have ${activeBorrows.length} active borrow${activeBorrows.length === 1 ? '' : 's'}${overdueCount > 0 ? `. ${overdueCount} need${overdueCount === 1 ? 's' : ''} attention.` : '.'}`
             : `You have ${historyBorrows.length} past borrow${historyBorrows.length === 1 ? '' : 's'}.`}
         </Text>
+
+        {/* Penalty Fee Summary Strip */}
+        <XStack
+          alignItems="center"
+          backgroundColor={totalUnpaid > 0 ? '#fef2f2' : '#f8fafc'}
+          borderColor={totalUnpaid > 0 ? '#fecaca' : '#e2e8f0'}
+          borderWidth={1}
+          borderRadius={12}
+          paddingHorizontal="$3"
+          paddingVertical="$2"
+          marginBottom="$3"
+          gap="$2"
+        >
+          <AlertCircle color={totalUnpaid > 0 ? '#dc2626' : '#64748b'} size={15} />
+          <Text
+            color={totalUnpaid > 0 ? '#b91c1c' : '#475569'}
+            fontSize={12}
+            fontWeight={totalUnpaid > 0 ? '700' : '600'}
+            flex={1}
+          >
+            {totalUnpaid > 0
+              ? `Unpaid Penalty: ₱${totalUnpaid.toFixed(2)} • Overdue rate: ₱${dailyRate.toFixed(2)}/day`
+              : `Library overdue penalty fee: ₱${dailyRate.toFixed(2)}/day`}
+          </Text>
+        </XStack>
 
         {/* Tab Switcher */}
         <XStack backgroundColor={theme.pillContainer} borderRadius={9999} padding={4} minHeight={48}>
