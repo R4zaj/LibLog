@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Pressable, Dimensions, Alert, Modal, Animated, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Pressable, Dimensions, useWindowDimensions, Alert, Modal, Animated, ActivityIndicator } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useAppTheme } from '../../context/ThemeContext';
@@ -49,6 +49,7 @@ export default function Home() {
   const [fetchError, setFetchError] = useState(false);
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
 
   // New states for interactive cards
   const { setTabBarVisible } = React.useContext(TabBarVisibilityContext);
@@ -261,7 +262,13 @@ export default function Home() {
 
       {/* Streamlined Assistant Bubble */}
       {announcements.length > 0 && (
-        <View style={styles.assistantCard}>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          style={styles.assistantCard}
+          onPress={() => setNotificationsOpen(true)}
+          accessibilityRole="button"
+          accessibilityLabel="View notifications"
+        >
           <View style={styles.assistantIconTray}>
             <Megaphone color={theme.primary} size={18} />
           </View>
@@ -269,7 +276,7 @@ export default function Home() {
             <Text style={styles.assistantOverline}>{announcements[0].is_overdue ? 'URGENT' : 'ANNOUNCEMENT'}</Text>
             <Text style={styles.assistantBody}>{announcements[0].title}: {announcements[0].body}</Text>
           </View>
-        </View>
+        </TouchableOpacity>
       )}
 
       {/* Two-Column Mid-Tier Grid Cards */}
@@ -636,20 +643,24 @@ export default function Home() {
       <Modal
         animationType="fade"
         transparent={true}
+        statusBarTranslucent={true}
         visible={penaltiesModalOpen}
         onRequestClose={() => setPenaltiesModalOpen(false)}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setPenaltiesModalOpen(false)}>
-          <View style={[styles.modalContent, { paddingBottom: 20 }]} onStartShouldSetResponder={() => true}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setPenaltiesModalOpen(false)} />
+          <View style={[styles.modalContent, { maxHeight: Math.round(windowHeight * 0.82), paddingBottom: 20 }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Penalty Fees</Text>
-              <Pressable
+              <TouchableOpacity
                 onPress={() => setPenaltiesModalOpen(false)}
                 hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                accessibilityRole="button"
+                accessibilityLabel="Close penalty fees"
                 style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: theme.background, borderWidth: 1, borderColor: theme.border, justifyContent: 'center', alignItems: 'center' }}
               >
                 <X size={20} color={theme.textSecondary} />
-              </Pressable>
+              </TouchableOpacity>
             </View>
 
             {(() => {
@@ -718,7 +729,11 @@ export default function Home() {
                   </View>
 
                   {/* Penalties List */}
-                  <ScrollView style={styles.notifList} showsVerticalScrollIndicator={false}>
+                  <ScrollView
+                    style={[styles.notifList, { maxHeight: Math.round(windowHeight * 0.45) }]}
+                    contentContainerStyle={{ paddingBottom: 4 }}
+                    showsVerticalScrollIndicator={false}
+                  >
                     {items.length === 0 ? (
                       <Text style={styles.noNotifsText}>No penalty records found.</Text>
                     ) : (
@@ -764,76 +779,76 @@ export default function Home() {
               );
             })()}
           </View>
-        </Pressable>
+        </View>
       </Modal>
 
       {/* Announcements Modal */}
       <Modal
         animationType="fade"
         transparent={true}
+        statusBarTranslucent={true}
         visible={notificationsOpen}
         onRequestClose={() => setNotificationsOpen(false)}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setNotificationsOpen(false)}>
-          <View style={[styles.modalContent, { paddingBottom: 16 }]} onStartShouldSetResponder={() => true}>
-            <View style={{ flex: 1 }}>
-              
-              {/* Header */}
-              <View style={styles.modalHeader}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={styles.modalTitle}>Notifications</Text>
-                  {announcementsCount > 0 && (
-                    <View style={{ backgroundColor: theme.pillContainer, borderRadius: 9999, paddingHorizontal: 8, paddingVertical: 2, marginLeft: 8 }}>
-                      <Text style={{ fontSize: 12, fontWeight: '600', color: theme.primary }}>{announcementsCount}</Text>
-                    </View>
-                  )}
-                </View>
-                <Pressable 
-                  onPress={() => setNotificationsOpen(false)}
-                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                  style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: theme.background, borderWidth: 1, borderColor: theme.border, justifyContent: 'center', alignItems: 'center' }}
-                >
-                  <ArrowLeft size={20} color={theme.textSecondary} />
-                </Pressable>
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setNotificationsOpen(false)} />
+          <View style={[styles.modalContent, { maxHeight: Math.round(windowHeight * 0.82), paddingBottom: 20 }]}>
+            {/* Header */}
+            <View style={styles.modalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 12 }}>
+                <Text style={styles.modalTitle}>Notifications</Text>
+                {announcementsCount > 0 && (
+                  <View style={{ backgroundColor: theme.pillContainer, borderRadius: 9999, paddingHorizontal: 8, paddingVertical: 2, marginLeft: 8 }}>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: theme.primary }}>{announcementsCount}</Text>
+                  </View>
+                )}
               </View>
+              <TouchableOpacity
+                onPress={() => setNotificationsOpen(false)}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                accessibilityRole="button"
+                accessibilityLabel="Close notifications"
+                style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: theme.background, borderWidth: 1, borderColor: theme.border, justifyContent: 'center', alignItems: 'center' }}
+              >
+                <X size={20} color={theme.textSecondary} />
+              </TouchableOpacity>
+            </View>
 
-              {/* List */}
-              <ScrollView style={styles.notifList} showsVerticalScrollIndicator={false}>
-                {announcements.length === 0 ? (
-                  <Text style={styles.noNotifsText}>No new notifications</Text>
-                ) : (
-                  announcements.map(a => {
-                    return (
-                      <View 
-                        key={a.id} 
-                        style={styles.notifItem}
-                      >
-                        <View style={{ flexDirection: 'row' }}>
-                          <View style={[styles.notifIconWrapper, { backgroundColor: a.is_overdue ? '#fef2f2' : theme.pillContainer }]}>
-                            {a.is_overdue ? (
-                              <AlertCircle size={18} color="#ef4444" />
-                            ) : (
-                              <Megaphone size={18} color={theme.primary} />
-                            )}
-                          </View>
-                          <View style={styles.notifContent}>
-                            <View style={styles.notifTop}>
-                              <Text style={styles.notifTitle}>{a.title}</Text>
-                              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <Text style={styles.notifTime}>{a.is_overdue ? 'Past Due' : formatTimeAgo(a.created_at)}</Text>
-                              </View>
-                            </View>
-                            <Text style={styles.notifMessage}>{a.body}</Text>
+            {/* List */}
+            <ScrollView
+              style={[styles.notifList, { maxHeight: Math.round(windowHeight * 0.6) }]}
+              contentContainerStyle={{ paddingBottom: 4 }}
+              showsVerticalScrollIndicator={false}
+            >
+              {announcements.length === 0 ? (
+                <Text style={styles.noNotifsText}>No new notifications</Text>
+              ) : (
+                announcements.map((a) => (
+                  <View key={a.id} style={styles.notifItem}>
+                    <View style={{ flexDirection: 'row' }}>
+                      <View style={[styles.notifIconWrapper, { backgroundColor: a.is_overdue ? '#fef2f2' : theme.pillContainer }]}>
+                        {a.is_overdue ? (
+                          <AlertCircle size={18} color="#ef4444" />
+                        ) : (
+                          <Megaphone size={18} color={theme.primary} />
+                        )}
+                      </View>
+                      <View style={styles.notifContent}>
+                        <View style={styles.notifTop}>
+                          <Text style={styles.notifTitle}>{a.title}</Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Text style={styles.notifTime}>{a.is_overdue ? 'Past Due' : formatTimeAgo(a.created_at)}</Text>
                           </View>
                         </View>
+                        <Text style={styles.notifMessage}>{a.body}</Text>
                       </View>
-                    );
-                  })
-                  )}
-                </ScrollView>
-            </View>
+                    </View>
+                  </View>
+                ))
+              )}
+            </ScrollView>
           </View>
-        </Pressable>
+        </View>
       </Modal>
 
     </SafeAreaView>
@@ -940,10 +955,10 @@ const getStyles = (theme: any) => ({
   trendingCount: { marginLeft: 12, flexDirection: 'row', alignItems: 'center', gap: 4 },
   countText: { fontSize: 12, fontWeight: '500', color: theme.textSecondary },
 
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(30, 30, 46, 0.45)', justifyContent: 'center', alignItems: 'center' },
-  modalContent: { backgroundColor: theme.card, width: '90%', maxHeight: '80%', borderRadius: 24, paddingTop: 24, paddingHorizontal: 16, elevation: 10 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(30, 30, 46, 0.45)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 16 },
+  modalContent: { backgroundColor: theme.card, width: '100%', maxWidth: 440, borderRadius: 24, paddingTop: 22, paddingHorizontal: 18, elevation: 10 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  modalTitle: { fontSize: 24, fontWeight: '800', color: theme.text },
+  modalTitle: { fontSize: 22, fontWeight: '800', color: theme.text },
   markAllBtn: { flexDirection: 'row', alignItems: 'center' },
   markAllText: { fontSize: 12, color: '#6b7280', marginLeft: 4 },
   notifTabs: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: theme.border, paddingHorizontal: 16 },
@@ -951,7 +966,7 @@ const getStyles = (theme: any) => ({
   notifTabActive: { borderBottomColor: theme.primary },
   notifTabText: { fontSize: 13, color: '#6b7280' },
   notifTabTextActive: { fontWeight: 'bold', color: theme.primary },
-  notifList: { flexShrink: 1 },
+  notifList: { flexGrow: 0, flexShrink: 1 },
   noNotifsText: { textAlign: 'center', padding: 32, color: theme.textSecondary, fontSize: 13 },
   notifItem: { backgroundColor: theme.background, borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: theme.border },
   notifItemUnread: { backgroundColor: theme.background },
