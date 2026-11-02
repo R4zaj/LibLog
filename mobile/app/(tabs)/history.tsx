@@ -237,12 +237,13 @@ export default function HistoryScreen() {
           const daysStr = daysCount > 0 ? `${daysCount} day${daysCount !== 1 ? 's' : ''} overdue` : '';
 
           if (p.status === 'PAID') {
+            const receiptTag = p.receipt_number ? ` • Receipt: ${p.receipt_number}` : '';
             newEvents.push({
               id: `pen-paid-${p.id}`,
               type: 'PENALTY',
               timestamp: p.paid_at || p.created_at || new Date().toISOString(),
               title: `Penalty Paid • ${amountStr}`,
-              subtitle: `${p.book_title || 'Library Book'}${daysStr ? ` (${daysStr})` : ''}`
+              subtitle: `${p.book_title || 'Library Book'}${daysStr ? ` (${daysStr})` : ''}${receiptTag}`
             });
           } else if (p.status === 'UNPAID') {
             const label =

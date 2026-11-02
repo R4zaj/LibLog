@@ -1,7 +1,7 @@
 import { useState, useEffect, useContext, useMemo, Fragment } from 'react';
 import { 
   ArrowRightLeft, Search, Sun, Moon, Bell, Printer, Maximize, Camera, BookUp, CheckCircle, AlertCircle,
-  ChevronDown, ChevronUp, Mail
+  ChevronDown, ChevronUp, Mail, FileText
 } from 'lucide-react';
 import ScannerSim from '../components/ScannerSim';
 import { useTheme } from '../components/ThemeContext';
@@ -37,6 +37,9 @@ export default function Borrowing() {
   
   // Penalties State
   const [penalties, setPenalties] = useState([]);
+  const [penaltiesSubTab, setPenaltiesSubTab] = useState('UNPAID');
+  const [activeReceiptModal, setActiveReceiptModal] = useState(null);
+  const [resendingReceiptId, setResendingReceiptId] = useState(null);
   const [expandedUserIds, setExpandedUserIds] = useState(new Set());
   const [sendingEmailPenaltyId, setSendingEmailPenaltyId] = useState(null);
   const [emailToast, setEmailToast] = useState(null);
@@ -100,13 +103,20 @@ export default function Borrowing() {
     fetchStats();
     if (activeTab === 'Penalties') {
       setPenaltiesPage(1);
-      fetchPenalties();
+      fetchPenalties(penaltiesSubTab);
     }
     if (activeTab === 'Records') {
       setRecordsPage(1);
       fetchRecords();
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab === 'Penalties') {
+      setPenaltiesPage(1);
+      fetchPenalties(penaltiesSubTab);
+    }
+  }, [penaltiesSubTab]);
 
   const fetchRecords = async () => {
     try {
@@ -178,9 +188,10 @@ export default function Borrowing() {
     }
   };
 
-  const fetchPenalties = async () => {
+  const fetchPenalties = async (statusOverride) => {
+    const status = statusOverride || penaltiesSubTab;
     try {
-      const res = await fetchWithOfflineSupport(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/borrowing/penalties`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }, 'borrowing_penalties');
+      const res = await fetchWithOfflineSupport(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/borrowing/penalties?status=${status}`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }, `borrowing_penalties_${status}`);
       if (res.ok) setPenalties(await res.json());
     } catch (e) {
       console.error('Failed to fetch penalties');
@@ -196,6 +207,7 @@ export default function Borrowing() {
     const id = confirmPenaltyId;
     setPenaltyError(null);
     try {
+      const currentPenaltyItem = penalties.find(p => p.id === id);
       const res = await fetchWithOfflineSupport(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/borrowing/penalties/${id}/pay`, { 
         headers: { 
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -205,10 +217,25 @@ export default function Borrowing() {
         body: JSON.stringify({ condition: penaltyCondition })
       });
       if (res.ok) {
+        const data = await res.json();
         setConfirmPenaltyId(null);
-        setSuccessMessage('Penalty Marked as Paid!');
+        const rNo = data.receiptNumber || '';
+        const emailMsg = data.emailSent
+          ? ` Official receipt ${rNo} was emailed to the student.`
+          : (data.emailError ? ` (Note: Email delivery error: ${data.emailError})` : '');
+        setSuccessMessage(`Penalty Marked as Paid!${emailMsg}`);
         fetchPenalties();
         fetchStats();
+
+        // Immediately open the receipt modal so the librarian can print or inspect the receipt
+        if (data.penalty) {
+          setActiveReceiptModal({
+            ...data.penalty,
+            receipt_number: rNo,
+            user: currentPenaltyItem?.user || data.penalty.user,
+            borrow: currentPenaltyItem?.borrow || data.penalty.borrow
+          });
+        }
       } else {
         const data = await res.json();
         setPenaltyError(data.error || 'Failed to pay penalty');
@@ -216,6 +243,39 @@ export default function Borrowing() {
     } catch (e) {
       console.error('Failed to pay penalty');
       setPenaltyError('Server error while processing penalty');
+    }
+  };
+
+  const handleResendReceiptEmail = async (penaltyId) => {
+    setResendingReceiptId(penaltyId);
+    setEmailToast(null);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/borrowing/penalties/${penaltyId}/resend-receipt`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setEmailToast({
+          type: 'success',
+          message: data.message || 'Official receipt emailed to student successfully.'
+        });
+      } else {
+        setEmailToast({
+          type: 'error',
+          message: data.error || 'Failed to dispatch receipt email.'
+        });
+      }
+    } catch (e) {
+      setEmailToast({
+        type: 'error',
+        message: 'Network error while dispatching receipt email.'
+      });
+    } finally {
+      setResendingReceiptId(null);
     }
   };
 
@@ -560,28 +620,56 @@ export default function Borrowing() {
         {/* PENALTIES TAB */}
         {activeTab === 'Penalties' && (
           <div className="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-xl overflow-hidden shadow-sm mt-4 flex flex-col animate-fade-in">
-            <div className="p-5 border-b border-gray-200 dark:border-dark-border flex justify-between items-center bg-gray-50 dark:bg-dark-bg">
-              <div>
-                <h3 className="font-bold text-gray-800 dark:text-slate-300">Unpaid Penalties</h3>
-                <p className="text-xs text-gray-500 dark:text-slate-400">One line per user with expandable penalties breakdown</p>
+            <div className="p-5 border-b border-gray-200 dark:border-dark-border flex flex-wrap justify-between items-center gap-3 bg-gray-50 dark:bg-dark-bg">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPenaltiesSubTab('UNPAID')}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    penaltiesSubTab === 'UNPAID'
+                      ? 'bg-primary-800 text-white shadow-sm'
+                      : 'bg-white dark:bg-dark-card text-gray-600 dark:text-slate-300 border border-gray-200 dark:border-dark-border hover:bg-gray-100 dark:hover:bg-dark-hover'
+                  }`}
+                >
+                  Unpaid Penalties
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPenaltiesSubTab('PAID')}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    penaltiesSubTab === 'PAID'
+                      ? 'bg-primary-800 text-white shadow-sm'
+                      : 'bg-white dark:bg-dark-card text-gray-600 dark:text-slate-300 border border-gray-200 dark:border-dark-border hover:bg-gray-100 dark:hover:bg-dark-hover'
+                  }`}
+                >
+                  <FileText size={13} />
+                  Paid Receipts
+                </button>
               </div>
-              {groupedPenalties.length > 0 && (
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-gray-500 dark:text-slate-400">
-                    <strong>{groupedPenalties.length}</strong> Students ({penalties.length} Total Penalties)
-                  </span>
-                  <button
-                    onClick={() => {
-                      if (expandedUserIds.size === groupedPenalties.length) {
-                        setExpandedUserIds(new Set());
-                      } else {
-                        setExpandedUserIds(new Set(groupedPenalties.map(g => g.user.id)));
-                      }
-                    }}
-                    className="text-xs font-semibold px-2.5 py-1 bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-lg text-gray-600 dark:text-slate-300 hover:bg-gray-100 transition-colors"
-                  >
-                    {expandedUserIds.size === groupedPenalties.length ? 'Collapse All' : 'Expand All'}
-                  </button>
+
+              {penaltiesSubTab === 'UNPAID' ? (
+                groupedPenalties.length > 0 && (
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-gray-500 dark:text-slate-400">
+                      <strong>{groupedPenalties.length}</strong> Students ({penalties.length} Total Penalties)
+                    </span>
+                    <button
+                      onClick={() => {
+                        if (expandedUserIds.size === groupedPenalties.length) {
+                          setExpandedUserIds(new Set());
+                        } else {
+                          setExpandedUserIds(new Set(groupedPenalties.map(g => g.user.id)));
+                        }
+                      }}
+                      className="text-xs font-semibold px-2.5 py-1 bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-lg text-gray-600 dark:text-slate-300 hover:bg-gray-100 transition-colors"
+                    >
+                      {expandedUserIds.size === groupedPenalties.length ? 'Collapse All' : 'Expand All'}
+                    </button>
+                  </div>
+                )
+              ) : (
+                <div className="text-xs text-gray-500 dark:text-slate-400">
+                  <strong>{penalties.length}</strong> Settled Official Receipts
                 </div>
               )}
             </div>
@@ -611,193 +699,287 @@ export default function Borrowing() {
               </div>
             )}
             
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-gray-50 dark:bg-dark-bg border-b border-gray-200 dark:border-dark-border text-xs text-gray-500 dark:text-slate-400 uppercase">
-                    <th className="px-6 py-3 font-bold">Student</th>
-                    <th className="px-6 py-3 font-bold">Penalties Summary</th>
-                    <th className="px-6 py-3 font-bold">Status</th>
-                    <th className="px-6 py-3 font-bold text-right">Total Unpaid</th>
-                    <th className="px-6 py-3 font-bold text-center">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-dark-border">
-                  {groupedPenalties.length === 0 ? (
-                    <tr><td colSpan="5" className="p-8 text-center text-gray-400 dark:text-slate-500 font-medium">No unpaid penalties</td></tr>
-                  ) : (
-                    groupedPenalties.slice((penaltiesPage - 1) * 10, penaltiesPage * 10).map((group) => {
-                      const isExpanded = expandedUserIds.has(group.user.id);
-                      return (
-                        <Fragment key={group.user.id}>
-                          <tr className={`border-b border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors ${isExpanded ? 'bg-primary-50/20 dark:bg-primary-900/10' : ''}`}>
-                            <td className="px-6 py-4">
-                              <p className="font-bold text-sm text-gray-900 dark:text-slate-200">
-                                {group.user.first_name} {group.user.last_name}
-                              </p>
-                              <p className="text-xs text-gray-500 dark:text-slate-400">
-                                {group.user.student_id} {group.user.email ? `• ${group.user.email}` : ''}
-                              </p>
-                              <button
-                                onClick={() => toggleUserExpanded(group.user.id)}
-                                className="mt-1 flex items-center gap-1 text-xs font-semibold text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300 transition-colors"
-                              >
-                                {isExpanded ? (
-                                  <>
-                                    <ChevronUp size={13} /> Hide Penalties ({group.penalties.length})
-                                  </>
-                                ) : (
-                                  <>
-                                    <ChevronDown size={13} /> View Penalties ({group.penalties.length})
-                                  </>
-                                )}
-                              </button>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="flex items-center gap-2">
-                                <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-gray-100 dark:bg-dark-bg text-gray-700 dark:text-slate-300 border border-gray-200 dark:border-dark-border">
-                                  {group.penalties.length} Item{group.penalties.length !== 1 ? 's' : ''}
-                                </span>
-                              </div>
-                              <p className="text-xs text-gray-500 dark:text-slate-400 mt-1 line-clamp-1 max-w-xs" title={group.penalties.map(p => p.borrow?.book?.title).filter(Boolean).join(', ')}>
-                                {group.penalties.map(p => p.borrow?.book?.title).filter(Boolean).slice(0, 2).join(', ')}
-                                {group.penalties.length > 2 && ` +${group.penalties.length - 2} more`}
-                              </p>
-                            </td>
-                            <td className="px-6 py-4">
-                              {group.hasUnreturned ? (
-                                <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 whitespace-nowrap">
-                                  Has Active Overdue
-                                </span>
-                              ) : (
-                                <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800 whitespace-nowrap">
-                                  All Returned (Unpaid)
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-6 py-4 text-right">
-                              <span className="font-bold text-base text-gray-900 dark:text-slate-200">
-                                ₱{group.totalAmount.toFixed(2)}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-center">
-                              <button
-                                onClick={() => toggleUserExpanded(group.user.id)}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 mx-auto ${
-                                  isExpanded
-                                    ? 'bg-gray-200 dark:bg-dark-hover text-gray-800 dark:text-slate-200'
-                                    : 'bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/50'
-                                }`}
-                              >
-                                {isExpanded ? (
-                                  <>
-                                    <ChevronUp size={13} /> Close
-                                  </>
-                                ) : (
-                                  <>
-                                    <ChevronDown size={13} /> Details
-                                  </>
-                                )}
-                              </button>
-                            </td>
-                          </tr>
-
-                          {/* EXPANDED BREAKDOWN SUB-ROW */}
-                          {isExpanded && (
-                            <tr className="bg-gray-50/70 dark:bg-dark-bg/60 border-b border-gray-200 dark:border-dark-border">
-                              <td colSpan="5" className="px-8 py-4">
-                                <div className="bg-white dark:bg-dark-card rounded-xl border border-gray-200 dark:border-dark-border p-4 shadow-sm">
-                                  <div className="flex justify-between items-center mb-3 border-b border-gray-100 dark:border-dark-border pb-2">
-                                    <span className="text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                                      <span className="w-2 h-2 rounded-full bg-primary-600"></span>
-                                      Penalties for {group.user.first_name} {group.user.last_name} ({group.penalties.length} Item{group.penalties.length !== 1 ? 's' : ''})
-                                    </span>
-                                    <span className="text-xs text-gray-500 dark:text-slate-400">
-                                      Subtotal: <strong className="text-gray-900 dark:text-slate-200 font-bold">₱{group.totalAmount.toFixed(2)}</strong>
-                                    </span>
-                                  </div>
-                                  
-                                  <div className="overflow-x-auto">
-                                    <table className="w-full text-left text-xs">
-                                      <thead>
-                                        <tr className="border-b border-gray-100 dark:border-dark-border text-gray-400 uppercase text-[10px]">
-                                          <th className="pb-2 font-bold">Book Title</th>
-                                          <th className="pb-2 font-bold">Overdue Details</th>
-                                          <th className="pb-2 font-bold">Type</th>
-                                          <th className="pb-2 font-bold text-right">Fine Amount</th>
-                                          <th className="pb-2 font-bold text-center">Action</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody className="divide-y divide-gray-100 dark:divide-dark-border">
-                                        {group.penalties.map((p) => (
-                                          <tr key={p.id} className="hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors">
-                                            <td className="py-2.5 font-semibold text-gray-800 dark:text-slate-300">
-                                              {p.borrow?.book?.title || 'Unknown Book'}
-                                            </td>
-                                            <td className="py-2.5">
-                                              <span className="text-red-500 font-semibold">{p.days_overdue} days overdue</span>
-                                              {p.is_returned ? (
-                                                <span className="ml-2 text-[10px] bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 px-1.5 py-0.5 rounded font-medium">
-                                                  Returned {p.return_date ? new Date(p.return_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}
-                                                </span>
-                                              ) : (
-                                                <span className="ml-2 text-[10px] bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded font-medium">
-                                                  Not Returned
-                                                </span>
-                                              )}
-                                            </td>
-                                            <td className="py-2.5">
-                                              <span className="px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded text-[10px] font-bold">
-                                                {p.type}
-                                              </span>
-                                            </td>
-                                            <td className="py-2.5 text-right font-bold text-gray-900 dark:text-slate-200">
-                                              ₱{parseFloat(p.amount).toFixed(2)}
-                                              <span className="text-[10px] text-gray-400 dark:text-slate-500 font-normal block">
-                                                ₱{p.daily_rate || 5}/day
-                                              </span>
-                                            </td>
-                                            <td className="py-2.5 text-center">
-                                              <div className="flex items-center justify-center gap-1.5">
-                                                <button
-                                                  type="button"
-                                                  onClick={() => handleSendEmailNotice(p, group.user)}
-                                                  disabled={sendingEmailPenaltyId === p.id || !group.user?.email}
-                                                  title={group.user?.email ? `Send overdue notice to ${group.user.email}` : 'No email address registered for student'}
-                                                  className="px-2.5 py-1 bg-sky-50 text-sky-700 hover:bg-sky-100 dark:bg-sky-950/40 dark:text-sky-300 dark:hover:bg-sky-900/40 border border-sky-200/60 dark:border-sky-800/60 rounded text-xs font-semibold transition-all inline-flex items-center gap-1 shadow-xs disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                                                >
-                                                  <Mail size={12} className={sendingEmailPenaltyId === p.id ? 'animate-pulse' : ''} />
-                                                  <span>{sendingEmailPenaltyId === p.id ? 'Sending...' : 'Send Notice'}</span>
-                                                </button>
-                                                <button
-                                                  onClick={() => handlePayPenalty(p.id)}
-                                                  className="px-3 py-1 bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 rounded text-xs font-bold transition-colors shadow-sm cursor-pointer"
-                                                >
-                                                  Mark Paid
-                                                </button>
-                                              </div>
-                                            </td>
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
-                                  </div>
+            {penaltiesSubTab === 'UNPAID' ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50 dark:bg-dark-bg border-b border-gray-200 dark:border-dark-border text-xs text-gray-500 dark:text-slate-400 uppercase">
+                      <th className="px-6 py-3 font-bold">Student</th>
+                      <th className="px-6 py-3 font-bold">Penalties Summary</th>
+                      <th className="px-6 py-3 font-bold">Status</th>
+                      <th className="px-6 py-3 font-bold text-right">Total Unpaid</th>
+                      <th className="px-6 py-3 font-bold text-center">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-dark-border">
+                    {groupedPenalties.length === 0 ? (
+                      <tr><td colSpan="5" className="p-8 text-center text-gray-400 dark:text-slate-500 font-medium">No unpaid penalties</td></tr>
+                    ) : (
+                      groupedPenalties.slice((penaltiesPage - 1) * 10, penaltiesPage * 10).map((group) => {
+                        const isExpanded = expandedUserIds.has(group.user.id);
+                        return (
+                          <Fragment key={group.user.id}>
+                            <tr className={`border-b border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors ${isExpanded ? 'bg-primary-50/20 dark:bg-primary-900/10' : ''}`}>
+                              <td className="px-6 py-4">
+                                <p className="font-bold text-sm text-gray-900 dark:text-slate-200">
+                                  {group.user.first_name} {group.user.last_name}
+                                </p>
+                                <p className="text-xs text-gray-500 dark:text-slate-400">
+                                  {group.user.student_id} {group.user.email ? `• ${group.user.email}` : ''}
+                                </p>
+                                <button
+                                  onClick={() => toggleUserExpanded(group.user.id)}
+                                  className="mt-1 flex items-center gap-1 text-xs font-semibold text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300 transition-colors"
+                                >
+                                  {isExpanded ? (
+                                    <>
+                                      <ChevronUp size={13} /> Hide Penalties ({group.penalties.length})
+                                    </>
+                                  ) : (
+                                    <>
+                                      <ChevronDown size={13} /> View Penalties ({group.penalties.length})
+                                    </>
+                                  )}
+                                </button>
+                              </td>
+                              <td className="px-6 py-4">
+                                <div className="flex items-center gap-2">
+                                  <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-gray-100 dark:bg-dark-bg text-gray-700 dark:text-slate-300 border border-gray-200 dark:border-dark-border">
+                                    {group.penalties.length} Item{group.penalties.length !== 1 ? 's' : ''}
+                                  </span>
                                 </div>
+                                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1 line-clamp-1 max-w-xs" title={group.penalties.map(p => p.borrow?.book?.title).filter(Boolean).join(', ')}>
+                                  {group.penalties.map(p => p.borrow?.book?.title).filter(Boolean).slice(0, 2).join(', ')}
+                                  {group.penalties.length > 2 && ` +${group.penalties.length - 2} more`}
+                                </p>
+                              </td>
+                              <td className="px-6 py-4">
+                                {group.hasUnreturned ? (
+                                  <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 whitespace-nowrap">
+                                    Has Active Overdue
+                                  </span>
+                                ) : (
+                                  <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800 whitespace-nowrap">
+                                    All Returned (Unpaid)
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-6 py-4 text-right">
+                                <span className="font-bold text-base text-gray-900 dark:text-slate-200">
+                                  ₱{group.totalAmount.toFixed(2)}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 text-center">
+                                <button
+                                  onClick={() => toggleUserExpanded(group.user.id)}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 mx-auto ${
+                                    isExpanded
+                                      ? 'bg-gray-200 dark:bg-dark-hover text-gray-800 dark:text-slate-200'
+                                      : 'bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/50'
+                                  }`}
+                                >
+                                  {isExpanded ? (
+                                    <>
+                                      <ChevronUp size={13} /> Close
+                                    </>
+                                  ) : (
+                                    <>
+                                      <ChevronDown size={13} /> Details
+                                    </>
+                                  )}
+                                </button>
                               </td>
                             </tr>
-                          )}
-                        </Fragment>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+
+                            {/* EXPANDED BREAKDOWN SUB-ROW */}
+                            {isExpanded && (
+                              <tr className="bg-gray-50/70 dark:bg-dark-bg/60 border-b border-gray-200 dark:border-dark-border">
+                                <td colSpan="5" className="px-8 py-4">
+                                  <div className="bg-white dark:bg-dark-card rounded-xl border border-gray-200 dark:border-dark-border p-4 shadow-sm">
+                                    <div className="flex justify-between items-center mb-3 border-b border-gray-100 dark:border-dark-border pb-2">
+                                      <span className="text-xs font-bold text-gray-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                                        <span className="w-2 h-2 rounded-full bg-primary-600"></span>
+                                        Penalties for {group.user.first_name} {group.user.last_name} ({group.penalties.length} Item{group.penalties.length !== 1 ? 's' : ''})
+                                      </span>
+                                      <span className="text-xs text-gray-500 dark:text-slate-400">
+                                        Subtotal: <strong className="text-gray-900 dark:text-slate-200 font-bold">₱{group.totalAmount.toFixed(2)}</strong>
+                                      </span>
+                                    </div>
+                                    
+                                    <div className="overflow-x-auto">
+                                      <table className="w-full text-left text-xs">
+                                        <thead>
+                                          <tr className="border-b border-gray-100 dark:border-dark-border text-gray-400 uppercase text-[10px]">
+                                            <th className="pb-2 font-bold">Book Title</th>
+                                            <th className="pb-2 font-bold">Overdue Details</th>
+                                            <th className="pb-2 font-bold">Type</th>
+                                            <th className="pb-2 font-bold text-right">Fine Amount</th>
+                                            <th className="pb-2 font-bold text-center">Action</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-100 dark:divide-dark-border">
+                                          {group.penalties.map((p) => (
+                                            <tr key={p.id} className="hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors">
+                                              <td className="py-2.5 font-semibold text-gray-800 dark:text-slate-300">
+                                                {p.borrow?.book?.title || 'Unknown Book'}
+                                              </td>
+                                              <td className="py-2.5">
+                                                <span className="text-red-500 font-semibold">{p.days_overdue} days overdue</span>
+                                                {p.is_returned ? (
+                                                  <span className="ml-2 text-[10px] bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 px-1.5 py-0.5 rounded font-medium">
+                                                    Returned {p.return_date ? new Date(p.return_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}
+                                                  </span>
+                                                ) : (
+                                                  <span className="ml-2 text-[10px] bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded font-medium">
+                                                    Not Returned
+                                                  </span>
+                                                )}
+                                              </td>
+                                              <td className="py-2.5">
+                                                <span className="px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded text-[10px] font-bold">
+                                                  {p.type}
+                                                </span>
+                                              </td>
+                                              <td className="py-2.5 text-right font-bold text-gray-900 dark:text-slate-200">
+                                                ₱{parseFloat(p.amount).toFixed(2)}
+                                                <span className="text-[10px] text-gray-400 dark:text-slate-500 font-normal block">
+                                                  ₱{p.daily_rate || 5}/day
+                                                </span>
+                                              </td>
+                                              <td className="py-2.5 text-center">
+                                                <div className="flex items-center justify-center gap-1.5">
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => handleSendEmailNotice(p, group.user)}
+                                                    disabled={sendingEmailPenaltyId === p.id || !group.user?.email}
+                                                    title={group.user?.email ? `Send overdue notice to ${group.user.email}` : 'No email address registered for student'}
+                                                    className="px-2.5 py-1 bg-sky-50 text-sky-700 hover:bg-sky-100 dark:bg-sky-950/40 dark:text-sky-300 dark:hover:bg-sky-900/40 border border-sky-200/60 dark:border-sky-800/60 rounded text-xs font-semibold transition-all inline-flex items-center gap-1 shadow-xs disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                                                  >
+                                                    <Mail size={12} className={sendingEmailPenaltyId === p.id ? 'animate-pulse' : ''} />
+                                                    <span>{sendingEmailPenaltyId === p.id ? 'Sending...' : 'Send Notice'}</span>
+                                                  </button>
+                                                  <button
+                                                    onClick={() => handlePayPenalty(p.id)}
+                                                    className="px-3 py-1 bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 rounded text-xs font-bold transition-colors shadow-sm cursor-pointer"
+                                                  >
+                                                    Mark Paid
+                                                  </button>
+                                                </div>
+                                              </td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </Fragment>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50 dark:bg-dark-bg border-b border-gray-200 dark:border-dark-border text-xs text-gray-500 dark:text-slate-400 uppercase">
+                      <th className="px-6 py-3 font-bold">Receipt No.</th>
+                      <th className="px-6 py-3 font-bold">Student</th>
+                      <th className="px-6 py-3 font-bold">Book Details</th>
+                      <th className="px-6 py-3 font-bold">Type</th>
+                      <th className="px-6 py-3 font-bold text-right">Amount Settled</th>
+                      <th className="px-6 py-3 font-bold">Settled On</th>
+                      <th className="px-6 py-3 font-bold text-center">Receipt Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-dark-border">
+                    {penalties.length === 0 ? (
+                      <tr><td colSpan="7" className="p-8 text-center text-gray-400 dark:text-slate-500 font-medium">No paid receipts found</td></tr>
+                    ) : (
+                      penalties.slice((penaltiesPage - 1) * 10, penaltiesPage * 10).map((p) => (
+                        <tr key={p.id} className="hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors">
+                          <td className="px-6 py-4">
+                            <span className="font-mono font-bold text-xs px-2.5 py-1 rounded bg-gray-100 dark:bg-dark-bg text-primary-800 dark:text-primary-300 border border-gray-200 dark:border-dark-border inline-flex items-center gap-1.5">
+                              <FileText size={12} />
+                              {p.receipt_number || `CCC-OR-${new Date().getFullYear()}-${String(p.id).padStart(5, '0')}`}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <p className="font-bold text-sm text-gray-900 dark:text-slate-200">
+                              {p.user?.first_name} {p.user?.last_name}
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-slate-400">
+                              {p.user?.student_id} {p.user?.email ? `• ${p.user?.email}` : ''}
+                            </p>
+                          </td>
+                          <td className="px-6 py-4">
+                            <p className="font-semibold text-xs text-gray-900 dark:text-slate-200 max-w-xs truncate" title={p.borrow?.book?.title}>
+                              {p.borrow?.book?.title || 'Library Book'}
+                            </p>
+                            <p className="text-[11px] text-gray-500 dark:text-slate-400">
+                              {p.days_overdue} days overdue
+                            </p>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 dark:bg-dark-bg text-gray-700 dark:text-slate-300 border border-gray-200 dark:border-dark-border">
+                              {p.type}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <p className="font-bold text-sm text-gray-900 dark:text-slate-200">
+                              ₱{parseFloat(p.amount || 0).toFixed(2)}
+                            </p>
+                            <span className="inline-block mt-0.5 px-2 py-0.2 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                              PAID
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <p className="text-xs text-gray-800 dark:text-slate-300">
+                              {p.paid_at ? new Date(p.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Settled'}
+                            </p>
+                            <p className="text-[11px] text-gray-500 dark:text-slate-400">
+                              {p.collector ? `${p.collector.first_name} ${p.collector.last_name}` : 'Library Cashier'}
+                            </p>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => setActiveReceiptModal(p)}
+                                className="px-2.5 py-1 bg-white dark:bg-dark-card text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-dark-hover border border-gray-200 dark:border-dark-border rounded text-xs font-semibold inline-flex items-center gap-1 shadow-xs cursor-pointer"
+                                title="View and Print Official Receipt"
+                              >
+                                <Printer size={12} />
+                                <span>Print</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleResendReceiptEmail(p.id)}
+                                disabled={resendingReceiptId === p.id || !p.user?.email}
+                                title={p.user?.email ? `Resend receipt email to ${p.user.email}` : 'No student email on file'}
+                                className="px-2.5 py-1 bg-sky-50 text-sky-700 hover:bg-sky-100 dark:bg-sky-950/40 dark:text-sky-300 dark:hover:bg-sky-900/40 border border-sky-200/60 dark:border-sky-800/60 rounded text-xs font-semibold inline-flex items-center gap-1 shadow-xs disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                              >
+                                <Mail size={12} className={resendingReceiptId === p.id ? 'animate-pulse' : ''} />
+                                <span>{resendingReceiptId === p.id ? 'Sending...' : 'Email'}</span>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
             <div className="px-6 py-4 border-t border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-card">
               <Pagination
                 currentPage={penaltiesPage}
-                totalItems={groupedPenalties.length}
+                totalItems={penaltiesSubTab === 'UNPAID' ? groupedPenalties.length : penalties.length}
                 itemsPerPage={10}
                 onPageChange={setPenaltiesPage}
               />
@@ -949,6 +1131,210 @@ export default function Borrowing() {
                 className="flex-1 bg-primary-800 text-white py-3 rounded-xl font-bold text-base hover:bg-primary-900 transition-colors shadow-lg shadow-primary-800/30"
               >
                 Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Official Receipt Modal */}
+      {activeReceiptModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 overflow-y-auto">
+          <style>{`
+            @media print {
+              body * {
+                visibility: hidden !important;
+              }
+              #printable-official-receipt, #printable-official-receipt * {
+                visibility: visible !important;
+              }
+              #printable-official-receipt {
+                position: fixed !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 32px !important;
+                background: #ffffff !important;
+                color: #0f172a !important;
+                box-shadow: none !important;
+                border: none !important;
+              }
+              .no-print {
+                display: none !important;
+              }
+            }
+          `}</style>
+          
+          <div className="bg-white dark:bg-dark-card rounded-2xl shadow-2xl border border-gray-200 dark:border-dark-border max-w-lg w-full overflow-hidden flex flex-col animate-fade-in my-8">
+            {/* Header Toolbar (no-print) */}
+            <div className="no-print p-4 bg-gray-50 dark:bg-dark-bg border-b border-gray-200 dark:border-dark-border flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileText size={18} className="text-primary-700 dark:text-primary-400" />
+                <span className="font-bold text-sm text-gray-800 dark:text-slate-200">Official Settlement Receipt</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="px-3.5 py-1.5 bg-primary-800 hover:bg-primary-900 text-white rounded-lg text-xs font-bold inline-flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                >
+                  <Printer size={13} />
+                  Print Receipt
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveReceiptModal(null)}
+                  className="px-3 py-1.5 text-gray-500 hover:text-gray-800 dark:text-slate-400 dark:hover:text-slate-200 text-xs font-semibold cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+
+            {/* Printable Receipt Canvas */}
+            <div id="printable-official-receipt" className="p-8 bg-white text-slate-900 flex flex-col gap-6">
+              {/* Institution Header */}
+              <div className="border-b-2 border-slate-900 pb-4 text-center">
+                <div className="text-[11px] font-bold tracking-widest text-slate-500 uppercase">
+                  Calauan Community Campus
+                </div>
+                <div className="text-xl font-black tracking-tight text-slate-900 mt-0.5">
+                  UNIVERSITY LIBRARY CLEARANCE &amp; SETTLEMENT
+                </div>
+                <div className="text-[11px] text-slate-600 mt-1">
+                  Km 74, National Highway, Dayap, Calauan, Laguna 4012 | library@calauan.edu.ph
+                </div>
+              </div>
+
+              {/* Receipt Reference Bar */}
+              <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg p-3">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Receipt Number</span>
+                  <span className="font-mono font-bold text-sm text-slate-900">
+                    {activeReceiptModal.receipt_number || `CCC-OR-${new Date().getFullYear()}-${String(activeReceiptModal.id).padStart(5, '0')}`}
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Settlement Date</span>
+                  <span className="text-xs font-semibold text-slate-800">
+                    {activeReceiptModal.paid_at
+                      ? new Date(activeReceiptModal.paid_at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
+                      : new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}
+                  </span>
+                </div>
+              </div>
+
+              {/* Student Identification */}
+              <div className="border border-slate-200 rounded-lg p-4 bg-white">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Student Information</span>
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <span className="text-slate-500 block text-[11px]">Student Name:</span>
+                    <strong className="text-slate-900 font-bold">
+                      {activeReceiptModal.user?.first_name} {activeReceiptModal.user?.last_name}
+                    </strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 block text-[11px]">Student ID:</span>
+                    <strong className="font-mono font-bold text-slate-900">
+                      {activeReceiptModal.user?.student_id || 'N/A'}
+                    </strong>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="text-slate-500 block text-[11px]">Registered Email:</span>
+                    <span className="text-slate-800 font-mono">
+                      {activeReceiptModal.user?.email || 'N/A'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Settlement Line Item Table */}
+              <div className="border border-slate-200 rounded-lg overflow-hidden">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-slate-100 border-b border-slate-200 text-slate-600 uppercase text-[10px] font-bold">
+                      <th className="py-2.5 px-3">Description</th>
+                      <th className="py-2.5 px-3 text-center">Basis</th>
+                      <th className="py-2.5 px-3 text-right">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    <tr>
+                      <td className="py-3 px-3">
+                        <strong className="text-slate-900 block font-semibold">
+                          {activeReceiptModal.borrow?.book?.title || 'Library Circulation Fine'}
+                        </strong>
+                        <span className="text-slate-500 text-[11px] block">
+                          Penalty Type: {activeReceiptModal.type}
+                        </span>
+                        {activeReceiptModal.borrow?.due_date && (
+                          <span className="text-slate-400 text-[10px] block">
+                            Due date: {new Date(activeReceiptModal.borrow.due_date).toLocaleDateString()}
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3 px-3 text-center text-slate-700">
+                        {activeReceiptModal.days_overdue ? `${activeReceiptModal.days_overdue} days` : '1 incident'}
+                        {activeReceiptModal.daily_rate ? ` @ ₱${activeReceiptModal.daily_rate}/day` : ''}
+                      </td>
+                      <td className="py-3 px-3 text-right font-mono font-bold text-slate-900">
+                        ₱{parseFloat(activeReceiptModal.amount || 0).toFixed(2)}
+                      </td>
+                    </tr>
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-slate-50 border-t-2 border-slate-300 font-bold">
+                      <td colSpan="2" className="py-3 px-3 text-slate-800 uppercase text-[11px] tracking-wider">
+                        Total Amount Settled
+                      </td>
+                      <td className="py-3 px-3 text-right font-mono text-base text-emerald-700">
+                        ₱{parseFloat(activeReceiptModal.amount || 0).toFixed(2)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              {/* Clearance Stamp & Signature */}
+              <div className="flex items-center justify-between border-t border-slate-200 pt-4 mt-2">
+                <div className="border-2 border-emerald-700 text-emerald-800 rounded px-3 py-1.5 uppercase font-black text-xs tracking-wider text-center">
+                  PAID IN FULL - CLEARED
+                </div>
+                <div className="text-right text-xs">
+                  <div className="border-b border-slate-400 pb-1 mb-1 w-44 font-semibold text-slate-900">
+                    {activeReceiptModal.collector
+                      ? `${activeReceiptModal.collector.first_name} ${activeReceiptModal.collector.last_name}`
+                      : 'Authorized Staff'}
+                  </div>
+                  <span className="text-[10px] text-slate-500 uppercase tracking-wider block">
+                    Authorized Library Cashier
+                  </span>
+                </div>
+              </div>
+
+              <div className="text-center text-[10px] text-slate-400 mt-2">
+                This document serves as official library clearance for the stated transaction. Calauan Community Campus.
+              </div>
+            </div>
+
+            {/* Modal Bottom Actions (no-print) */}
+            <div className="no-print p-4 bg-gray-50 dark:bg-dark-bg border-t border-gray-200 dark:border-dark-border flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setActiveReceiptModal(null)}
+                className="px-4 py-2 border border-gray-200 dark:border-dark-border rounded-xl text-xs font-bold text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-dark-hover transition-colors cursor-pointer"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="px-5 py-2 bg-primary-800 hover:bg-primary-900 text-white rounded-xl text-xs font-bold inline-flex items-center gap-1.5 shadow-md shadow-primary-800/20 transition-all cursor-pointer"
+              >
+                <Printer size={14} />
+                Print Official Receipt
               </button>
             </div>
           </div>

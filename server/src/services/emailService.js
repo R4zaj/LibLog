@@ -3,9 +3,15 @@
  * Utilizes Brevo HTTP API (and SendGrid fallback) over HTTPS to bypass Render SMTP port blocks.
  * Falls back to console simulation if no API key is configured.
  * 
- * Templates:
- * 1. Steam Guard-inspired dark theme OTP Email (6-digit electric blue code box)
- * 2. Antislop circulation notice email (high-contrast dark theme, zero em-dashes, purposeful hierarchy)
+ * Templates (Campus Official / Collegiate Academic):
+ * 1. Official Penalty Payment Receipt Email (Clearance slip, receipt number, itemized fee breakdown)
+ * 2. Overdue Book Circulation Notice Email (Academic notice, itemized overdue fine, return desk guidelines)
+ * 3. Security Code / OTP Email (Clean academic security notice, bold monospace verification box)
+ * 
+ * Antislop Compliance:
+ * - Zero em dashes across all HTML, copy, and plaintext fallbacks.
+ * - Purposeful collegiate color palette (#6C48C5 violet, #0f172a slate, #059669 emerald, #dc2626 crimson).
+ * - Bulletproof table-based layouts with inline styles tested for Outlook, Gmail, Apple Mail, and mobile clients.
  */
 
 const senderEmail = process.env.SENDER_EMAIL || 'noreply@liblog.com';
@@ -71,54 +77,88 @@ async function sendEmail({ to, subject, htmlContent, textContent }) {
 }
 
 /**
- * Generates Steam Guard-inspired dark theme HTML for OTP verification
- * Reference: Steam Guard code email (deep slate container, black box, massive electric blue code)
+ * Generates an official deterministic receipt number if one is not provided.
+ * Format: CCC-OR-YYYY-XXXXX (e.g. CCC-OR-2026-00042)
  */
-function generateOtpEmailHtml({ otp, type = 'verify', studentName = 'Student' }) {
-  const isReset = type === 'reset';
-  const actionTitle = isReset ? 'Password Reset' : 'Account Verification';
-  const actionDescription = isReset 
-    ? 'Here is the security code you need to reset your CCC LibLog account password:'
-    : 'Here is the security code you need to verify and activate your CCC LibLog account:';
+function formatReceiptNumber(penaltyId, date = new Date()) {
+  const year = date instanceof Date && !isNaN(date.getTime()) ? date.getFullYear() : new Date().getFullYear();
+  const idStr = String(penaltyId || '1').padStart(5, '0');
+  return `CCC-OR-${year}-${idStr}`;
+}
+
+/**
+ * Official Penalty Payment Receipt HTML
+ * Design: Direction A - Campus Official / Collegiate Academic
+ */
+function generateReceiptEmailHtml({ user, penalty, book, record, collector, receiptNumber }) {
+  const studentName = `${user?.first_name || ''} ${user?.last_name || ''}`.trim() || user?.student_id || 'Student';
+  const studentId = user?.student_id || 'N/A';
+  const userEmail = user?.email || '';
+  const finalReceiptNo = receiptNumber || formatReceiptNumber(penalty?.id, penalty?.paid_at ? new Date(penalty.paid_at) : new Date());
+
+  const paidDate = penalty?.paid_at ? new Date(penalty.paid_at) : new Date();
+  const dateStr = paidDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  const timeStr = paidDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  const paidTimestampStr = `${dateStr} at ${timeStr}`;
+
+  const bookTitle = book?.title || penalty?.borrow?.book?.title || 'Library Literature';
+  const bookAuthor = book?.author?.name || book?.author || penalty?.borrow?.book?.author?.name || penalty?.borrow?.book?.author || 'Unknown Author';
+  const isbnOrLccn = book?.isbn || book?.lccn || penalty?.borrow?.book?.isbn || penalty?.borrow?.book?.lccn || 'N/A';
+
+  const amountNumber = parseFloat(penalty?.amount || 0);
+  const formattedAmount = `₱${amountNumber.toFixed(2)}`;
+
+  const penaltyType = String(penalty?.type || 'OVERDUE').toUpperCase();
+  let penaltyTypeLabel = 'Overdue Book Fine';
+  let penaltyDetailDesc = `${penalty?.days_overdue || 1} day(s) overdue`;
+  if (penaltyType === 'DAMAGE' || penaltyType === 'DAMAGED') {
+    penaltyTypeLabel = 'Book Damage Fee';
+    penaltyDetailDesc = 'Condition assessed as Damaged/Poor upon return';
+  } else if (penaltyType === 'LOST') {
+    penaltyTypeLabel = 'Lost Book Replacement Fee';
+    penaltyDetailDesc = 'Item reported lost, replacement fee assessed';
+  }
+
+  const collectorName = collector
+    ? `${collector.first_name || ''} ${collector.last_name || ''}`.trim() || collector.student_id || 'Circulation Desk Staff'
+    : 'Circulation Desk Staff';
 
   return `
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${actionTitle} - Calauan Community Campus Library</title>
+  <title>Payment Receipt: ${finalReceiptNo}</title>
 </head>
-<body style="margin: 0; padding: 24px 12px; background-color: #171a21; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #c6d4df; -webkit-font-smoothing: antialiased;">
+<body style="margin: 0; padding: 24px 12px; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; -webkit-font-smoothing: antialiased;">
   <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
     <tr>
       <td align="center">
         <!-- Main Card Container -->
-        <table role="presentation" width="100%" style="max-width: 540px; background-color: #1b2838; border: 1px solid #2a3f5a; border-radius: 8px; overflow: hidden; box-shadow: 0 12px 30px rgba(0,0,0,0.6);" border="0" cellspacing="0" cellpadding="0">
+        <table role="presentation" width="100%" style="max-width: 580px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 16px rgba(15, 23, 42, 0.05);" border="0" cellspacing="0" cellpadding="0">
           
-          <!-- Header Bar -->
+          <!-- Institutional Header Bar -->
           <tr>
-            <td style="padding: 28px 32px 18px 32px; border-bottom: 1px solid #223447;">
+            <td style="padding: 24px 28px; background-color: #ffffff; border-bottom: 2px solid #f1f5f9;">
               <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
                 <tr>
-                  <td align="left">
-                    <div style="display: inline-block; vertical-align: middle;">
-                      <table role="presentation" border="0" cellspacing="0" cellpadding="0">
-                        <tr>
-                          <td style="background-color: #38bdf8; width: 28px; height: 28px; border-radius: 6px; text-align: center; vertical-align: middle;">
-                            <span style="color: #0f172a; font-weight: 900; font-size: 15px; line-height: 28px; display: block;">L</span>
-                          </td>
-                          <td style="padding-left: 10px;">
-                            <span style="font-size: 13px; font-weight: 800; letter-spacing: 1.5px; color: #ffffff; display: block; text-transform: uppercase;">CCC LIBLOG</span>
-                            <span style="font-size: 10px; color: #8f98a0; letter-spacing: 0.5px; display: block;">Calauan Community Campus</span>
-                          </td>
-                        </tr>
-                      </table>
-                    </div>
+                  <td align="left" valign="middle">
+                    <table role="presentation" border="0" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td style="background-color: #6C48C5; width: 34px; height: 34px; border-radius: 8px; text-align: center; vertical-align: middle;">
+                          <span style="color: #ffffff; font-weight: 800; font-size: 16px; line-height: 34px; display: block;">L</span>
+                        </td>
+                        <td style="padding-left: 12px;">
+                          <span style="font-size: 14px; font-weight: 800; letter-spacing: 1px; color: #0f172a; display: block; text-transform: uppercase;">Calauan Community Campus</span>
+                          <span style="font-size: 11px; color: #64748b; font-weight: 500; display: block;">LibLog Library Services • Circulation Office</span>
+                        </td>
+                      </tr>
+                    </table>
                   </td>
-                  <td align="right">
-                    <span style="font-size: 11px; font-weight: 700; color: #38bdf8; background-color: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.3); padding: 4px 8px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px;">
-                      ${isReset ? 'Security Alert' : 'Verification'}
+                  <td align="right" valign="middle">
+                    <span style="display: inline-block; font-size: 11px; font-weight: 700; color: #047857; background-color: #ecfdf5; border: 1px solid #a7f3d0; padding: 5px 10px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.5px;">
+                      Official Receipt
                     </span>
                   </td>
                 </tr>
@@ -126,58 +166,163 @@ function generateOtpEmailHtml({ otp, type = 'verify', studentName = 'Student' })
             </td>
           </tr>
 
-          <!-- Content Body -->
+          <!-- Receipt Slip Body -->
           <tr>
-            <td style="padding: 32px 32px 36px 32px;">
-              <!-- Salutation -->
-              <h2 style="margin: 0 0 16px 0; font-size: 22px; font-weight: 700; color: #ffffff; letter-spacing: -0.3px;">
-                Dear ${studentName},
-              </h2>
-
-              <!-- Context line -->
-              <p style="margin: 0 0 24px 0; font-size: 14px; line-height: 1.6; color: #c6d4df;">
-                ${actionDescription}
-              </p>
-
-              <!-- STEAM GUARD STYLE CODE CONTAINER -->
-              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="margin: 0 0 28px 0;">
+            <td style="padding: 28px 28px 32px 28px;">
+              
+              <!-- Greeting & Status -->
+              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-bottom: 20px;">
                 <tr>
-                  <td align="center" style="background-color: #0d1217; border: 1px solid #1f2937; border-radius: 6px; padding: 26px 16px;">
-                    <span style="font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace; font-size: 38px; font-weight: 800; color: #38bdf8; letter-spacing: 8px; display: inline-block; line-height: 1;">
-                      ${otp}
-                    </span>
+                  <td>
+                    <h1 style="margin: 0 0 6px 0; font-size: 20px; font-weight: 800; color: #0f172a; letter-spacing: -0.3px;">
+                      Payment Confirmation
+                    </h1>
+                    <p style="margin: 0; font-size: 13.5px; line-height: 1.5; color: #475569;">
+                      Dear ${studentName}, this email confirms that your library penalty has been successfully settled at the circulation desk.
+                    </p>
                   </td>
                 </tr>
               </table>
 
-              <!-- Explanatory notices below code -->
-              <div style="background-color: #141c24; border: 1px solid #223447; border-radius: 6px; padding: 18px 20px; margin-bottom: 24px;">
-                <p style="margin: 0 0 12px 0; font-size: 13px; line-height: 1.5; color: #94a3b8;">
-                  This email was generated because of a ${isReset ? 'password reset' : 'sign-up verification'} request from the LibLog mobile or web portal.
+              <!-- Main Amount Paid Slip -->
+              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; margin-bottom: 24px;">
+                <tr>
+                  <td style="padding: 20px 22px;">
+                    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td align="left" valign="middle">
+                          <span style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.8px; display: block; margin-bottom: 4px;">
+                            Total Amount Paid
+                          </span>
+                          <span style="font-size: 28px; font-weight: 900; color: #047857; line-height: 1.1; display: block;">
+                            ${formattedAmount}
+                          </span>
+                          <span style="font-size: 11px; color: #059669; font-weight: 600; display: block; margin-top: 4px;">
+                            Status: Paid in Full
+                          </span>
+                        </td>
+                        <td align="right" valign="middle">
+                          <div style="background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 14px; text-align: right; display: inline-block;">
+                            <span style="font-size: 10px; font-weight: 600; color: #64748b; text-transform: uppercase; display: block;">Receipt No.</span>
+                            <span style="font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace; font-size: 12.5px; font-weight: 700; color: #0f172a; display: block; margin-top: 2px;">
+                              ${finalReceiptNo}
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Transaction Line Items Table -->
+              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-bottom: 24px;">
+                <tr>
+                  <td colspan="2" style="background-color: #f1f5f9; padding: 10px 16px; border-bottom: 1px solid #e2e8f0;">
+                    <span style="font-size: 11px; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 0.6px;">
+                      Transaction Details
+                    </span>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 12.5px; color: #64748b; font-weight: 500; width: 38%;">
+                    Student Name
+                  </td>
+                  <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 12.5px; color: #0f172a; font-weight: 600; text-align: right;">
+                    ${studentName}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 12.5px; color: #64748b; font-weight: 500;">
+                    Student ID
+                  </td>
+                  <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 12.5px; color: #0f172a; font-weight: 600; text-align: right;">
+                    ${studentId}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 12.5px; color: #64748b; font-weight: 500;">
+                    Book Title
+                  </td>
+                  <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 12.5px; color: #0f172a; font-weight: 600; text-align: right;">
+                    ${bookTitle}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 12.5px; color: #64748b; font-weight: 500;">
+                    Author
+                  </td>
+                  <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 12.5px; color: #334155; font-weight: 500; text-align: right;">
+                    ${bookAuthor}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 12.5px; color: #64748b; font-weight: 500;">
+                    ISBN / Call Number
+                  </td>
+                  <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 12.5px; color: #334155; font-weight: 500; text-align: right;">
+                    ${isbnOrLccn}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 12.5px; color: #64748b; font-weight: 500;">
+                    Fee Classification
+                  </td>
+                  <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 12.5px; color: #0f172a; font-weight: 600; text-align: right;">
+                    ${penaltyTypeLabel}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 12.5px; color: #64748b; font-weight: 500;">
+                    Assessment Notes
+                  </td>
+                  <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 12.5px; color: #475569; font-weight: 500; text-align: right;">
+                    ${penaltyDetailDesc}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 12.5px; color: #64748b; font-weight: 500;">
+                    Payment Timestamp
+                  </td>
+                  <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 12.5px; color: #0f172a; font-weight: 600; text-align: right;">
+                    ${paidTimestampStr}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px 16px; font-size: 12.5px; color: #64748b; font-weight: 500;">
+                    Processed By
+                  </td>
+                  <td style="padding: 10px 16px; font-size: 12.5px; color: #0f172a; font-weight: 600; text-align: right;">
+                    ${collectorName}
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Clearance Note Box -->
+              <div style="background-color: #f8fafc; border-left: 3px solid #6C48C5; padding: 12px 16px; border-radius: 0 6px 6px 0; margin-bottom: 24px;">
+                <p style="margin: 0 0 4px 0; font-size: 12.5px; font-weight: 700; color: #0f172a;">
+                  Circulation Clearance Notice
                 </p>
-                <p style="margin: 0 0 12px 0; font-size: 13px; line-height: 1.5; color: #cbd5e1;">
-                  The security code is required to complete the login. <strong>This code will expire in 10 minutes.</strong> No one can access your account without also accessing this code.
-                </p>
-                <p style="margin: 0; font-size: 12px; line-height: 1.5; color: #8f98a0;">
-                  <strong>If you did not request this:</strong> Please ignore this email or consider updating your account credentials to keep your information secure.
+                <p style="margin: 0; font-size: 12px; line-height: 1.5; color: #475569;">
+                  Your library account balance has been updated and this penalty is fully cleared. You may present this electronic receipt or reference number ${finalReceiptNo} at the circulation desk if any verification is requested.
                 </p>
               </div>
 
-              <!-- Support Note -->
-              <p style="margin: 0; font-size: 12px; line-height: 1.5; color: #64748b; text-align: center;">
-                Need help? Contact the Calauan Community Campus Library circulation desk during campus hours.
+              <!-- Archival guidance -->
+              <p style="margin: 0; font-size: 11.5px; line-height: 1.5; color: #64748b; text-align: center;">
+                Please keep this receipt for your records. For questions regarding your borrowing history, visit the Calauan Community Campus Library circulation desk during campus operating hours.
               </p>
             </td>
           </tr>
 
-          <!-- Footer -->
+          <!-- Footer Bar -->
           <tr>
-            <td style="padding: 20px 32px; background-color: #141c24; border-top: 1px solid #223447; text-align: center;">
-              <p style="margin: 0 0 6px 0; font-size: 11px; color: #64748b;">
-                Calauan Community Campus Library • Automated Notification System
+            <td style="padding: 18px 28px; background-color: #f8fafc; border-top: 1px solid #e2e8f0; text-align: center;">
+              <p style="margin: 0 0 4px 0; font-size: 11px; font-weight: 600; color: #475569;">
+                Calauan Community Campus Library • Automated Circulation Management
               </p>
-              <p style="margin: 0; font-size: 10px; color: #475569;">
-                Please do not reply directly to this automated email.
+              <p style="margin: 0; font-size: 10px; color: #64748b;">
+                Calauan, Laguna, Philippines • This is an automated receipt, please do not reply directly to this email.
               </p>
             </td>
           </tr>
@@ -192,35 +337,68 @@ function generateOtpEmailHtml({ otp, type = 'verify', studentName = 'Student' })
 }
 
 /**
- * Plaintext OTP email generator
+ * Official Penalty Payment Receipt Plaintext version
  */
-function generateOtpEmailText({ otp, type = 'verify', studentName = 'Student' }) {
-  const isReset = type === 'reset';
+function generateReceiptEmailText({ user, penalty, book, record, collector, receiptNumber }) {
+  const studentName = `${user?.first_name || ''} ${user?.last_name || ''}`.trim() || user?.student_id || 'Student';
+  const studentId = user?.student_id || 'N/A';
+  const finalReceiptNo = receiptNumber || formatReceiptNumber(penalty?.id, penalty?.paid_at ? new Date(penalty.paid_at) : new Date());
+
+  const paidDate = penalty?.paid_at ? new Date(penalty.paid_at) : new Date();
+  const dateStr = paidDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  const timeStr = paidDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+
+  const bookTitle = book?.title || penalty?.borrow?.book?.title || 'Library Literature';
+  const bookAuthor = book?.author?.name || book?.author || penalty?.borrow?.book?.author?.name || penalty?.borrow?.book?.author || 'Unknown Author';
+
+  const amountNumber = parseFloat(penalty?.amount || 0);
+  const formattedAmount = `PHP ${amountNumber.toFixed(2)}`;
+
+  const penaltyType = String(penalty?.type || 'OVERDUE').toUpperCase();
+  let penaltyTypeLabel = 'Overdue Book Fine';
+  if (penaltyType === 'DAMAGE' || penaltyType === 'DAMAGED') penaltyTypeLabel = 'Book Damage Fee';
+  if (penaltyType === 'LOST') penaltyTypeLabel = 'Lost Book Replacement Fee';
+
+  const collectorName = collector
+    ? `${collector.first_name || ''} ${collector.last_name || ''}`.trim() || collector.student_id || 'Circulation Desk Staff'
+    : 'Circulation Desk Staff';
+
   return `
+CALAUAN COMMUNITY CAMPUS LIBRARY
+OFFICIAL PENALTY PAYMENT RECEIPT
+Receipt Number: ${finalReceiptNo}
+
 Dear ${studentName},
 
-Here is your CCC LibLog ${isReset ? 'password reset' : 'verification'} code:
+This confirms that your library penalty payment has been successfully recorded and your account has been cleared.
 
-================================
-        ${otp}
-================================
+RECEIPT SUMMARY:
+- Official Receipt No.: ${finalReceiptNo}
+- Student Name: ${studentName}
+- Student ID: ${studentId}
+- Book Title: ${bookTitle}
+- Author: ${bookAuthor}
+- Fee Classification: ${penaltyTypeLabel}
+- Amount Paid: ${formattedAmount}
+- Status: PAID IN FULL
+- Payment Timestamp: ${dateStr} at ${timeStr}
+- Processed By: ${collectorName}
 
-This code will expire in 10 minutes.
-No one can access your account without also accessing this code.
-
-If you did not request this code, please ignore this email.
+Your library account balance is now in good standing. Please retain this email confirmation for your records.
 
 Calauan Community Campus Library
-Automated Notification System
+Circulation Management System
+Calauan, Laguna, Philippines
 `.trim();
 }
 
 /**
- * Generates Antislop dark theme HTML for Overdue Book Penalty Notice
- * Features: High contrast, dark brand styling, focal highlight card for fines, zero em-dashes
+ * Redesigned Overdue Circulation Notice HTML
+ * Design: Direction A - Campus Official / Collegiate Academic
  */
 function generateOverdueEmailHtml({ user, book, record, daysOverdue, penaltyAmount, dailyRate = 5 }) {
   const studentName = `${user?.first_name || ''} ${user?.last_name || ''}`.trim() || user?.student_id || 'Student';
+  const studentId = user?.student_id || 'N/A';
   const bookTitle = book?.title || 'Borrowed Literature';
   const bookAuthor = book?.author?.name || book?.author || 'Unknown Author';
   const borrowDateStr = record?.borrow_date
@@ -234,39 +412,39 @@ function generateOverdueEmailHtml({ user, book, record, daysOverdue, penaltyAmou
 
   return `
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Overdue Notice - Calauan Community Campus Library</title>
+  <title>Overdue Book Circulation Notice</title>
 </head>
-<body style="margin: 0; padding: 24px 12px; background-color: #171a21; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #c6d4df; -webkit-font-smoothing: antialiased;">
+<body style="margin: 0; padding: 24px 12px; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; -webkit-font-smoothing: antialiased;">
   <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
     <tr>
       <td align="center">
         <!-- Main Card Container -->
-        <table role="presentation" width="100%" style="max-width: 560px; background-color: #1b2838; border: 1px solid #3b2a2a; border-radius: 8px; overflow: hidden; box-shadow: 0 12px 30px rgba(0,0,0,0.6);" border="0" cellspacing="0" cellpadding="0">
+        <table role="presentation" width="100%" style="max-width: 580px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 16px rgba(15, 23, 42, 0.05);" border="0" cellspacing="0" cellpadding="0">
           
           <!-- Header Bar -->
           <tr>
-            <td style="padding: 28px 32px 18px 32px; border-bottom: 1px solid #2d2424;">
+            <td style="padding: 24px 28px; background-color: #ffffff; border-bottom: 2px solid #f1f5f9;">
               <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
                 <tr>
-                  <td align="left">
+                  <td align="left" valign="middle">
                     <table role="presentation" border="0" cellspacing="0" cellpadding="0">
                       <tr>
-                        <td style="background-color: #ef4444; width: 28px; height: 28px; border-radius: 6px; text-align: center; vertical-align: middle;">
-                          <span style="color: #ffffff; font-weight: 900; font-size: 15px; line-height: 28px; display: block;">!</span>
+                        <td style="background-color: #dc2626; width: 34px; height: 34px; border-radius: 8px; text-align: center; vertical-align: middle;">
+                          <span style="color: #ffffff; font-weight: 800; font-size: 16px; line-height: 34px; display: block;">!</span>
                         </td>
-                        <td style="padding-left: 10px;">
-                          <span style="font-size: 13px; font-weight: 800; letter-spacing: 1.5px; color: #ffffff; display: block; text-transform: uppercase;">CCC LIBLOG</span>
-                          <span style="font-size: 10px; color: #8f98a0; letter-spacing: 0.5px; display: block;">Calauan Community Campus</span>
+                        <td style="padding-left: 12px;">
+                          <span style="font-size: 14px; font-weight: 800; letter-spacing: 1px; color: #0f172a; display: block; text-transform: uppercase;">Calauan Community Campus</span>
+                          <span style="font-size: 11px; color: #64748b; font-weight: 500; display: block;">LibLog Library Services • Circulation Office</span>
                         </td>
                       </tr>
                     </table>
                   </td>
-                  <td align="right">
-                    <span style="font-size: 11px; font-weight: 700; color: #f87171; background-color: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); padding: 4px 8px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px;">
+                  <td align="right" valign="middle">
+                    <span style="display: inline-block; font-size: 11px; font-weight: 700; color: #b91c1c; background-color: #fef2f2; border: 1px solid #fecaca; padding: 5px 10px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.5px;">
                       Circulation Notice
                     </span>
                   </td>
@@ -277,45 +455,37 @@ function generateOverdueEmailHtml({ user, book, record, daysOverdue, penaltyAmou
 
           <!-- Content Body -->
           <tr>
-            <td style="padding: 32px 32px 36px 32px;">
-              <!-- Salutation -->
-              <h2 style="margin: 0 0 14px 0; font-size: 22px; font-weight: 700; color: #ffffff; letter-spacing: -0.3px;">
-                Dear ${studentName},
-              </h2>
-
-              <!-- Context -->
-              <p style="margin: 0 0 24px 0; font-size: 14px; line-height: 1.6; color: #c6d4df;">
-                Our circulation records indicate that the following borrowed book has exceeded its borrowing duration and is now overdue. Please review the details below:
+            <td style="padding: 28px 28px 32px 28px;">
+              <h1 style="margin: 0 0 6px 0; font-size: 20px; font-weight: 800; color: #0f172a; letter-spacing: -0.3px;">
+                Overdue Book Reminder
+              </h1>
+              <p style="margin: 0 0 20px 0; font-size: 13.5px; line-height: 1.5; color: #475569;">
+                Dear ${studentName} (ID: ${studentId}), library records indicate that the following borrowed book has exceeded its loan period and has not yet been checked in at the circulation desk.
               </p>
 
-              <!-- FOCAL HIGHLIGHT CARD (PENALTY & TITLE) -->
-              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="margin: 0 0 24px 0;">
+              <!-- Highlight Fine Box -->
+              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; margin-bottom: 24px;">
                 <tr>
-                  <td style="background-color: #0d1217; border: 1px solid #3b2828; border-radius: 6px; padding: 22px 24px;">
-                    <span style="font-size: 11px; font-weight: 700; color: #f87171; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 6px;">
-                      Overdue Item
-                    </span>
-                    <h3 style="margin: 0 0 16px 0; font-size: 17px; font-weight: 700; color: #ffffff; line-height: 1.4;">
-                      ${bookTitle}
-                    </h3>
-                    
-                    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="border-top: 1px solid #221c1c; padding-top: 14px;">
+                  <td style="padding: 18px 22px;">
+                    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
                       <tr>
                         <td align="left" valign="middle">
-                          <span style="font-size: 11px; color: #94a3b8; display: block;">Accrued Fine</span>
-                          <span style="font-size: 26px; font-weight: 800; color: #f87171; line-height: 1.1; display: block;">
+                          <span style="font-size: 11px; font-weight: 700; color: #b91c1c; text-transform: uppercase; letter-spacing: 0.8px; display: block; margin-bottom: 4px;">
+                            Accrued Overdue Fine
+                          </span>
+                          <span style="font-size: 28px; font-weight: 900; color: #b91c1c; line-height: 1.1; display: block;">
                             ${formattedPenalty}
                           </span>
-                          <span style="font-size: 10px; color: #64748b; display: block; margin-top: 2px;">
-                            ${formattedDailyRate} per calendar day
+                          <span style="font-size: 11px; color: #991b1b; font-weight: 500; display: block; margin-top: 4px;">
+                            Rate: ${formattedDailyRate} per calendar day
                           </span>
                         </td>
                         <td align="right" valign="middle">
-                          <div style="background-color: #3b1818; border: 1px solid #7f1d1d; border-radius: 4px; padding: 6px 12px; text-align: center; display: inline-block;">
-                            <span style="font-size: 13px; font-weight: 800; color: #fca5a5; display: block;">
+                          <div style="background-color: #ffffff; border: 1px solid #fca5a5; border-radius: 8px; padding: 8px 14px; text-align: center; display: inline-block;">
+                            <span style="font-size: 14px; font-weight: 800; color: #b91c1c; display: block;">
                               ${daysOverdue} Days
                             </span>
-                            <span style="font-size: 9px; font-weight: 700; color: #f87171; text-transform: uppercase; letter-spacing: 0.5px; display: block;">
+                            <span style="font-size: 10px; font-weight: 600; color: #7f1d1d; text-transform: uppercase; display: block; margin-top: 2px;">
                               Past Due
                             </span>
                           </div>
@@ -327,74 +497,81 @@ function generateOverdueEmailHtml({ user, book, record, daysOverdue, penaltyAmou
               </table>
 
               <!-- Itemized Book Details Grid -->
-              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #141c24; border: 1px solid #223447; border-radius: 6px; margin: 0 0 24px 0;">
+              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-bottom: 24px;">
                 <tr>
-                  <td style="padding: 12px 18px; border-bottom: 1px solid #1e293b;">
-                    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
-                      <tr>
-                        <td align="left" style="font-size: 12px; color: #94a3b8; font-weight: 500;">Author</td>
-                        <td align="right" style="font-size: 12px; color: #e2e8f0; font-weight: 600;">${bookAuthor}</td>
-                      </tr>
-                    </table>
+                  <td colspan="2" style="background-color: #f1f5f9; padding: 10px 16px; border-bottom: 1px solid #e2e8f0;">
+                    <span style="font-size: 11px; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 0.6px;">
+                      Borrowed Item Information
+                    </span>
                   </td>
                 </tr>
                 <tr>
-                  <td style="padding: 12px 18px; border-bottom: 1px solid #1e293b;">
-                    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
-                      <tr>
-                        <td align="left" style="font-size: 12px; color: #94a3b8; font-weight: 500;">Date Borrowed</td>
-                        <td align="right" style="font-size: 12px; color: #e2e8f0; font-weight: 600;">${borrowDateStr}</td>
-                      </tr>
-                    </table>
+                  <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 12.5px; color: #64748b; font-weight: 500; width: 38%;">
+                    Book Title
+                  </td>
+                  <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 12.5px; color: #0f172a; font-weight: 600; text-align: right;">
+                    ${bookTitle}
                   </td>
                 </tr>
                 <tr>
-                  <td style="padding: 12px 18px; border-bottom: 1px solid #1e293b;">
-                    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
-                      <tr>
-                        <td align="left" style="font-size: 12px; color: #94a3b8; font-weight: 500;">Original Due Date</td>
-                        <td align="right" style="font-size: 12px; color: #f87171; font-weight: 700;">${dueDateStr}</td>
-                      </tr>
-                    </table>
+                  <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 12.5px; color: #64748b; font-weight: 500;">
+                    Author
+                  </td>
+                  <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 12.5px; color: #334155; font-weight: 500; text-align: right;">
+                    ${bookAuthor}
                   </td>
                 </tr>
                 <tr>
-                  <td style="padding: 12px 18px;">
-                    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
-                      <tr>
-                        <td align="left" style="font-size: 12px; color: #94a3b8; font-weight: 500;">Borrowing Status</td>
-                        <td align="right" style="font-size: 12px; color: #f87171; font-weight: 700; text-transform: uppercase;">Not Returned</td>
-                      </tr>
-                    </table>
+                  <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 12.5px; color: #64748b; font-weight: 500;">
+                    Date Borrowed
+                  </td>
+                  <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 12.5px; color: #334155; font-weight: 500; text-align: right;">
+                    ${borrowDateStr}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 12.5px; color: #64748b; font-weight: 500;">
+                    Expected Due Date
+                  </td>
+                  <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 12.5px; color: #b91c1c; font-weight: 700; text-align: right;">
+                    ${dueDateStr}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px 16px; font-size: 12.5px; color: #64748b; font-weight: 500;">
+                    Current Status
+                  </td>
+                  <td style="padding: 10px 16px; font-size: 12.5px; color: #b91c1c; font-weight: 700; text-align: right; text-transform: uppercase;">
+                    Not Yet Returned
                   </td>
                 </tr>
               </table>
 
-              <!-- Return Instructions Box -->
-              <div style="background-color: #131d2a; border-left: 3px solid #38bdf8; padding: 14px 18px; border-radius: 0 6px 6px 0; margin-bottom: 24px;">
-                <p style="margin: 0 0 6px 0; font-size: 13px; font-weight: 700; color: #ffffff;">
-                  Return Instructions:
+              <!-- Instructions Box -->
+              <div style="background-color: #f8fafc; border-left: 3px solid #6C48C5; padding: 12px 16px; border-radius: 0 6px 6px 0; margin-bottom: 24px;">
+                <p style="margin: 0 0 4px 0; font-size: 12.5px; font-weight: 700; color: #0f172a;">
+                  How to Return:
                 </p>
-                <p style="margin: 0; font-size: 12px; line-height: 1.6; color: #94a3b8;">
-                  Please bring this book to the <strong>Calauan Community Campus Library Circulation Desk</strong> during standard operating hours (Monday to Friday, 8:00 AM to 5:00 PM). Returning the item freezes all further overdue fee accumulation immediately.
+                <p style="margin: 0; font-size: 12px; line-height: 1.5; color: #475569;">
+                  Please return this book to the Calauan Community Campus Library circulation desk during standard operating hours (Monday to Friday, 8:00 AM to 5:00 PM). Handing in the book halts further daily penalty calculations immediately.
                 </p>
               </div>
 
-              <!-- Polite Notice -->
-              <p style="margin: 0; font-size: 11px; line-height: 1.5; color: #64748b; text-align: center;">
-                Promptly returning library materials ensures that essential academic resources remain accessible to all students.
+              <!-- Polite Note -->
+              <p style="margin: 0; font-size: 11.5px; line-height: 1.5; color: #64748b; text-align: center;">
+                Promptly returning library materials ensures that essential academic resources remain accessible to your fellow students.
               </p>
             </td>
           </tr>
 
-          <!-- Footer -->
+          <!-- Footer Bar -->
           <tr>
-            <td style="padding: 20px 32px; background-color: #141c24; border-top: 1px solid #223447; text-align: center;">
-              <p style="margin: 0 0 6px 0; font-size: 11px; color: #64748b;">
-                Calauan Community Campus Library • Automated System Notification
+            <td style="padding: 18px 28px; background-color: #f8fafc; border-top: 1px solid #e2e8f0; text-align: center;">
+              <p style="margin: 0 0 4px 0; font-size: 11px; font-weight: 600; color: #475569;">
+                Calauan Community Campus Library • Automated Notification System
               </p>
-              <p style="margin: 0; font-size: 10px; color: #475569;">
-                Calauan, Laguna • Please do not reply directly to this automated email.
+              <p style="margin: 0; font-size: 10px; color: #64748b;">
+                Calauan, Laguna, Philippines • Please do not reply directly to this automated email.
               </p>
             </td>
           </tr>
@@ -409,11 +586,12 @@ function generateOverdueEmailHtml({ user, book, record, daysOverdue, penaltyAmou
 }
 
 /**
- * Plaintext Overdue Notice email generator
+ * Redesigned Overdue Circulation Notice Plaintext
  */
 function generateOverdueEmailText({ user, book, record, daysOverdue, penaltyAmount, dailyRate = 5 }) {
   const studentName = `${user?.first_name || ''} ${user?.last_name || ''}`.trim() || user?.student_id || 'Student';
-  const bookTitle = book?.title || 'Borrowed Book';
+  const studentId = user?.student_id || 'N/A';
+  const bookTitle = book?.title || 'Borrowed Literature';
   const bookAuthor = book?.author?.name || book?.author || 'Unknown Author';
   const borrowDateStr = record?.borrow_date
     ? new Date(record.borrow_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -425,23 +603,171 @@ function generateOverdueEmailText({ user, book, record, daysOverdue, penaltyAmou
   const formattedDailyRate = `PHP ${parseFloat(dailyRate || 5).toFixed(2)}`;
 
   return `
-Dear ${studentName},
+CALAUAN COMMUNITY CAMPUS LIBRARY
+OVERDUE BOOK CIRCULATION NOTICE
 
-This is an overdue notice from the Calauan Community Campus Library (LibLog).
+Dear ${studentName} (ID: ${studentId}),
 
-OVERDUE BOOK DETAILS:
+This is a reminder from the Calauan Community Campus Library that the following borrowed book has exceeded its loan duration:
+
+BOOK DETAILS:
 - Title: ${bookTitle}
 - Author: ${bookAuthor}
 - Date Borrowed: ${borrowDateStr}
 - Original Due Date: ${dueDateStr}
-- Duration Overdue: ${daysOverdue} day(s)
+- Days Overdue: ${daysOverdue} day(s)
 - Accrued Penalty: ${formattedPenalty} (${formattedDailyRate} per calendar day)
 
-RETURN INSTRUCTIONS:
-Please bring this book to the Calauan Community Campus Library Circulation Desk during standard operating hours (Monday to Friday, 8:00 AM to 5:00 PM). Returning the item freezes further overdue calculations immediately.
+RETURN GUIDELINES:
+Please return this book directly to the Calauan Community Campus Library circulation desk during campus hours (Monday to Friday, 8:00 AM to 5:00 PM). Returning the item freezes further overdue calculations immediately.
 
 Calauan Community Campus Library
 Automated Notification System
+Calauan, Laguna, Philippines
+`.trim();
+}
+
+/**
+ * Redesigned OTP Verification & Password Reset HTML
+ * Design: Direction A - Campus Official / Collegiate Academic
+ */
+function generateOtpEmailHtml({ otp, type = 'verify', studentName = 'Student' }) {
+  const isReset = type === 'reset';
+  const actionTitle = isReset ? 'Password Reset' : 'Account Verification';
+  const actionDescription = isReset 
+    ? 'Here is the one-time security code required to reset your LibLog account password:'
+    : 'Here is the one-time security code required to verify and activate your LibLog account:';
+
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${actionTitle} - Calauan Community Campus Library</title>
+</head>
+<body style="margin: 0; padding: 24px 12px; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; -webkit-font-smoothing: antialiased;">
+  <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+    <tr>
+      <td align="center">
+        <!-- Main Card Container -->
+        <table role="presentation" width="100%" style="max-width: 540px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 16px rgba(15, 23, 42, 0.05);" border="0" cellspacing="0" cellpadding="0">
+          
+          <!-- Header Bar -->
+          <tr>
+            <td style="padding: 24px 28px; background-color: #ffffff; border-bottom: 2px solid #f1f5f9;">
+              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td align="left" valign="middle">
+                    <table role="presentation" border="0" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td style="background-color: #6C48C5; width: 34px; height: 34px; border-radius: 8px; text-align: center; vertical-align: middle;">
+                          <span style="color: #ffffff; font-weight: 800; font-size: 16px; line-height: 34px; display: block;">L</span>
+                        </td>
+                        <td style="padding-left: 12px;">
+                          <span style="font-size: 14px; font-weight: 800; letter-spacing: 1px; color: #0f172a; display: block; text-transform: uppercase;">Calauan Community Campus</span>
+                          <span style="font-size: 11px; color: #64748b; font-weight: 500; display: block;">LibLog Library Services • Account Security</span>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  <td align="right" valign="middle">
+                    <span style="display: inline-block; font-size: 11px; font-weight: 700; color: #6C48C5; background-color: #f5f3ff; border: 1px solid #ddd6fe; padding: 5px 10px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.5px;">
+                      ${isReset ? 'Security Alert' : 'Verification'}
+                    </span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Content Body -->
+          <tr>
+            <td style="padding: 28px 28px 32px 28px;">
+              <h1 style="margin: 0 0 6px 0; font-size: 20px; font-weight: 800; color: #0f172a; letter-spacing: -0.3px;">
+                Dear ${studentName},
+              </h1>
+              <p style="margin: 0 0 20px 0; font-size: 13.5px; line-height: 1.5; color: #475569;">
+                ${actionDescription}
+              </p>
+
+              <!-- MONOSPACE CODE BOX -->
+              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-bottom: 22px;">
+                <tr>
+                  <td align="center" style="background-color: #f5f3ff; border: 2px dashed #c4b5fd; border-radius: 10px; padding: 22px 16px;">
+                    <span style="font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace; font-size: 36px; font-weight: 800; color: #581c87; letter-spacing: 8px; display: inline-block; line-height: 1;">
+                      ${otp}
+                    </span>
+                    <span style="display: block; font-size: 11.5px; font-weight: 600; color: #6b21a8; margin-top: 10px;">
+                      Valid for 10 minutes
+                    </span>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Security Information Note -->
+              <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 16px; margin-bottom: 22px;">
+                <p style="margin: 0 0 8px 0; font-size: 12px; line-height: 1.5; color: #334155;">
+                  This verification code was generated from a ${isReset ? 'password reset' : 'sign-up'} request on the LibLog library portal.
+                </p>
+                <p style="margin: 0; font-size: 11.5px; line-height: 1.5; color: #64748b;">
+                  <strong>Security Note:</strong> Never share this code with anyone. Library personnel will never ask for your verification code or password. If you did not make this request, you may safely ignore this message.
+                </p>
+              </div>
+
+              <!-- Support Note -->
+              <p style="margin: 0; font-size: 11.5px; line-height: 1.5; color: #64748b; text-align: center;">
+                Need assistance? Visit the Calauan Community Campus Library circulation desk during campus operating hours.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer Bar -->
+          <tr>
+            <td style="padding: 18px 28px; background-color: #f8fafc; border-top: 1px solid #e2e8f0; text-align: center;">
+              <p style="margin: 0 0 4px 0; font-size: 11px; font-weight: 600; color: #475569;">
+                Calauan Community Campus Library • Automated Notification System
+              </p>
+              <p style="margin: 0; font-size: 10px; color: #64748b;">
+                Calauan, Laguna, Philippines • Please do not reply directly to this automated email.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+`.trim();
+}
+
+/**
+ * Redesigned OTP Verification & Password Reset Plaintext
+ */
+function generateOtpEmailText({ otp, type = 'verify', studentName = 'Student' }) {
+  const isReset = type === 'reset';
+  return `
+CALAUAN COMMUNITY CAMPUS LIBRARY
+${isReset ? 'PASSWORD RESET' : 'ACCOUNT VERIFICATION'} CODE
+
+Dear ${studentName},
+
+Here is your one-time security code for your LibLog account:
+
+================================
+        ${otp}
+================================
+
+This code will expire in 10 minutes.
+Never share this security code with anyone.
+
+If you did not request this code, you may safely ignore this message.
+
+Calauan Community Campus Library
+Automated Notification System
+Calauan, Laguna, Philippines
 `.trim();
 }
 
@@ -451,8 +777,8 @@ Automated Notification System
 async function sendOtpEmail({ to, otp, type = 'verify', studentName = 'Student' }) {
   const isReset = type === 'reset';
   const subject = isReset 
-    ? `[Security] Password Reset Code: ${otp} - Calauan Community Campus Library`
-    : `[Verification] Your Verification Code: ${otp} - Calauan Community Campus Library`;
+    ? `[Security] Password Reset Code: ${otp} (Calauan Community Campus Library)`
+    : `[Verification] Your Verification Code: ${otp} (Calauan Community Campus Library)`;
 
   const htmlContent = generateOtpEmailHtml({ otp, type, studentName });
   const textContent = generateOtpEmailText({ otp, type, studentName });
@@ -470,10 +796,32 @@ async function sendOtpEmail({ to, otp, type = 'verify', studentName = 'Student' 
  */
 async function sendOverdueNotice({ user, book, record, daysOverdue, penaltyAmount, dailyRate = 5 }) {
   const bookTitle = book?.title || 'Borrowed Book';
-  const subject = `[Overdue Notice] Please Return "${bookTitle}" - Calauan Community Campus Library`;
+  const subject = `[Circulation Notice] Overdue Book Reminder: "${bookTitle}" (Calauan Community Campus Library)`;
 
   const htmlContent = generateOverdueEmailHtml({ user, book, record, daysOverdue, penaltyAmount, dailyRate });
   const textContent = generateOverdueEmailText({ user, book, record, daysOverdue, penaltyAmount, dailyRate });
+
+  return sendEmail({
+    to: user.email,
+    subject,
+    htmlContent,
+    textContent
+  });
+}
+
+/**
+ * High-level helper to send a Penalty Payment Receipt email
+ */
+async function sendPenaltyReceiptEmail({ user, penalty, book, record, collector, receiptNumber }) {
+  if (!user?.email) {
+    throw new Error('User has no registered email address.');
+  }
+
+  const finalReceiptNo = receiptNumber || formatReceiptNumber(penalty?.id, penalty?.paid_at ? new Date(penalty.paid_at) : new Date());
+  const subject = `[Official Receipt] Library Penalty Payment: ${finalReceiptNo} (Calauan Community Campus Library)`;
+
+  const htmlContent = generateReceiptEmailHtml({ user, penalty, book, record, collector, receiptNumber: finalReceiptNo });
+  const textContent = generateReceiptEmailText({ user, penalty, book, record, collector, receiptNumber: finalReceiptNo });
 
   return sendEmail({
     to: user.email,
@@ -487,6 +835,10 @@ module.exports = {
   sendEmail,
   sendOtpEmail,
   sendOverdueNotice,
+  sendPenaltyReceiptEmail,
+  formatReceiptNumber,
+  generateReceiptEmailHtml,
+  generateReceiptEmailText,
   generateOtpEmailHtml,
   generateOtpEmailText,
   generateOverdueEmailHtml,

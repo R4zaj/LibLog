@@ -13,6 +13,7 @@ const {
   returnBook,
   getPenalties,
   payPenalty,
+  resendPenaltyReceiptEmail,
   checkOverdue,
   sendPenaltyNoticeEmail
 } = require('../controllers/borrowingController');
@@ -30,6 +31,7 @@ router.post('/return', returnBook);
 router.get('/penalties', getPenalties);
 router.post('/penalties/:id/pay', payPenalty);
 router.post('/penalties/:id/send-email', sendPenaltyNoticeEmail);
+router.post('/penalties/:id/resend-receipt', resendPenaltyReceiptEmail);
 router.post('/check-overdue', checkOverdue);
 
 module.exports = router;

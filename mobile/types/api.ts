@@ -190,6 +190,7 @@ export interface PenaltyRules {
 
 export interface UserPenaltyItem {
   id: number | string;
+  receipt_number?: string;
   borrow_id: number;
   book_title: string;
   book_author: string;

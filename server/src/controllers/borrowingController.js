@@ -405,12 +405,20 @@ const returnBook = async (req, res) => {
 const getPenalties = async (req, res) => {
   try {
     const { calculateOverdueDetails } = require('../utils/penaltyCalculator');
+    const { formatReceiptNumber } = require('../services/emailService');
     const settings = await prisma.librarySettings.findFirst();
 
+    const statusFilter = req.query.status || 'UNPAID';
+    const whereClause = {};
+    if (statusFilter !== 'ALL') {
+      whereClause.status = statusFilter;
+    }
+
     const penalties = await prisma.penalty.findMany({
-      where: { status: 'UNPAID' },
+      where: whereClause,
       include: {
         user: true,
+        collector: true,
         borrow: {
           include: {
             book: {
@@ -425,9 +433,12 @@ const getPenalties = async (req, res) => {
     // Map each penalty with exact overdue days and strictly consistent amount
     const mappedPenalties = penalties.map(p => {
       const details = calculateOverdueDetails(p.borrow, settings, p);
+      const isPaid = p.status === 'PAID';
+      const amount = isPaid ? parseFloat(p.amount || 0) : details.penaltyAmount;
+      const daysOverdue = isPaid ? (p.days_overdue ?? details.daysOverdue) : details.daysOverdue;
 
-      // Asynchronously ensure database row stays synchronized if days or amount differed
-      if (p.type === 'OVERDUE' && (p.days_overdue !== details.daysOverdue || parseFloat(p.amount) !== details.penaltyAmount)) {
+      // Asynchronously ensure database row stays synchronized if days or amount differed for unpaid overdue penalties
+      if (!isPaid && p.type === 'OVERDUE' && (p.days_overdue !== details.daysOverdue || parseFloat(p.amount) !== details.penaltyAmount)) {
         prisma.penalty.update({
           where: { id: p.id },
           data: {
@@ -439,8 +450,9 @@ const getPenalties = async (req, res) => {
 
       return {
         ...p,
-        days_overdue: details.daysOverdue,
-        amount: details.penaltyAmount,
+        receipt_number: formatReceiptNumber(p.id, p.paid_at || p.created_at),
+        days_overdue: daysOverdue,
+        amount,
         is_returned: details.isReturned,
         return_date: details.returnDate,
         daily_rate: details.dailyRate
@@ -468,19 +480,55 @@ const payPenalty = async (req, res) => {
       return res.status(404).json({ error: 'Penalty not found' });
     }
 
-    if (condition === 'RETURNED' && penalty.borrow && penalty.borrow.status !== 'RETURNED') {
-      return res.status(400).json({ error: 'Cannot process payment: The book must be returned first.' });
+    // Extract staff/librarian user ID from JWT authorization token if available
+    let collectorId = null;
+    const authHeader = req.headers['authorization'];
+    if (authHeader) {
+      const token = authHeader.split(' ')[1];
+      if (token && token !== 'null' && token !== 'undefined') {
+        try {
+          const decoded = jwt.verify(token, process.env.JWT_SECRET);
+          if (decoded && decoded.id) {
+            collectorId = decoded.id;
+          }
+        } catch (e) {
+          // Token verification error, proceed without collectorId
+        }
+      }
     }
+
+    const paidDate = new Date();
 
     await prisma.$transaction(async (tx) => {
       let finalAmount = parseFloat(penalty.amount);
       const settings = await tx.librarySettings.findFirst();
 
-      if (condition === 'DAMAGED') {
+      if (condition === 'RETURNED') {
+        // If the book was not previously returned via scanner, close the borrow record now
+        if (penalty.borrow && penalty.borrow.status !== 'RETURNED') {
+          await tx.borrowRecord.update({
+            where: { id: penalty.borrow_id },
+            data: { 
+              status: 'RETURNED',
+              return_date: paidDate
+            }
+          });
+          const bookToReturn = await tx.book.findUnique({ where: { id: penalty.borrow.book_id } });
+          if (bookToReturn && bookToReturn.available_copies < bookToReturn.total_copies) {
+            await tx.book.update({
+              where: { id: penalty.borrow.book_id },
+              data: { available_copies: { increment: 1 } }
+            });
+          }
+        }
+      } else if (condition === 'DAMAGED') {
         finalAmount += parseFloat(settings?.damage_fee || 5.00);
         await tx.borrowRecord.update({
           where: { id: penalty.borrow_id },
-          data: { status: 'RETURNED' }
+          data: { 
+            status: 'RETURNED',
+            return_date: penalty.borrow?.return_date || paidDate
+          }
         });
         await tx.book.update({
           where: { id: penalty.borrow.book_id },
@@ -490,7 +538,10 @@ const payPenalty = async (req, res) => {
         finalAmount += parseFloat(settings?.lost_book_fee || 5.00);
         await tx.borrowRecord.update({
           where: { id: penalty.borrow_id },
-          data: { status: 'LOST' }
+          data: { 
+            status: 'LOST',
+            return_date: penalty.borrow?.return_date || paidDate
+          }
         });
         await tx.book.update({
           where: { id: penalty.borrow.book_id },
@@ -502,7 +553,8 @@ const payPenalty = async (req, res) => {
         where: { id: parseInt(id) },
         data: { 
           status: 'PAID', 
-          paid_at: new Date(),
+          paid_at: paidDate,
+          collected_by: collectorId,
           type: condition === 'LOST' ? 'LOST' : (condition === 'DAMAGED' ? 'DAMAGE' : penalty.type),
           amount: finalAmount
         }
@@ -518,7 +570,59 @@ const payPenalty = async (req, res) => {
       });
     });
 
-    res.json({ message: 'Penalty paid' });
+    // Fetch full penalty record with user and book details for receipt generation
+    const fullPaidPenalty = await prisma.penalty.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        user: true,
+        collector: true,
+        borrow: {
+          include: {
+            book: {
+              include: { author: true }
+            }
+          }
+        }
+      }
+    });
+
+    const { sendPenaltyReceiptEmail, formatReceiptNumber } = require('../services/emailService');
+    const receiptNumber = formatReceiptNumber(fullPaidPenalty.id, fullPaidPenalty.paid_at || paidDate);
+    let emailSent = false;
+    let emailError = null;
+
+    if (fullPaidPenalty.user?.email) {
+      try {
+        await sendPenaltyReceiptEmail({
+          user: fullPaidPenalty.user,
+          penalty: fullPaidPenalty,
+          book: fullPaidPenalty.borrow?.book,
+          record: fullPaidPenalty.borrow,
+          collector: fullPaidPenalty.collector,
+          receiptNumber
+        });
+        emailSent = true;
+      } catch (err) {
+        console.error('Failed to send penalty receipt email:', err.message);
+        emailError = err.message;
+      }
+    }
+
+    res.json({
+      message: 'Penalty paid',
+      receiptNumber,
+      emailSent,
+      emailError,
+      penalty: {
+        id: fullPaidPenalty.id,
+        receipt_number: receiptNumber,
+        amount: parseFloat(fullPaidPenalty.amount),
+        paid_at: fullPaidPenalty.paid_at,
+        status: fullPaidPenalty.status,
+        type: fullPaidPenalty.type,
+        collector: fullPaidPenalty.collector
+      }
+    });
   } catch (error) {
     console.error('Pay Penalty Error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -731,8 +835,11 @@ const getUserPenalties = async (req, res) => {
         }
       }
 
+      const { formatReceiptNumber } = require('../services/emailService');
+
       return {
         id: p.id,
+        receipt_number: formatReceiptNumber(p.id, p.paid_at || p.created_at),
         borrow_id: p.borrow_id,
         book_title: p.borrow?.book?.title || 'Library Book',
         book_author: p.borrow?.book?.author?.name || 'Unknown Author',
@@ -870,6 +977,66 @@ const sendPenaltyNoticeEmail = async (req, res) => {
   }
 };
 
+const resendPenaltyReceiptEmail = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const penaltyId = parseInt(id, 10);
+    if (isNaN(penaltyId)) {
+      return res.status(400).json({ error: 'Invalid penalty ID.' });
+    }
+
+    const penalty = await prisma.penalty.findUnique({
+      where: { id: penaltyId },
+      include: {
+        user: true,
+        collector: true,
+        borrow: {
+          include: {
+            book: {
+              include: { author: true }
+            }
+          }
+        }
+      }
+    });
+
+    if (!penalty) {
+      return res.status(404).json({ error: 'Penalty record not found.' });
+    }
+
+    if (penalty.status !== 'PAID') {
+      return res.status(400).json({ error: 'Receipt is only available for paid penalties.' });
+    }
+
+    if (!penalty.user?.email) {
+      return res.status(400).json({ error: 'The student does not have a registered email address.' });
+    }
+
+    const { sendPenaltyReceiptEmail, formatReceiptNumber } = require('../services/emailService');
+    const receiptNumber = formatReceiptNumber(penalty.id, penalty.paid_at || penalty.updated_at);
+
+    const emailResult = await sendPenaltyReceiptEmail({
+      user: penalty.user,
+      penalty,
+      book: penalty.borrow?.book,
+      record: penalty.borrow,
+      collector: penalty.collector,
+      receiptNumber
+    });
+
+    res.json({
+      success: true,
+      message: `Official receipt ${receiptNumber} successfully emailed to ${penalty.user.email}!`,
+      receiptNumber,
+      sentTo: penalty.user.email,
+      emailResult
+    });
+  } catch (error) {
+    console.error('Resend Penalty Receipt Email Error:', error);
+    res.status(500).json({ error: error.message || 'Failed to resend receipt email.' });
+  }
+};
+
 module.exports = {
   getStats,
   validateBook,
@@ -883,6 +1050,7 @@ module.exports = {
   returnBook,
   getPenalties,
   payPenalty,
+  resendPenaltyReceiptEmail,
   checkOverdue,
   sendPenaltyNoticeEmail
 };

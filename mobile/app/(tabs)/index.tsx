@@ -748,7 +748,7 @@ export default function Home() {
                                   {p.days_overdue > 0 ? `${p.days_overdue} day${p.days_overdue !== 1 ? 's' : ''} overdue • ` : ''}
                                   {p.is_returned ? 'Returned' : 'Not Returned'}
                                 </Text>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
                                   <View
                                     style={{
                                       backgroundColor: isUnpaid ? '#fef2f2' : '#ecfdf5',
@@ -764,6 +764,22 @@ export default function Home() {
                                   <Text style={{ fontSize: 11, color: theme.textSecondary, fontWeight: '500' }}>
                                     {p.type} • ₱{Number(p.daily_rate || dailyRate).toFixed(2)}/day
                                   </Text>
+                                  {!isUnpaid && p.receipt_number ? (
+                                    <View
+                                      style={{
+                                        backgroundColor: '#f1f5f9',
+                                        paddingHorizontal: 7,
+                                        paddingVertical: 2,
+                                        borderRadius: 4,
+                                        borderWidth: 1,
+                                        borderColor: '#e2e8f0',
+                                      }}
+                                    >
+                                      <Text style={{ fontSize: 10, fontWeight: '700', color: '#475569' }}>
+                                        Receipt: {p.receipt_number}
+                                      </Text>
+                                    </View>
+                                  ) : null}
                                 </View>
                               </View>
                               <Text style={{ fontSize: 17, fontWeight: '800', color: isUnpaid ? '#dc2626' : theme.text }}>
