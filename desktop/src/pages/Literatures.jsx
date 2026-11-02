@@ -41,6 +41,16 @@ export default function Literatures() {
   const [archivedSearchQuery, setArchivedSearchQuery] = useState('');
   const [archivedSortBy, setArchivedSortBy] = useState('Recently Archived');
 
+  // View mode for Literature Catalog: 'list' | 'grid'
+  const [viewMode, setViewMode] = useState(() => localStorage.getItem('liblog_catalog_view_mode') || 'list');
+
+  const handleToggleViewMode = (mode) => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem('liblog_catalog_view_mode', mode);
+    } catch (_) {}
+  };
+
   // Pagination States (10 lines per page)
   const [literaturePage, setLiteraturePage] = useState(1);
   const [authorPage, setAuthorPage] = useState(1);
@@ -794,16 +804,51 @@ export default function Literatures() {
               <option value="Lost">Lost</option>
             </select>
 
-            <div className="flex border border-gray-200 dark:border-dark-border rounded-md overflow-hidden">
-              <button className="px-3 py-2 bg-gray-100 text-gray-600 dark:text-slate-300 dark:bg-dark-bg border-r border-gray-200 dark:border-dark-border" title="List View"><List size={16} /></button>
-              <button className="px-3 py-2 bg-white dark:bg-dark-card text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:text-slate-300" title="Grid View"><Grid size={16} /></button>
+            <div className="flex border border-gray-200 dark:border-dark-border rounded-md overflow-hidden shadow-xs">
+              <button 
+                type="button"
+                onClick={() => handleToggleViewMode('list')}
+                className={`px-3 py-2 transition-colors border-r border-gray-200 dark:border-dark-border flex items-center justify-center cursor-pointer ${
+                  viewMode === 'list' 
+                    ? 'bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300 font-bold' 
+                    : 'bg-white dark:bg-dark-card text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300'
+                }`} 
+                title="List View"
+              >
+                <List size={16} />
+              </button>
+              <button 
+                type="button"
+                onClick={() => handleToggleViewMode('grid')}
+                className={`px-3 py-2 transition-colors flex items-center justify-center cursor-pointer ${
+                  viewMode === 'grid' 
+                    ? 'bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300 font-bold' 
+                    : 'bg-white dark:bg-dark-card text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300'
+                }`} 
+                title="Grid View"
+              >
+                <Grid size={16} />
+              </button>
             </div>
           </div>
         </div>
       </div>
 
       <div className="flex items-center justify-between text-xs text-gray-500 dark:text-slate-400">
-        <span className="font-medium">Showing {filteredBooks.length} of {books.length} active books</span>
+        <div className="flex items-center gap-3">
+          <span className="font-medium">Showing {filteredBooks.length} of {books.length} active books</span>
+          {viewMode === 'grid' && filteredBooks.length > 0 && (
+            <label className="flex items-center gap-1.5 cursor-pointer font-medium text-gray-600 dark:text-slate-300 hover:text-purple-700 dark:hover:text-purple-400">
+              <input 
+                type="checkbox"
+                checked={selectedBooks.length === filteredBooks.length && filteredBooks.length > 0}
+                onChange={handleSelectAll}
+                className="rounded border-gray-300 accent-primary-600 w-3.5 h-3.5 cursor-pointer"
+              />
+              <span>Select all</span>
+            </label>
+          )}
+        </div>
         <button 
           onClick={handleOpenYearArchiveModal}
           className="text-amber-700 dark:text-amber-400 font-semibold hover:underline flex items-center gap-1"
@@ -812,8 +857,9 @@ export default function Literatures() {
         </button>
       </div>
 
-      {/* Data Table */}
-      <div className="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-lg overflow-hidden shadow-sm">
+      {/* Data Table / Grid View */}
+      {viewMode === 'list' ? (
+        <div className="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-lg overflow-hidden shadow-sm">
         <table className="w-full text-left border-collapse whitespace-nowrap">
           <thead>
             <tr className="border-b border-gray-200 dark:border-dark-border text-xs font-semibold text-gray-600 dark:text-slate-300 bg-gray-50/50 dark:bg-dark-bg">
@@ -921,6 +967,175 @@ export default function Literatures() {
           />
         </div>
       </div>
+      ) : (
+        <div className="flex flex-col gap-5">
+          {paginatedBooks.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              {paginatedBooks.map((book) => {
+                const isSelected = selectedBooks.includes(book.id);
+                const isAvailable = (book.available || 0) > 0;
+                const stockPercent = Math.min(100, Math.max(0, ((book.available || 0) / (book.total || 1)) * 100));
+
+                return (
+                  <div
+                    key={book.id}
+                    className={`group relative bg-white dark:bg-dark-card border rounded-xl p-4 flex flex-col justify-between transition-all duration-200 shadow-sm hover:shadow-md ${
+                      isSelected
+                        ? 'border-purple-600 dark:border-purple-500 ring-2 ring-purple-600/30 bg-purple-50/25 dark:bg-purple-950/20'
+                        : 'border-gray-200 dark:border-dark-border hover:border-purple-300 dark:hover:border-purple-800'
+                    }`}
+                  >
+                    {/* Top Row: Checkbox, Genre Pill, & Condition Badge */}
+                    <div className="flex items-start justify-between gap-2 mb-2.5">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => handleSelectOne(book.id)}
+                          className="rounded border-gray-300 text-purple-600 focus:ring-purple-500 cursor-pointer w-4 h-4 accent-primary-600"
+                        />
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60 max-w-[115px] truncate">
+                          <span className="w-1.5 h-1.5 rounded-full bg-purple-500 shrink-0"></span>
+                          <span className="truncate">{book.genre || 'General'}</span>
+                        </span>
+                      </div>
+
+                      <span
+                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                          book.condition === 'POOR'
+                            ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/50 dark:text-rose-300 border border-rose-200 dark:border-rose-900'
+                            : book.condition === 'FAIR'
+                            ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200 dark:border-amber-900'
+                            : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900'
+                        }`}
+                      >
+                        {book.condition || 'GOOD'}
+                      </span>
+                    </div>
+
+                    {/* Book Visual Card Banner */}
+                    <div className="relative rounded-lg h-28 bg-gradient-to-br from-purple-50 via-indigo-50/40 to-slate-100 dark:from-purple-950/30 dark:via-dark-bg dark:to-indigo-950/20 border border-purple-100/70 dark:border-purple-900/30 p-2.5 flex flex-col justify-between overflow-hidden mb-3">
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-[9px] font-semibold text-gray-500 dark:text-slate-400 bg-white/80 dark:bg-dark-card/80 px-1.5 py-0.5 rounded border border-gray-200/50 dark:border-dark-border">
+                          {book.year && book.year !== 'N/A' ? book.year : 'Published'}
+                        </span>
+                        {book.library_use_only && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 shadow-2xs">
+                            In Circulation
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-center my-auto text-purple-400/70 dark:text-purple-400/50">
+                        <BookOpen size={34} strokeWidth={1.5} />
+                      </div>
+
+                      <div className="flex items-center justify-between text-[9px]">
+                        <span className="font-mono text-purple-700 dark:text-purple-300 font-bold truncate max-w-[110px]" title={book.lccn}>
+                          {book.lccn || 'No Call No.'}
+                        </span>
+                        <span className="font-mono text-gray-400 dark:text-slate-500 truncate max-w-[85px]" title={book.isbn}>
+                          {book.isbn}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Book Info */}
+                    <div className="flex-1 flex flex-col justify-between">
+                      <div>
+                        <h4
+                          className="font-bold text-gray-900 dark:text-slate-100 text-xs leading-snug line-clamp-2 min-h-[2rem]"
+                          title={book.title}
+                        >
+                          {book.title}
+                        </h4>
+                        <p
+                          className="text-[11px] text-gray-500 dark:text-slate-400 font-medium truncate mt-1"
+                          title={book.author}
+                        >
+                          {book.author}
+                        </p>
+                      </div>
+
+                      {/* Stock & Availability Bar */}
+                      <div className="mt-3 pt-2.5 border-t border-gray-100 dark:border-dark-border">
+                        <div className="flex items-center justify-between text-[10px] font-medium mb-1.5">
+                          <span className={isAvailable ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-rose-500 dark:text-rose-400 font-bold'}>
+                            {book.available} / {book.total} available
+                          </span>
+                          <span className="text-gray-400 dark:text-slate-500">
+                            {book.shelf && book.shelf !== 'N/A' ? `Shelf ${book.shelf}` : `${book.stocks || `${book.total} copies`}`}
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-100 dark:bg-dark-border rounded-full h-1.5 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-300 ${isAvailable ? 'bg-emerald-500' : 'bg-rose-500'}`}
+                            style={{ width: `${stockPercent}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Card Actions Footer */}
+                    <div className="mt-3 pt-2.5 border-t border-gray-100 dark:border-dark-border flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={() => handleViewQRCode(book)}
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950/40 transition-colors"
+                        title="View QR Code"
+                      >
+                        <QrCode size={15} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleEditClick(book)}
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors"
+                        title="Edit Literature"
+                      >
+                        <Edit3 size={15} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenArchiveSingle(book)}
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors"
+                        title="Archive Literature"
+                      >
+                        <Archive size={15} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(book.id)}
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
+                        title="Delete Literature"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-xl p-12 text-center text-gray-400 dark:text-slate-500 shadow-sm">
+              <div className="flex flex-col items-center justify-center gap-2">
+                <BookOpen size={36} className="text-gray-300 dark:text-slate-600 stroke-[1.5]" />
+                <p className="font-semibold text-gray-600 dark:text-slate-400">No active books found</p>
+                <p className="text-xs text-gray-400 dark:text-slate-500">Try changing your search query or filters.</p>
+              </div>
+            </div>
+          )}
+
+          {/* Grid View Pagination Footer */}
+          <div className="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-lg p-4 shadow-sm">
+            <Pagination
+              currentPage={literaturePage}
+              totalItems={filteredBooks.length}
+              itemsPerPage={10}
+              onPageChange={setLiteraturePage}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Floating Toolbar for Active Selection */}
       {selectedBooks.length > 0 && (
