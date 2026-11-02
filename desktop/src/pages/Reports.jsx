@@ -32,6 +32,7 @@ export default function Reports() {
 
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState('PDF');
+  const [reportScope, setReportScope] = useState('summary_plan');
   const [selectedModules, setSelectedModules] = useState({
     summary: true,
     books: true,
@@ -178,8 +179,11 @@ export default function Reports() {
         if (!res.ok) throw new Error('Failed to fetch full report data');
         const fullData = await res.json();
         const doc = generatePDFDoc(fullData);
+        const fileName = reportScope === 'summary_plan'
+          ? `CCC_Librarian_Summary_Plan_${startDate}_${endDate}.pdf`
+          : `CCC_Library_Full_Audit_Report_${new Date().toISOString().split('T')[0]}.pdf`;
         if (exportFormat === 'PDF') {
-          doc.save(`CCC_LIB_APP_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+          doc.save(fileName);
         } else {
           doc.autoPrint();
           window.open(doc.output('bloburl'), '_blank');
@@ -281,6 +285,15 @@ export default function Reports() {
     startY += 16;
 
     doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(secondaryColor);
+    const subTitleText = reportScope === 'summary_plan'
+      ? 'LIBRARIAN OPERATIONAL & CIRCULATION SUMMARY PLAN'
+      : `${(reportTitle || `${period} Library Report`).toUpperCase()}`;
+    doc.text(subTitleText, pageWidth / 2, startY, { align: 'center' });
+    startY += 14;
+
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'italic');
     doc.setTextColor(secondaryColor);
     doc.text(`Reporting Period: ${period} (${startDate} to ${endDate})`, pageWidth / 2, startY, { align: 'center' });
@@ -293,6 +306,139 @@ export default function Reports() {
     doc.setLineWidth(0.5);
     doc.line(margin, startY + 3, pageWidth - margin, startY + 3);
     startY += 16;
+
+    const totalVisits = fullData.attendanceStats?.totalVisits ?? fullData.allVisits?.length ?? data?.totalVisits ?? 0;
+    const totalBorrows = fullData.circulationMetrics?.borrowed?.current ?? fullData.allBorrows?.length ?? data?.totalBorrows ?? 0;
+    const totalTitles = fullData.collectionStats?.printBooks?.totalTitles ?? fullData.allBooks?.length ?? data?.summaryPlan?.collectionInventory?.totalTitles ?? 0;
+    const totalCopies = fullData.collectionStats?.printBooks?.totalCopies ?? totalTitles ?? data?.summaryPlan?.collectionInventory?.totalCopies ?? 0;
+    const overdueCount = fullData.circulationMetrics?.overdue?.current ?? data?.summaryPlan?.complianceAndOverdue?.overdueCount ?? 0;
+    const finesCollected = fullData.circulationMetrics?.fines?.current ?? data?.summaryPlan?.complianceAndOverdue?.paidFines ?? 0;
+
+    // 1-2 PAGE LIBRARIAN SUMMARY PLAN BRIEF
+    if (reportScope === 'summary_plan') {
+      const sp = data?.summaryPlan || {};
+      const inv = sp.collectionInventory || {};
+      const comp = sp.complianceAndOverdue || {};
+
+      addSectionHeader('1. Administrative Details');
+      autoTable(doc, {
+        ...commonTableStyles,
+        startY,
+        head: [['Administrative Parameter', 'Official Entry']],
+        body: [
+          ['Library Institution', `${libraryName} (CCC LIB APP)`],
+          ['Executive Document', 'Librarian Operational & Circulation Summary Plan'],
+          ['Reporting Cycle & Coverage', `${period} (${startDate} to ${endDate})`],
+          ['Academic Scope', selectedDepartment === 'All' ? 'All Campus Programs & Departments' : selectedDepartment],
+          ['Prepared by (Librarian)', `${preparedBy}, Library Staff / Custodian`],
+          ['Reviewed by (Head Librarian)', `${reviewedBy}`],
+          ['Approved by (Campus Director)', `${approvedBy}`],
+          ['Submission Timestamp', new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })]
+        ],
+        theme: 'grid'
+      });
+      startY = doc.lastAutoTable.finalY + 14;
+
+      addSectionHeader('2. Executive Summary & Administrative Narrative');
+      addParagraph(
+        sp.executiveNarrative ||
+        `During the reporting period from ${startDate} to ${endDate}, the ${libraryName} accommodated ${totalVisits} patron visits and processed ${totalBorrows} literature borrowings across academic departments. Collection turnover stands at ${(inv.circulationTurnoverRatio ?? 0).toFixed(2)} checkouts per copy, with catalog utilization at ${(inv.catalogUtilizationRate ?? 0).toFixed(1)}%. Current overdue items stand at ${comp.overdueCount ?? overdueCount} (${(comp.overdueRate ?? 0).toFixed(1)}% overdue rate). Penalty clearance recovery is at ${(comp.penaltyRecoveryRate ?? 0).toFixed(1)}% with PHP ${(comp.paidFines ?? finesCollected).toFixed(2)} collected.`
+      );
+
+      addSectionHeader('3. Institutional Key Performance Indicators (KPIs)');
+      autoTable(doc, {
+        ...commonTableStyles,
+        startY,
+        head: [['Key Performance Indicator', 'Actual Period Value', 'Benchmark Standard', 'Evaluation']],
+        body: [
+          ['Circulation Turnover Ratio', `${inv.circulationTurnoverRatio ?? 0} checkouts/copy`, '>= 0.30 checkouts/copy', (inv.circulationTurnoverRatio || 0) >= 0.30 ? 'Met' : 'Under Review'],
+          ['Catalog Utilization Rate', `${inv.catalogUtilizationRate ?? 0}% active titles`, '>= 50.0% catalog usage', (inv.catalogUtilizationRate || 0) >= 50.0 ? 'Met' : 'In Progress'],
+          ['Patron Foot Traffic (Attendance)', `${totalVisits} recorded visits`, '>= 200 visits/month', totalVisits >= 200 ? 'Met' : 'In Progress'],
+          ['Overdue Containment Rate', `${(comp.overdueRate ?? 0).toFixed(1)}% overdue`, '< 10.0% threshold', (comp.overdueRate || 0) <= 10.0 ? 'Met' : 'Attention Needed'],
+          ['Penalty Clearance Recovery', `${(comp.penaltyRecoveryRate ?? 0).toFixed(1)}% settled (PHP ${(comp.paidFines || 0).toFixed(2)})`, '>= 60.0% clearance', (comp.penaltyRecoveryRate || 0) >= 60.0 ? 'Met' : 'Action Required']
+        ],
+        theme: 'grid',
+        didParseCell: (cellData) => {
+          if (cellData.section === 'body' && cellData.column.index === 3 && !isMono) {
+            const val = cellData.cell.raw;
+            if (val === 'Met') {
+              cellData.cell.styles.fontStyle = 'bold';
+              cellData.cell.styles.textColor = '#15803d';
+            } else {
+              cellData.cell.styles.fontStyle = 'bold';
+              cellData.cell.styles.textColor = '#b45309';
+            }
+          }
+        }
+      });
+      startY = doc.lastAutoTable.finalY + 14;
+
+      checkPageBreak(120);
+      addSectionHeader('4. Operational Goals & Progress Matrix');
+      const matrixRows = sp.goalsMatrix && sp.goalsMatrix.length > 0
+        ? sp.goalsMatrix.map(g => [g.benchmark, g.target, g.actual, g.status, g.notes])
+        : [
+            ['Student Library Visitation', '>= 200 visits', `${totalVisits} visits`, totalVisits >= 200 ? 'Met' : 'In Progress', 'Patron study and reading engagement'],
+            ['Curriculum Circulation Velocity', '>= 50 checkouts', `${totalBorrows} checkouts`, totalBorrows >= 50 ? 'Met' : 'In Progress', 'Circulation across academic subjects'],
+            ['Catalog Indexing Completeness', '100% active titles', `${totalTitles} titles (${totalCopies} copies)`, 'Met', 'QR and barcode cataloging maintained'],
+            ['Overdue Containment Rate', '< 10.0% overdue', `${(comp.overdueRate ?? 0).toFixed(1)}% overdue`, (comp.overdueRate || 0) <= 10.0 ? 'Met' : 'Attention Needed', `${overdueCount} overdue items pending return`]
+          ];
+
+      autoTable(doc, {
+        ...commonTableStyles,
+        startY,
+        head: [['Objective Benchmark', 'Target', 'Actual', 'Status', 'Operational Notes']],
+        body: matrixRows,
+        theme: 'grid',
+        didParseCell: (cellData) => {
+          if (cellData.section === 'body' && cellData.column.index === 3 && !isMono) {
+            const val = cellData.cell.raw;
+            if (val === 'Met') {
+              cellData.cell.styles.fontStyle = 'bold';
+              cellData.cell.styles.textColor = '#15803d';
+            } else {
+              cellData.cell.styles.fontStyle = 'bold';
+              cellData.cell.styles.textColor = '#b45309';
+            }
+          }
+        }
+      });
+      startY = doc.lastAutoTable.finalY + 14;
+
+      checkPageBreak(100);
+      addSectionHeader('5. Strategic Collection & Curricular Plan');
+      const acqList = (sp.acquisitionPriorities && sp.acquisitionPriorities.length > 0)
+        ? sp.acquisitionPriorities.map((a, i) => [`Priority ${i+1}: ${a.genre}`, `${a.demandCount} checkouts`, a.recommendation])
+        : [['General Curriculum Literature', `${totalBorrows} checkouts`, 'Procure updated textbook editions aligned with semester syllabi.']];
+
+      autoTable(doc, {
+        ...commonTableStyles,
+        startY,
+        head: [['Acquisition Focus', 'Patron Demand', 'Strategic Action Recommendation']],
+        body: acqList,
+        theme: 'grid'
+      });
+      startY = doc.lastAutoTable.finalY + 18;
+
+      checkPageBreak(90);
+      addSectionHeader('6. Institutional Endorsement & Signatures');
+      autoTable(doc, {
+        ...commonTableStyles,
+        startY,
+        head: [['Prepared by', 'Reviewed by', 'Approved by']],
+        body: [
+          [
+            `\n\n___________________________________\n${preparedBy}\nLibrary Staff / Custodian\nDate: ${new Date().toLocaleDateString()}`,
+            `\n\n___________________________________\n${reviewedBy}\nHead Librarian\nDate: ________________________`,
+            `\n\n___________________________________\n${approvedBy}\nCampus Director\nDate: ________________________`
+          ]
+        ],
+        theme: 'grid',
+        styles: { ...commonTableStyles.styles, cellPadding: 6, fontSize: 8.5, halign: 'center' }
+      });
+
+      return doc;
+    }
 
     // Report Details
     addSectionHeader('Report Details');
@@ -315,13 +461,6 @@ export default function Reports() {
     startY = doc.lastAutoTable.finalY + 16;
 
     // 1. Executive Summary
-    const totalVisits = fullData.attendanceStats?.totalVisits ?? fullData.allVisits?.length ?? 0;
-    const totalBorrows = fullData.circulationMetrics?.borrowed?.current ?? fullData.allBorrows?.length ?? 0;
-    const totalTitles = fullData.collectionStats?.printBooks?.totalTitles ?? fullData.allBooks?.length ?? 0;
-    const totalCopies = fullData.collectionStats?.printBooks?.totalCopies ?? totalTitles;
-    const overdueCount = fullData.circulationMetrics?.overdue?.current ?? 0;
-    const finesCollected = fullData.circulationMetrics?.fines?.current ?? 0;
-
     addSectionHeader('1. Executive Summary');
     addParagraph(
       `During the reporting period from ${startDate} to ${endDate}, the ${libraryName} registered a total of ${totalVisits} patron visits and facilitated ${totalBorrows} literature borrowings across academic departments. The institution's collection stands at ${totalTitles} active titles representing ${totalCopies} total copies. The implementation of barcode and QR-assisted access has significantly streamlined patron throughput and checkout turnaround. Operational priorities for the ensuing period center on accelerating the return of ${overdueCount} overdue items and targeted acquisitions for expanding high-demand curriculum requirements.`
@@ -764,7 +903,7 @@ export default function Reports() {
       doc.setFont('helvetica', 'normal');
       doc.setTextColor('#000000');
       doc.text(
-        `${libraryName} | ${reportTitle} — Page ${i} of ${totalPages}`,
+        `${libraryName} | ${reportTitle} - Page ${i} of ${totalPages}`,
         pageWidth / 2,
         pageHeight - 20,
         { align: 'center' }
@@ -908,15 +1047,15 @@ export default function Reports() {
             <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-200 tracking-tight">Reports & Analytics</h1>
             <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">Generate comprehensive library reports and export data</p>
           </div>
-          {user?.role === 'ADMIN' && (
+          {(user?.role === 'ADMIN' || user?.role === 'LIBRARIAN' || !user?.role) && (
             <div className="flex items-center gap-3">
-              <button onClick={() => openExportModal('Print')} className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border text-gray-700 rounded-md text-xs font-semibold shadow-sm hover:bg-gray-50 dark:hover:bg-dark-hover">
+              <button onClick={() => openExportModal('Print')} className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border text-gray-700 dark:text-slate-200 rounded-md text-xs font-semibold shadow-sm hover:bg-gray-50 dark:hover:bg-dark-hover cursor-pointer">
                 <Printer size={14} /> Print
               </button>
-              <button onClick={() => openExportModal('Excel')} className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border text-gray-700 rounded-md text-xs font-semibold shadow-sm hover:bg-gray-50 dark:hover:bg-dark-hover">
+              <button onClick={() => openExportModal('Excel')} className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border text-gray-700 dark:text-slate-200 rounded-md text-xs font-semibold shadow-sm hover:bg-gray-50 dark:hover:bg-dark-hover cursor-pointer">
                 <FileSpreadsheet size={14} /> Export Excel
               </button>
-              <button onClick={() => openExportModal('PDF')} className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border text-gray-700 rounded-md text-xs font-semibold shadow-sm hover:bg-gray-50 dark:hover:bg-dark-hover">
+              <button onClick={() => openExportModal('PDF')} className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border text-gray-700 dark:text-slate-200 rounded-md text-xs font-semibold shadow-sm hover:bg-gray-50 dark:hover:bg-dark-hover cursor-pointer">
                 <FileText size={14} /> Export PDF
               </button>
             </div>
@@ -1042,7 +1181,7 @@ export default function Reports() {
             {/* Footer text */}
             <div className="flex items-center gap-2 text-[10px] text-gray-400 dark:text-slate-500 font-medium pt-2">
               <ClockIcon />
-              <span className="text-gray-400">Last generated: {currentTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })} • {period} report • {startDate} — {endDate}</span>
+              <span className="text-gray-400">Last generated: {currentTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })} • {period} report • {startDate} to {endDate}</span>
             </div>
           </div>
         </div>
@@ -1115,6 +1254,224 @@ export default function Reports() {
             </div>
           </div>
         </div>
+        )}
+
+        {/* Librarian Operational & Strategic Summary Plan Section */}
+        {selectedModules.summary && data.summaryPlan && (
+          <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-100 dark:border-dark-border p-6 flex flex-col gap-6 animate-fade-in">
+            {/* Header bar */}
+            <div className="flex flex-wrap justify-between items-start gap-4 pb-4 border-b border-gray-100 dark:border-dark-border">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 flex items-center justify-center font-bold">
+                  <FileText size={20} />
+                </div>
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-base font-bold text-gray-900 dark:text-slate-100">
+                      Librarian Operational &amp; Strategic Summary Plan
+                    </h2>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                      Executive Brief
+                    </span>
+                  </div>
+                  <span className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
+                    Calauan Community Campus Library • Prepared by {preparedBy || 'Librarian'} • Cycle: {period} ({startDate} to {endDate})
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 no-print">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReportScope('summary_plan');
+                    openExportModal('Print');
+                  }}
+                  className="px-3 py-1.5 bg-white dark:bg-dark-card hover:bg-gray-50 dark:hover:bg-dark-hover text-gray-700 dark:text-slate-200 border border-gray-200 dark:border-dark-border rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                >
+                  <Printer size={13} />
+                  Print Plan Brief
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReportScope('summary_plan');
+                    openExportModal('PDF');
+                  }}
+                  className="px-3.5 py-1.5 bg-purple-700 hover:bg-purple-800 text-white rounded-lg text-xs font-bold inline-flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer"
+                >
+                  <Download size={13} />
+                  Export Plan Brief (PDF)
+                </button>
+              </div>
+            </div>
+
+            {/* Institutional KPI Grid (5 metrics) */}
+            <div className="grid grid-cols-5 gap-3">
+              <div className="p-3.5 rounded-lg bg-gray-50 dark:bg-dark-bg border border-gray-200/70 dark:border-dark-border flex flex-col">
+                <span className="text-[10px] font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider">Turnover Ratio</span>
+                <span className="text-lg font-black text-gray-900 dark:text-slate-100 mt-1">
+                  {data.summaryPlan.collectionInventory?.circulationTurnoverRatio ?? 0}
+                </span>
+                <span className="text-[10px] text-gray-500 dark:text-slate-400 mt-0.5">borrows per copy</span>
+              </div>
+
+              <div className="p-3.5 rounded-lg bg-gray-50 dark:bg-dark-bg border border-gray-200/70 dark:border-dark-border flex flex-col">
+                <span className="text-[10px] font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider">Catalog Usage</span>
+                <span className="text-lg font-black text-gray-900 dark:text-slate-100 mt-1">
+                  {data.summaryPlan.collectionInventory?.catalogUtilizationRate ?? 0}%
+                </span>
+                <span className="text-[10px] text-gray-500 dark:text-slate-400 mt-0.5">active titles used</span>
+              </div>
+
+              <div className="p-3.5 rounded-lg bg-gray-50 dark:bg-dark-bg border border-gray-200/70 dark:border-dark-border flex flex-col">
+                <span className="text-[10px] font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider">Overdue Rate</span>
+                <span className={`text-lg font-black mt-1 ${
+                  (data.summaryPlan.complianceAndOverdue?.overdueRate || 0) > 10 ? 'text-rose-600' : 'text-emerald-600'
+                }`}>
+                  {data.summaryPlan.complianceAndOverdue?.overdueRate ?? 0}%
+                </span>
+                <span className="text-[10px] text-gray-500 dark:text-slate-400 mt-0.5">
+                  {data.summaryPlan.complianceAndOverdue?.overdueCount ?? 0} overdue items
+                </span>
+              </div>
+
+              <div className="p-3.5 rounded-lg bg-gray-50 dark:bg-dark-bg border border-gray-200/70 dark:border-dark-border flex flex-col">
+                <span className="text-[10px] font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider">Fine Clearance</span>
+                <span className="text-lg font-black text-emerald-600 mt-1">
+                  {data.summaryPlan.complianceAndOverdue?.penaltyRecoveryRate ?? 0}%
+                </span>
+                <span className="text-[10px] text-gray-500 dark:text-slate-400 mt-0.5">
+                  ₱{(data.summaryPlan.complianceAndOverdue?.paidFines || 0).toFixed(2)} settled
+                </span>
+              </div>
+
+              <div className="p-3.5 rounded-lg bg-gray-50 dark:bg-dark-bg border border-gray-200/70 dark:border-dark-border flex flex-col">
+                <span className="text-[10px] font-bold text-gray-400 dark:text-slate-400 uppercase tracking-wider">Daily Patron Visits</span>
+                <span className="text-lg font-black text-purple-700 dark:text-purple-300 mt-1">
+                  {(data.totalVisits / 30).toFixed(1)}
+                </span>
+                <span className="text-[10px] text-gray-500 dark:text-slate-400 mt-0.5">
+                  {data.totalVisits} total visits
+                </span>
+              </div>
+            </div>
+
+            {/* Goals & Operational Objectives Matrix */}
+            <div className="flex flex-col gap-2">
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-bold text-gray-800 dark:text-slate-200 uppercase tracking-wider">
+                  Institutional Goals &amp; Operational Objectives Matrix
+                </span>
+                <span className="text-[11px] text-gray-500 dark:text-slate-400">
+                  Target Evaluation for {period} Reporting Cycle
+                </span>
+              </div>
+              <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-dark-border">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50 dark:bg-dark-bg border-b border-gray-200 dark:border-dark-border text-gray-500 dark:text-slate-400 uppercase text-[10px] font-bold">
+                      <th className="py-2.5 px-3">Benchmark Objective</th>
+                      <th className="py-2.5 px-3">Target Benchmark</th>
+                      <th className="py-2.5 px-3">Actual Progress</th>
+                      <th className="py-2.5 px-3 text-center">Status</th>
+                      <th className="py-2.5 px-3">Operational Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-dark-border">
+                    {data.summaryPlan.goalsMatrix?.map((g, idx) => (
+                      <tr key={idx} className="hover:bg-gray-50/50 dark:hover:bg-dark-hover/40 transition-colors">
+                        <td className="py-2.5 px-3 font-semibold text-gray-900 dark:text-slate-200">
+                          {g.benchmark}
+                        </td>
+                        <td className="py-2.5 px-3 text-gray-600 dark:text-slate-300 font-medium">
+                          {g.target}
+                        </td>
+                        <td className="py-2.5 px-3 font-bold text-gray-900 dark:text-slate-100">
+                          {g.actual}
+                        </td>
+                        <td className="py-2.5 px-3 text-center">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                            g.status === 'Met'
+                              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                              : g.status === 'In Progress'
+                              ? 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border-sky-200 dark:border-sky-800'
+                              : 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border-rose-200 dark:border-rose-800'
+                          }`}>
+                            {g.status}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 text-gray-500 dark:text-slate-400 text-[11px]">
+                          {g.notes}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Strategic Priorities: 2 Columns */}
+            <div className="grid grid-cols-2 gap-4">
+              {/* Acquisitions Plan */}
+              <div className="p-4 rounded-xl border border-gray-200 dark:border-dark-border bg-gray-50/50 dark:bg-dark-bg/40 flex flex-col gap-3">
+                <span className="text-xs font-bold text-gray-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                  <Flame size={14} className="text-orange-500" />
+                  Collection Acquisitions &amp; Budget Priority
+                </span>
+                <p className="text-[11px] text-gray-500 dark:text-slate-400 leading-relaxed">
+                  High-turnover genres flagged for instructional expansion and budget allocation:
+                </p>
+                <div className="flex flex-col gap-2">
+                  {data.summaryPlan.acquisitionPriorities?.map((p, idx) => (
+                    <div key={idx} className="p-2.5 rounded-lg bg-white dark:bg-dark-card border border-gray-200/80 dark:border-dark-border flex justify-between items-center text-xs">
+                      <div>
+                        <strong className="text-gray-900 dark:text-slate-100 font-bold block">{p.genre}</strong>
+                        <span className="text-[10px] text-gray-500 dark:text-slate-400">{p.recommendation}</span>
+                      </div>
+                      <span className="ml-3 px-2 py-0.5 rounded font-bold text-[10px] bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 shrink-0">
+                        {p.demandCount} borrows
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Curricular & Underutilized Review */}
+              <div className="p-4 rounded-xl border border-gray-200 dark:border-dark-border bg-gray-50/50 dark:bg-dark-bg/40 flex flex-col gap-3">
+                <span className="text-xs font-bold text-gray-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                  <Save size={14} className="text-cyan-600" />
+                  Underutilized Literature Review &amp; Weeding
+                </span>
+                <p className="text-[11px] text-gray-500 dark:text-slate-400 leading-relaxed">
+                  Low-circulation titles flagged for instructional promotion, shelf relocation, or weeding:
+                </p>
+                <div className="flex flex-col gap-2">
+                  {data.summaryPlan.underutilizedReview?.slice(0, 3).map((b, idx) => (
+                    <div key={idx} className="p-2.5 rounded-lg bg-white dark:bg-dark-card border border-gray-200/80 dark:border-dark-border flex justify-between items-center text-xs">
+                      <div className="max-w-[240px] truncate">
+                        <strong className="text-gray-900 dark:text-slate-100 font-bold block truncate" title={b.title}>{b.title}</strong>
+                        <span className="text-[10px] text-gray-500 dark:text-slate-400 truncate block">{b.recommendation}</span>
+                      </div>
+                      <span className="ml-3 px-2 py-0.5 rounded font-bold text-[10px] bg-gray-100 text-gray-600 dark:bg-dark-bg dark:text-slate-400 shrink-0">
+                        {b.borrows} borrows
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Executive Narrative Callout */}
+            <div className="p-4 rounded-xl bg-purple-50/60 dark:bg-purple-950/20 border border-purple-200/70 dark:border-purple-900/40 flex flex-col gap-1.5">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-purple-900 dark:text-purple-300">
+                Official Narrative Summary &amp; Administrative Submission Text
+              </span>
+              <p className="text-xs text-purple-950 dark:text-purple-200 leading-relaxed font-normal">
+                {data.summaryPlan.executiveNarrative}
+              </p>
+            </div>
+          </div>
         )}
 
         {/* Book Metrics Section Header */}
@@ -1658,10 +2015,64 @@ export default function Reports() {
             </div>
             
             <div className="p-6 max-h-[75vh] overflow-y-auto flex flex-col gap-4">
-              <div className="p-3 bg-purple-50/80 dark:bg-purple-950/30 rounded-lg border border-purple-100 dark:border-purple-900/30">
-                <span className="text-xs font-bold text-purple-900 dark:text-purple-300 block mb-1">Formal Report Template Active</span>
-                <p className="text-[11px] text-purple-700 dark:text-purple-400">Generates the 14-section institutional Library Report with Executive Summary, Profile, Collection, Circulation, Attendance, Budget, and Appendices.</p>
+              {/* Report Scope & Format Selection */}
+              <div className="flex flex-col gap-2">
+                <span className="text-xs font-bold text-gray-700 dark:text-slate-300">Report Scope & Output Type</span>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setReportScope('summary_plan')}
+                    className={`p-3 rounded-xl border text-left transition-all ${
+                      reportScope === 'summary_plan'
+                        ? 'border-purple-600 bg-purple-50/70 dark:bg-purple-950/40 ring-2 ring-purple-600 dark:ring-purple-400'
+                        : 'border-gray-200 dark:border-dark-border hover:border-gray-300 dark:hover:border-slate-700 bg-white dark:bg-dark-card'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-bold text-gray-900 dark:text-slate-100">Librarian Summary Plan</span>
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300">1 to 2 Pages</span>
+                    </div>
+                    <p className="text-[10px] text-gray-500 dark:text-slate-400 leading-snug">
+                      Concise operational brief with collection turnover, benchmark goals matrix, acquisitions priority, underutilized review, and sign-offs.
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setReportScope('full_audit')}
+                    className={`p-3 rounded-xl border text-left transition-all ${
+                      reportScope === 'full_audit'
+                        ? 'border-purple-600 bg-purple-50/70 dark:bg-purple-950/40 ring-2 ring-purple-600 dark:ring-purple-400'
+                        : 'border-gray-200 dark:border-dark-border hover:border-gray-300 dark:hover:border-slate-700 bg-white dark:bg-dark-card'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-bold text-gray-900 dark:text-slate-100">Full Institutional Audit</span>
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-gray-100 dark:bg-dark-border text-gray-700 dark:text-slate-300">14 Sections</span>
+                    </div>
+                    <p className="text-[10px] text-gray-500 dark:text-slate-400 leading-snug">
+                      Comprehensive institutional audit containing full collection listings, all visitor attendance records, circulation ledgers, and formal appendices.
+                    </p>
+                  </button>
+                </div>
               </div>
+
+              {/* Informative Scope Banner */}
+              {reportScope === 'summary_plan' ? (
+                <div className="p-3 bg-purple-50/80 dark:bg-purple-950/30 rounded-lg border border-purple-100 dark:border-purple-900/30">
+                  <span className="text-xs font-bold text-purple-900 dark:text-purple-300 block mb-0.5">Librarian Summary Plan Brief Selected</span>
+                  <p className="text-[11px] text-purple-700 dark:text-purple-400">
+                    Generates a concise 1 to 2 page document optimized for administrative presentation, operational review, and official endorsement.
+                  </p>
+                </div>
+              ) : (
+                <div className="p-3 bg-blue-50/80 dark:bg-blue-950/30 rounded-lg border border-blue-100 dark:border-blue-900/30">
+                  <span className="text-xs font-bold text-blue-900 dark:text-blue-300 block mb-0.5">Full Institutional Audit Selected</span>
+                  <p className="text-[11px] text-blue-700 dark:text-blue-400">
+                    Generates the complete 14-section institutional Library Report with Executive Summary, Profile, Collection, Circulation, Attendance, Budget, and Appendices.
+                  </p>
+                </div>
+              )}
 
               {/* Border & Color Style Selection */}
               <div className="flex flex-col gap-2">
@@ -1747,28 +2158,52 @@ export default function Reports() {
               </div>
 
               {/* Data Modules / Appendices */}
-              <div className="flex flex-col gap-2 pt-2 border-t border-gray-100 dark:border-dark-border">
-                <span className="text-xs font-bold text-gray-700 dark:text-slate-300">Include Modules & Appendices</span>
-                <div className="grid grid-cols-2 gap-2">
-                  {Object.entries({
-                    summary: 'Summary & Narrative',
-                    books: 'Appendix A: Book Listing',
-                    students: 'Appendix B: Attendance',
-                    borrows: 'Circulation Records',
-                    penalties: 'Appendix C: Penalties'
-                  }).map(([key, label]) => (
-                    <label key={key} className="flex items-center gap-2.5 p-2 rounded-lg border border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-hover cursor-pointer transition-colors text-xs font-semibold text-gray-700 dark:text-slate-300">
-                      <input 
-                        type="checkbox" 
-                        className="w-3.5 h-3.5 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
-                        checked={selectedModules[key]}
-                        onChange={(e) => setSelectedModules({...selectedModules, [key]: e.target.checked})}
-                      />
-                      <span>{label}</span>
-                    </label>
-                  ))}
+              {reportScope === 'full_audit' ? (
+                <div className="flex flex-col gap-2 pt-2 border-t border-gray-100 dark:border-dark-border">
+                  <span className="text-xs font-bold text-gray-700 dark:text-slate-300">Include Modules & Appendices</span>
+                  <div className="grid grid-cols-2 gap-2">
+                    {Object.entries({
+                      summary: 'Summary & Narrative',
+                      books: 'Appendix A: Book Listing',
+                      students: 'Appendix B: Attendance',
+                      borrows: 'Circulation Records',
+                      penalties: 'Appendix C: Penalties'
+                    }).map(([key, label]) => (
+                      <label key={key} className="flex items-center gap-2.5 p-2 rounded-lg border border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-hover cursor-pointer transition-colors text-xs font-semibold text-gray-700 dark:text-slate-300">
+                        <input 
+                          type="checkbox" 
+                          className="w-3.5 h-3.5 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
+                          checked={selectedModules[key]}
+                          onChange={(e) => setSelectedModules({...selectedModules, [key]: e.target.checked})}
+                        />
+                        <span>{label}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="flex flex-col gap-2 pt-2 border-t border-gray-100 dark:border-dark-border">
+                  <span className="text-xs font-bold text-gray-700 dark:text-slate-300">Brief Sections Included Automatically</span>
+                  <div className="grid grid-cols-2 gap-2 text-[11px] text-gray-600 dark:text-slate-300 font-medium">
+                    <div className="p-2 rounded-lg bg-gray-50 dark:bg-dark-bg border border-gray-100 dark:border-dark-border flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                      1. Executive & Operational KPIs
+                    </div>
+                    <div className="p-2 rounded-lg bg-gray-50 dark:bg-dark-bg border border-gray-100 dark:border-dark-border flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                      2. Goals & Benchmarks Matrix
+                    </div>
+                    <div className="p-2 rounded-lg bg-gray-50 dark:bg-dark-bg border border-gray-100 dark:border-dark-border flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                      3. Acquisitions Priority Action
+                    </div>
+                    <div className="p-2 rounded-lg bg-gray-50 dark:bg-dark-bg border border-gray-100 dark:border-dark-border flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                      4. Administrative Signatures
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="px-6 py-4 bg-gray-50 dark:bg-dark-bg border-t border-gray-100 dark:border-dark-border flex justify-end gap-3">
@@ -1782,7 +2217,7 @@ export default function Reports() {
                 onClick={handleConfirmExport}
                 className="px-4 py-2 rounded-lg text-xs font-bold bg-[#5b21b6] hover:bg-[#4c1d95] text-white transition-colors flex items-center gap-2"
               >
-                <Download size={14} /> Generate {exportFormat}
+                <Download size={14} /> {reportScope === 'summary_plan' ? 'Generate Summary Plan Brief' : `Generate Full ${exportFormat}`}
               </button>
             </div>
           </div>

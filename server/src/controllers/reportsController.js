@@ -41,7 +41,7 @@ const getSummary = async (req, res) => {
       attendanceDateFilter.logged_at = { gte, lte };
     }
 
-    // Department filter — applied to user's program name
+    // Department filter: applied to user's program name
     const deptUserFilter = department && department !== 'All'
       ? { user: { program: { name: department } } }
       : {};
@@ -68,7 +68,10 @@ const getSummary = async (req, res) => {
       penaltySummaryGrouped,
       recentBorrows,
       borrowsByStatus,
-      totalVisitsRaw
+      totalVisitsRaw,
+      totalTitlesRaw,
+      totalCopiesAgg,
+      uniqueBorrowedTitlesRaw
     ] = await Promise.all([
       // 1. Top Books raw
       prisma.borrowRecord.groupBy({
@@ -179,6 +182,21 @@ const getSummary = async (req, res) => {
       // 14. Total visits count
       prisma.attendanceLog.count({
         where: { action: 'CHECK_IN', ...attendanceDateFilter, ...deptAttendanceFilter }
+      }),
+
+      // 15. Total active book titles count
+      prisma.book.count({ where: { is_archived: false } }),
+
+      // 16. Total physical copies aggregate
+      prisma.book.aggregate({
+        where: { is_archived: false },
+        _sum: { total_copies: true }
+      }),
+
+      // 17. Unique titles borrowed during period
+      prisma.borrowRecord.groupBy({
+        by: ['book_id'],
+        where: { ...dateFilter, ...deptUserFilter }
       })
     ]);
 
@@ -336,6 +354,89 @@ const getSummary = async (req, res) => {
     const totalBorrowsRaw = borrowsByStatus.reduce((sum, b) => sum + b._count._all, 0);
     const totalReturnedRaw = borrowsByStatus.find(b => b.status === 'RETURNED')?._count._all || 0;
 
+    // Enhanced Librarian Summary Plan Metrics
+    const totalTitles = totalTitlesRaw || 0;
+    const totalCopies = totalCopiesAgg?._sum?.total_copies || totalTitles;
+    const overdueCount = overdueRaw.length;
+    const uniqueBorrowedCount = uniqueBorrowedTitlesRaw.length;
+
+    const circulationTurnoverRatio = totalCopies > 0 ? parseFloat((totalBorrowsRaw / totalCopies).toFixed(2)) : 0;
+    const catalogUtilizationRate = totalTitles > 0 ? Math.min(100, parseFloat(((uniqueBorrowedCount / totalTitles) * 100).toFixed(1))) : 0;
+    const overdueRate = totalBorrowsRaw > 0 ? parseFloat(((overdueCount / totalBorrowsRaw) * 100).toFixed(1)) : 0;
+    const penaltyTotalAccrued = paidAmount + unpaidAmount;
+    const penaltyRecoveryRate = penaltyTotalAccrued > 0 ? parseFloat(((paidAmount / penaltyTotalAccrued) * 100).toFixed(1)) : 100;
+
+    const targetVisits = Math.max(200, Math.round(totalVisitsRaw * 1.15));
+    const targetBorrows = Math.max(50, Math.round(totalBorrowsRaw * 1.1));
+    const goalsMatrix = [
+      {
+        benchmark: 'Student Library Visitation',
+        target: `${targetVisits} visits`,
+        actual: `${totalVisitsRaw} visits`,
+        status: totalVisitsRaw >= targetVisits ? 'Met' : 'In Progress',
+        notes: totalVisitsRaw >= targetVisits ? 'Met patron engagement target' : 'Ongoing instructional engagement'
+      },
+      {
+        benchmark: 'Curriculum Circulation Velocity',
+        target: `${targetBorrows} checkouts`,
+        actual: `${totalBorrowsRaw} checkouts`,
+        status: totalBorrowsRaw >= targetBorrows ? 'Met' : (totalBorrowsRaw >= Math.round(targetBorrows * 0.7) ? 'In Progress' : 'Attention Needed'),
+        notes: 'Borrowing volume across core curriculum courses'
+      },
+      {
+        benchmark: 'Digital Catalog Indexing Coverage',
+        target: '100% indexed',
+        actual: `${totalTitles} titles (${totalCopies} copies)`,
+        status: 'Met',
+        notes: 'Barcode and QR automated circulation active'
+      },
+      {
+        benchmark: 'Overdue Containment Rate',
+        target: '< 10.0% overdue',
+        actual: `${overdueRate.toFixed(1)}% overdue`,
+        status: overdueRate <= 10.0 ? 'Met' : 'Attention Needed',
+        notes: overdueRate <= 10.0 ? 'Overdue rate within institutional threshold' : `${overdueCount} overdue items pending recovery`
+      }
+    ];
+
+    const acquisitionPriorities = popularGenres.slice(0, 3).map(g => ({
+      genre: g.name,
+      demandCount: g.count,
+      recommendation: 'High patron demand. Recommend allocation for curriculum expansion and supplementary texts.'
+    }));
+
+    const underutilizedReview = leastBooks.slice(0, 5).map(b => ({
+      title: b.title,
+      author: b.author || 'Unknown',
+      borrows: b.borrows,
+      recommendation: b.borrows === 0 ? 'Zero borrow activity. Recommend faculty review for weeding or shelf repositioning.' : 'Low utilization. Recommend highlighting in library topical display.'
+    }));
+
+    const dateRangeStr = startDate && endDate ? `${startDate} to ${endDate}` : 'the designated reporting period';
+    const executiveNarrative = `During ${dateRangeStr}, the Calauan Community Campus Library accommodated ${totalVisitsRaw} patron visits and facilitated ${totalBorrowsRaw} literature circulation checkouts. The active collection comprises ${totalTitles} titles (${totalCopies} physical copies) with a circulation turnover ratio of ${circulationTurnoverRatio.toFixed(2)}. Catalog utilization stands at ${catalogUtilizationRate.toFixed(1)}%, with current overdue items held at ${overdueCount} (${overdueRate.toFixed(1)}% overdue rate). Penalty fine clearance stands at ${penaltyRecoveryRate.toFixed(1)}% with PHP ${paidAmount.toFixed(2)} settled. Operational priorities focus on expanding high-demand curriculum titles in ${popularGenres.slice(0, 2).map(g => g.name).join(' and ') || 'core programs'} and accelerating collection recovery for outstanding overdue literature.`;
+
+    const summaryPlan = {
+      collectionInventory: {
+        totalTitles,
+        totalCopies,
+        uniqueBorrowedCount,
+        catalogUtilizationRate,
+        circulationTurnoverRatio
+      },
+      complianceAndOverdue: {
+        overdueCount,
+        overdueRate,
+        penaltyRecoveryRate,
+        paidFines: paidAmount,
+        unpaidFines: unpaidAmount,
+        totalFines: penaltyTotalAccrued
+      },
+      goalsMatrix,
+      acquisitionPriorities,
+      underutilizedReview,
+      executiveNarrative
+    };
+
     const responseData = {
       topBooks,
       leastBooks,
@@ -349,10 +450,11 @@ const getSummary = async (req, res) => {
       totalBorrows: totalBorrowsRaw,
       totalReturned: totalReturnedRaw,
       totalVisits: totalVisitsRaw,
-      overdueCount: overdueRaw.length,
+      overdueCount,
       facultyUnreturned,
       penaltySummary,
-      attendanceLogList
+      attendanceLogList,
+      summaryPlan
     };
 
     setCached(summaryCache, cacheKey, responseData);
