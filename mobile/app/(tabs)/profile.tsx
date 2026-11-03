@@ -1,5 +1,5 @@
 import React from 'react';
-import { TouchableOpacity, ActivityIndicator, Alert, Modal, TextInput, Switch, Platform, Text as RNText } from 'react-native';
+import { TouchableOpacity, ActivityIndicator, Alert, Modal, TextInput, Switch, Platform, Text as RNText, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAppTheme } from '../../context/ThemeContext';
@@ -13,6 +13,8 @@ import api from '../../api';
 import { useFavorites } from '../../context/FavoritesContext';
 import { DynamicQrCode } from '../../components/DynamicQrCode';
 import { EditProfileModal } from '../../components/EditProfileModal';
+
+const sansFont = Platform.select({ ios: 'System', android: 'sans-serif', default: 'sans-serif' });
 
 export default function Profile() {
   const { theme, isDarkMode } = useAppTheme();
@@ -429,7 +431,7 @@ export default function Profile() {
 
       {/* ── Favorites Modal ── */}
       <Modal
-        animationType="slide"
+        animationType="fade"
         transparent
         visible={favoritesModalVisible}
         onRequestClose={() => {
@@ -437,36 +439,44 @@ export default function Profile() {
           setFavoritesModalVisible(false);
         }}
       >
-        <YStack flex={1} backgroundColor="rgba(0,0,0,0.6)" justifyContent="flex-end">
-          <YStack backgroundColor={theme.pillContainer} borderTopLeftRadius={16} borderTopRightRadius={16} padding="$5" paddingTop="$6" paddingBottom={Platform.OS === 'ios' ? 40 : 20} maxHeight="90%">
-            <XStack justifyContent="space-between" alignItems="center" marginBottom="$5">
-              <Text fontSize={24} fontWeight="800" color={theme.text}>My Favorites</Text>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 16 }}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={() => {
+              setSelectedFavBook(null);
+              setFavoritesModalVisible(false);
+            }}
+          />
+          <View style={{ backgroundColor: theme.card, borderRadius: 24, padding: 20, width: '100%', maxWidth: 420, maxHeight: '85%', borderWidth: 1, borderColor: theme.border, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 8 }}>
+            <XStack justifyContent="space-between" alignItems="center" marginBottom="$3">
+              <RNText style={{ fontSize: 22, fontWeight: '800', color: theme.text, fontFamily: sansFont }}>My Favorites</RNText>
               <TouchableOpacity
                 onPress={() => {
                   setSelectedFavBook(null);
                   setFavoritesModalVisible(false);
                 }}
-                style={{ minHeight: 48, minWidth: 48, justifyContent: 'center', alignItems: 'center', marginRight: -12, marginTop: -12 }}
+                style={{ minHeight: 44, minWidth: 44, justifyContent: 'center', alignItems: 'center', marginRight: -8, marginTop: -8 }}
               >
-                <X color={theme.primary} size={24} />
+                <X color={theme.primary} size={22} />
               </TouchableOpacity>
             </XStack>
 
-            <Text fontSize={12} color={theme.textSecondary} marginBottom="$4">
+            <RNText style={{ fontSize: 12, color: theme.textSecondary, marginBottom: 16, fontFamily: sansFont }}>
               {favorites.length} {favorites.length === 1 ? 'book' : 'books'} saved in collection
-            </Text>
+            </RNText>
 
             {favorites.length === 0 ? (
-              <YStack alignItems="center" justifyContent="center" paddingVertical="$8">
-                <YStack width={68} height={68} borderRadius={34} backgroundColor={isDarkMode ? "#451a1a" : "#fef3f2"} justifyContent="center" alignItems="center" marginBottom="$3">
+              <YStack alignItems="center" justifyContent="center" paddingVertical="$6">
+                <YStack width={68} height={68} borderRadius={34} backgroundColor={isDarkMode ? '#451a1a' : '#fef3f2'} justifyContent="center" alignItems="center" marginBottom="$3">
                   <Heart color="#ef4444" size={32} />
                 </YStack>
-                <Text fontSize={17} fontWeight="700" color={theme.text} marginBottom="$1">
+                <RNText style={{ fontSize: 17, fontWeight: '700', color: theme.text, marginBottom: 4, fontFamily: sansFont }}>
                   No Favorite Books Yet
-                </Text>
-                <Text fontSize={13} color={theme.textSecondary} textAlign="center" paddingHorizontal="$4" marginBottom="$5">
+                </RNText>
+                <RNText style={{ fontSize: 13, color: theme.textSecondary, textAlign: 'center', paddingHorizontal: 16, marginBottom: 20, fontFamily: sansFont, lineHeight: 18 }}>
                   Tap the heart icon on any book while browsing to save it to your favorites list.
-                </Text>
+                </RNText>
                 <TouchableOpacity
                   onPress={() => {
                     setFavoritesModalVisible(false);
@@ -476,18 +486,18 @@ export default function Profile() {
                     backgroundColor: '#6C48C5',
                     paddingVertical: 12,
                     paddingHorizontal: 24,
-                    borderRadius: 12,
+                    borderRadius: 14,
                     minHeight: 48,
                     justifyContent: 'center',
                     alignItems: 'center',
                   }}
                 >
-                  <Text color={theme.pillTextActive} fontSize={14} fontWeight="700">Explore Catalog</Text>
+                  <RNText style={{ color: theme.pillTextActive, fontSize: 14, fontWeight: '700', fontFamily: sansFont }}>Explore Catalog</RNText>
                 </TouchableOpacity>
               </YStack>
             ) : (
               <ScrollView showsVerticalScrollIndicator={false}>
-                <YStack gap="$2.5" paddingBottom="$4">
+                <YStack gap="$2.5" paddingBottom="$2">
                   {favorites.map((book) => (
                     <TouchableOpacity
                       key={book.id}
@@ -498,7 +508,7 @@ export default function Profile() {
                         backgroundColor={theme.background}
                         borderRadius={16}
                         padding={12}
-                        marginBottom="$3"
+                        marginBottom="$2"
                         borderWidth={1}
                         borderColor={theme.border}
                         style={{ boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.05)' }}
@@ -518,33 +528,33 @@ export default function Profile() {
                           <BookOpen color={theme.primary} size={22} />
                         </YStack>
                         <YStack flex={1} marginRight="$2">
-                          <Text fontSize={14} fontWeight="700" color={theme.text} numberOfLines={1}>
+                          <RNText numberOfLines={1} style={{ fontSize: 14, fontWeight: '700', color: theme.text, fontFamily: sansFont }}>
                             {book.title}
-                          </Text>
-                          <Text fontSize={12} color={theme.textSecondary} numberOfLines={1} marginBottom={2}>
+                          </RNText>
+                          <RNText numberOfLines={1} style={{ fontSize: 12, color: theme.textSecondary, marginBottom: 2, fontFamily: sansFont }}>
                             {book.author}
-                          </Text>
+                          </RNText>
                           <XStack alignItems="center" gap="$2">
                             <YStack backgroundColor="rgba(108, 72, 197, 0.1)" paddingHorizontal="$1.5" paddingVertical={2} borderRadius={6}>
-                              <Text fontSize={10} fontWeight="700" color={theme.primary}>
+                              <RNText style={{ fontSize: 10, fontWeight: '700', color: theme.primary, fontFamily: sansFont }}>
                                 {book.genre || book.type || 'Book'}
-                              </Text>
+                              </RNText>
                             </YStack>
-                            <Text fontSize={10} fontWeight="600" color={book.available && book.available > 0 ? '#10b981' : '#ef4444'}>
+                            <RNText style={{ fontSize: 10, fontWeight: '600', color: book.available && book.available > 0 ? '#10b981' : '#ef4444', fontFamily: sansFont }}>
                               {book.available && book.available > 0 ? `${book.available} available` : 'Out of stock'}
-                            </Text>
+                            </RNText>
                           </XStack>
                         </YStack>
                         <TouchableOpacity
                           onPress={() => removeFavorite(book.id)}
                           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                           style={{
-                            minHeight: 48,
-                            minWidth: 48,
+                            minHeight: 44,
+                            minWidth: 44,
                             justifyContent: 'center',
                             alignItems: 'center',
                             borderRadius: 10,
-                            backgroundColor: isDarkMode ? "#451a1a" : "#fef3f2",
+                            backgroundColor: isDarkMode ? '#451a1a' : '#fef3f2',
                           }}
                         >
                           <Heart color="#ef4444" size={18} fill="#ef4444" />
@@ -555,8 +565,8 @@ export default function Profile() {
                 </YStack>
               </ScrollView>
             )}
-          </YStack>
-        </YStack>
+          </View>
+        </View>
       </Modal>
 
       {/* ── Favorite Book Detail Sub-Modal ── */}
@@ -566,18 +576,23 @@ export default function Profile() {
         visible={!!selectedFavBook}
         onRequestClose={() => setSelectedFavBook(null)}
       >
-        <View flex={1} backgroundColor="rgba(0,0,0,0.6)" justifyContent="center" alignItems="center" padding="$4">
-          <YStack backgroundColor={theme.card} width="100%" maxWidth={400} borderRadius={24} padding="$5" elevation={8}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 16 }}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={() => setSelectedFavBook(null)}
+          />
+          <View style={{ backgroundColor: theme.card, width: '100%', maxWidth: 400, borderRadius: 24, padding: 20, elevation: 8, borderWidth: 1, borderColor: theme.border, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12 }}>
             <XStack justifyContent="space-between" alignItems="flex-start" marginBottom="$4">
               <YStack flex={1} marginRight="$3">
-                <Text fontSize={18} fontWeight="800" color={theme.text} marginBottom="$1">
+                <RNText style={{ fontSize: 18, fontWeight: '800', color: theme.text, marginBottom: 4, fontFamily: sansFont }}>
                   {selectedFavBook?.title}
-                </Text>
-                <Text fontSize={13} color={theme.textSecondary}>
+                </RNText>
+                <RNText style={{ fontSize: 13, color: theme.textSecondary, fontFamily: sansFont }}>
                   By {selectedFavBook?.author}
-                </Text>
+                </RNText>
               </YStack>
-              <TouchableOpacity onPress={() => setSelectedFavBook(null)} style={{ minHeight: 48, minWidth: 48, justifyContent: 'center', alignItems: 'center' }}>
+              <TouchableOpacity onPress={() => setSelectedFavBook(null)} style={{ minHeight: 44, minWidth: 44, justifyContent: 'center', alignItems: 'center' }}>
                 <View backgroundColor={theme.pillContainer} padding="$2" borderRadius={12}>
                   <X color={theme.primary} size={20} />
                 </View>
@@ -587,41 +602,41 @@ export default function Profile() {
             <ScrollView maxHeight={280} showsVerticalScrollIndicator={false}>
               <YStack gap="$2.5" marginBottom="$4">
                 <XStack justifyContent="space-between">
-                  <Text fontSize={13} color={theme.textSecondary}>Genre</Text>
-                  <Text fontSize={13} fontWeight="600" color={theme.text}>{selectedFavBook?.genre || selectedFavBook?.type || 'N/A'}</Text>
+                  <RNText style={{ fontSize: 13, color: theme.textSecondary, fontFamily: sansFont }}>Genre</RNText>
+                  <RNText style={{ fontSize: 13, fontWeight: '600', color: theme.text, fontFamily: sansFont }}>{selectedFavBook?.genre || selectedFavBook?.type || 'N/A'}</RNText>
                 </XStack>
                 {selectedFavBook?.shelf ? (
                   <XStack justifyContent="space-between">
-                    <Text fontSize={13} color={theme.textSecondary}>Shelf</Text>
-                    <Text fontSize={13} fontWeight="600" color={theme.text}>{selectedFavBook?.shelf}</Text>
+                    <RNText style={{ fontSize: 13, color: theme.textSecondary, fontFamily: sansFont }}>Shelf</RNText>
+                    <RNText style={{ fontSize: 13, fontWeight: '600', color: theme.text, fontFamily: sansFont }}>{selectedFavBook?.shelf}</RNText>
                   </XStack>
                 ) : null}
                 <XStack justifyContent="space-between">
-                  <Text fontSize={13} color={theme.textSecondary}>Condition</Text>
-                  <Text fontSize={13} fontWeight="600" color={selectedFavBook?.condition === 'POOR' ? '#ef4444' : '#10b981'}>{selectedFavBook?.condition || 'GOOD'}</Text>
+                  <RNText style={{ fontSize: 13, color: theme.textSecondary, fontFamily: sansFont }}>Condition</RNText>
+                  <RNText style={{ fontSize: 13, fontWeight: '600', color: selectedFavBook?.condition === 'POOR' ? '#ef4444' : '#10b981', fontFamily: sansFont }}>{selectedFavBook?.condition || 'GOOD'}</RNText>
                 </XStack>
                 <XStack justifyContent="space-between">
-                  <Text fontSize={13} color={theme.textSecondary}>Availability</Text>
-                  <Text fontSize={13} fontWeight="600" color={selectedFavBook?.available > 0 ? '#10b981' : '#ef4444'}>
+                  <RNText style={{ fontSize: 13, color: theme.textSecondary, fontFamily: sansFont }}>Availability</RNText>
+                  <RNText style={{ fontSize: 13, fontWeight: '600', color: selectedFavBook?.available > 0 ? '#10b981' : '#ef4444', fontFamily: sansFont }}>
                     {selectedFavBook?.available ?? 'N/A'} {selectedFavBook?.total ? `/ ${selectedFavBook.total}` : ''}
-                  </Text>
+                  </RNText>
                 </XStack>
                 {selectedFavBook?.year ? (
                   <XStack justifyContent="space-between">
-                    <Text fontSize={13} color={theme.textSecondary}>Year</Text>
-                    <Text fontSize={13} fontWeight="600" color={theme.text}>{selectedFavBook?.year}</Text>
+                    <RNText style={{ fontSize: 13, color: theme.textSecondary, fontFamily: sansFont }}>Year</RNText>
+                    <RNText style={{ fontSize: 13, fontWeight: '600', color: theme.text, fontFamily: sansFont }}>{selectedFavBook?.year}</RNText>
                   </XStack>
                 ) : null}
                 {selectedFavBook?.isbn ? (
                   <XStack justifyContent="space-between">
-                    <Text fontSize={13} color={theme.textSecondary}>ISBN</Text>
-                    <Text fontSize={13} fontWeight="600" color={theme.text}>{selectedFavBook?.isbn}</Text>
+                    <RNText style={{ fontSize: 13, color: theme.textSecondary, fontFamily: sansFont }}>ISBN</RNText>
+                    <RNText style={{ fontSize: 13, fontWeight: '600', color: theme.text, fontFamily: sansFont }}>{selectedFavBook?.isbn}</RNText>
                   </XStack>
                 ) : null}
                 {selectedFavBook?.lccn ? (
                   <XStack justifyContent="space-between">
-                    <Text fontSize={13} color={theme.textSecondary}>Call No. / LCCN</Text>
-                    <Text fontSize={13} fontWeight="600" color={theme.text}>{selectedFavBook?.lccn}</Text>
+                    <RNText style={{ fontSize: 13, color: theme.textSecondary, fontFamily: sansFont }}>Call No. / LCCN</RNText>
+                    <RNText style={{ fontSize: 13, fontWeight: '600', color: theme.text, fontFamily: sansFont }}>{selectedFavBook?.lccn}</RNText>
                   </XStack>
                 ) : null}
               </YStack>
@@ -636,7 +651,7 @@ export default function Profile() {
                 }}
                 style={{
                   flex: 1,
-                  backgroundColor: isDarkMode ? "#451a1a" : "#fef3f2",
+                  backgroundColor: isDarkMode ? '#451a1a' : '#fef3f2',
                   paddingVertical: 12,
                   borderRadius: 16,
                   alignItems: 'center',
@@ -646,7 +661,7 @@ export default function Profile() {
                   justifyContent: 'center',
                 }}
               >
-                <Text color="#ef4444" fontSize={13} fontWeight="700">Remove</Text>
+                <RNText style={{ color: '#ef4444', fontSize: 13, fontWeight: '700', fontFamily: sansFont }}>Remove</RNText>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => {
@@ -664,10 +679,10 @@ export default function Profile() {
                   justifyContent: 'center',
                 }}
               >
-                <Text color={theme.pillTextActive} fontSize={13} fontWeight="700">Find in Catalog</Text>
+                <RNText style={{ color: theme.pillTextActive, fontSize: 13, fontWeight: '700', fontFamily: sansFont }}>Find in Catalog</RNText>
               </TouchableOpacity>
             </XStack>
-          </YStack>
+          </View>
         </View>
       </Modal>
     </ScrollView>
