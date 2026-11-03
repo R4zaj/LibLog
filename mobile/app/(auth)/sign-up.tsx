@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert, Image } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Check, UserCircle2, GraduationCap, ShieldCheck, BellRing, Eye, EyeOff } from 'lucide-react-native';
+import { ArrowLeft, Check, UserCircle2, GraduationCap, ShieldCheck, Eye, EyeOff } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api';
 
@@ -171,9 +171,6 @@ export default function SignUp() {
           </View>
           <View style={[styles.iconCircle, step >= 5 ? styles.iconActive : styles.iconInactive]}>
             {step > 5 ? <Check size={16} color="#fff" /> : <ShieldCheck size={16} color={step === 5 ? "#fff" : "#9ca3af"} />}
-          </View>
-          <View style={[styles.iconCircle, step >= 6 ? styles.iconActive : styles.iconInactive]}>
-            <BellRing size={16} color={step === 6 ? "#fff" : "#9ca3af"} />
           </View>
         </View>
       </View>
@@ -419,24 +416,6 @@ export default function SignUp() {
             </View>
           )}
 
-          {/* STEP 6: ALMOST DONE */}
-          {step === 6 && (
-            <View style={styles.stepContent}>
-              <View style={styles.stepHeader}>
-                <View style={styles.largeIconCircle}>
-                  <BellRing size={40} color="#fff" />
-                </View>
-                <Text style={styles.title}>Almost Done!</Text>
-                <Text style={styles.subtitle}>You're ready to explore CCC LIB APP</Text>
-              </View>
-
-              <View style={styles.successBox}>
-                <Check size={48} color="#10B981" />
-                <Text style={styles.successTitle}>Account Ready</Text>
-                <Text style={styles.successDesc}>Your Library ID and Digital QR Code have been successfully generated.</Text>
-              </View>
-            </View>
-          )}
         </ScrollView>
 
         <View style={styles.footer}>
@@ -444,17 +423,13 @@ export default function SignUp() {
             <TouchableOpacity style={[styles.button, isLoading && styles.buttonDisabled]} onPress={handleNext} disabled={isLoading}>
               <Text style={styles.buttonText}>{isLoading ? 'Loading...' : 'Continue →'}</Text>
             </TouchableOpacity>
-          ) : step === 5 ? (
+          ) : (
             <TouchableOpacity
               style={[styles.button, isLoading && styles.buttonDisabled]}
               onPress={handleRegister}
               disabled={isLoading || otp.length !== 6}
             >
               <Text style={styles.buttonText}>{isLoading ? 'Verifying...' : 'Verify & Create Account'}</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity style={styles.button}>
-              <Text style={styles.buttonText}>Get Started</Text>
             </TouchableOpacity>
           )}
         </View>

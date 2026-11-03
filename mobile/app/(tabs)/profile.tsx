@@ -1,5 +1,5 @@
 import React from 'react';
-import { TouchableOpacity, ActivityIndicator, Alert, Modal, TextInput, Switch, Platform } from 'react-native';
+import { TouchableOpacity, ActivityIndicator, Alert, Modal, TextInput, Switch, Platform, Text as RNText } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAppTheme } from '../../context/ThemeContext';
@@ -298,10 +298,12 @@ export default function Profile() {
             <YStack backgroundColor={isDarkMode ? "#451a1a" : "#fef3f2"} padding="$3" borderRadius={20} marginBottom="$3">
               <LogOut color="#ef4444" size={28} />
             </YStack>
-            <Text fontSize={24} fontWeight="800" color={theme.text} marginBottom="$2">Log Out</Text>
-            <Text fontSize={15} color={theme.textSecondary} textAlign="center" marginBottom="$5">
+            <RNText style={{ fontSize: 22, fontWeight: '800', color: theme.text, marginBottom: 8, fontFamily: Platform.select({ ios: 'System', android: 'sans-serif', default: 'sans-serif' }), textAlign: 'center' }}>
+              Log Out
+            </RNText>
+            <RNText style={{ fontSize: 15, color: theme.textSecondary, textAlign: 'center', marginBottom: 20, fontFamily: Platform.select({ ios: 'System', android: 'sans-serif', default: 'sans-serif' }), lineHeight: 22 }}>
               Are you sure you want to log out of your account?
-            </Text>
+            </RNText>
             <XStack gap={12} width="100%">
               <TouchableOpacity
                 onPress={() => setLogoutModalVisible(false)}
@@ -315,7 +317,9 @@ export default function Profile() {
                   justifyContent: 'center',
                 }}
               >
-                <Text color={theme.textSecondary} fontWeight="700" fontSize={15}>Cancel</Text>
+                <RNText style={{ color: theme.textSecondary, fontWeight: '700', fontSize: 15, fontFamily: Platform.select({ ios: 'System', android: 'sans-serif', default: 'sans-serif' }) }}>
+                  Cancel
+                </RNText>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => {
@@ -332,7 +336,9 @@ export default function Profile() {
                   justifyContent: 'center',
                 }}
               >
-                <Text color="#ffffff" fontWeight="700" fontSize={15}>Log Out</Text>
+                <RNText style={{ color: '#ffffff', fontWeight: '700', fontSize: 15, fontFamily: Platform.select({ ios: 'System', android: 'sans-serif', default: 'sans-serif' }) }}>
+                  Log Out
+                </RNText>
               </TouchableOpacity>
             </XStack>
           </YStack>
