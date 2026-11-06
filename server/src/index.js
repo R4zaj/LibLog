@@ -26,7 +26,7 @@ const app = express();
 app.set('trust proxy', 1);
 
 // Dev servers (Vite, Metro/Expo web) pick whatever port is free, so allow any localhost port
-// rather than hardcoding one — native/Electron requests carry no Origin header and are unaffected.
+// rather than hardcoding one: native/Electron requests carry no Origin header and are unaffected.
 const localDevOriginPattern = /^(https?:\/\/(localhost|127\.0\.0\.1):\d+|exp:\/\/127\.0\.0\.1:\d+)$/;
 
 app.use(cors({
@@ -69,9 +69,15 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/student-activities', studentActivityRoutes);
 
-// Lightweight health check endpoint (no DB hit) — used to wake up Render from cold start
+// Lightweight health check endpoint (no DB hit) to wake up Render from cold start
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: Date.now() });
+});
+
+// Serve static public assets (email logos, web icons)
+app.use('/public', express.static(path.join(__dirname, '../public')));
+app.get('/api/assets/logo.png', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/logo.png'));
 });
 
 // Error handling middleware

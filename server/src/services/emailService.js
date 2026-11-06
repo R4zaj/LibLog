@@ -16,6 +16,8 @@
 
 const senderEmail = process.env.SENDER_EMAIL || 'noreply@liblog.com';
 const senderName = 'Calauan Community Campus Library';
+const BACKEND_URL = process.env.BACKEND_URL || 'https://liblog-backend.onrender.com';
+const LOGO_URL = process.env.LOGO_URL || `${BACKEND_URL}/public/logo.png`;
 
 async function sendEmail({ to, subject, htmlContent, textContent }) {
   if (process.env.SENDGRID_API_KEY) {
@@ -146,8 +148,8 @@ function generateReceiptEmailHtml({ user, penalty, book, record, collector, rece
                   <td align="left" valign="middle">
                     <table role="presentation" border="0" cellspacing="0" cellpadding="0">
                       <tr>
-                        <td style="background-color: #6C48C5; width: 34px; height: 34px; border-radius: 8px; text-align: center; vertical-align: middle;">
-                          <span style="color: #ffffff; font-weight: 800; font-size: 16px; line-height: 34px; display: block;">L</span>
+                        <td style="width: 36px; height: 36px; vertical-align: middle; text-align: center;">
+                          <img src="${LOGO_URL}" width="36" height="36" alt="CCC Logo" style="display: block; width: 36px; height: 36px; border: 0; outline: none; text-decoration: none;" />
                         </td>
                         <td style="padding-left: 12px;">
                           <span style="font-size: 14px; font-weight: 800; letter-spacing: 1px; color: #0f172a; display: block; text-transform: uppercase;">Calauan Community Campus</span>
@@ -661,8 +663,8 @@ function generateOtpEmailHtml({ otp, type = 'verify', studentName = 'Student' })
                   <td align="left" valign="middle">
                     <table role="presentation" border="0" cellspacing="0" cellpadding="0">
                       <tr>
-                        <td style="background-color: #6C48C5; width: 34px; height: 34px; border-radius: 8px; text-align: center; vertical-align: middle;">
-                          <span style="color: #ffffff; font-weight: 800; font-size: 16px; line-height: 34px; display: block;">L</span>
+                        <td style="width: 36px; height: 36px; vertical-align: middle; text-align: center;">
+                          <img src="${LOGO_URL}" width="36" height="36" alt="CCC Logo" style="display: block; width: 36px; height: 36px; border: 0; outline: none; text-decoration: none;" />
                         </td>
                         <td style="padding-left: 12px;">
                           <span style="font-size: 14px; font-weight: 800; letter-spacing: 1px; color: #0f172a; display: block; text-transform: uppercase;">Calauan Community Campus</span>

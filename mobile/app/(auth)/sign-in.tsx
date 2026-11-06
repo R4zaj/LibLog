@@ -73,7 +73,7 @@ export default function SignIn() {
             <View style={styles.heroAnchor}>
               <Image 
                 source={require('../../assets/images/CCC_icon.png')} 
-                style={{ width: 64, height: 64, borderRadius: 16 }} 
+                style={{ width: 64, height: 64 }} 
                 resizeMode="contain"
               />
             </View>
