@@ -22,10 +22,7 @@ import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { useNetwork } from './contexts/NetworkContext';
 import { clearSession, getDisplayName, getInitials, getRoleLabel } from './auth';
-import { useTheme } from './components/ThemeContext';
 import { AlertCircle, X } from 'lucide-react';
-import backdropLight from './assets/backdrop-light.png';
-import backdropDark from './assets/backdrop-dark.png';
 
 const NavItem = ({ to, icon: Icon, label, badge, subItems }) => {
   const location = useLocation();
@@ -49,45 +46,45 @@ const NavItem = ({ to, icon: Icon, label, badge, subItems }) => {
   };
 
   return (
-    <div className="flex flex-col mb-1">
+    <div className="flex flex-col mb-0.5">
       <NavLink
         to={to}
         end={to === '/'}
         onClick={subItems ? handleToggle : undefined}
-        className={`group flex items-center justify-between px-4 py-2.5 rounded-lg transition-colors ${
+        className={`group flex items-center justify-between h-[34px] px-3 rounded-md text-xs transition-colors ${
           isMainActive
-            ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-900 dark:text-primary-200 font-semibold'
+            ? 'bg-primary-100 dark:bg-primary-900/40 text-primary-950 dark:text-primary-100 font-semibold'
             : isSectionActive
               ? 'bg-primary-50 dark:bg-dark-hover text-primary-900 dark:text-primary-200 font-semibold'
-              : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-hover hover:text-gray-900 dark:hover:text-white font-medium'
+              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-dark-hover hover:text-slate-900 dark:hover:text-slate-100 font-medium'
         }`}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <Icon
-            size={18}
-            className={`transition-colors ${
+            size={16}
+            className={`shrink-0 transition-colors ${
               isMainActive || isSectionActive
                 ? 'text-primary-700 dark:text-primary-400'
-                : 'text-gray-400 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-300'
+                : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300'
             }`}
           />
-          <span className="text-sm">{label}</span>
+          <span className="truncate">{label}</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 shrink-0">
           {badge && (
-            <span className="bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+            <span className="bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-400 text-[10px] font-semibold tabular-nums px-1.5 py-0.5 rounded-full">
               {badge}
             </span>
           )}
           {subItems && (
             <ChevronDown
-              size={14}
-              className={`transition-all ${
+              size={13}
+              className={`transition-transform duration-150 ${
                 isExpanded ? 'rotate-180' : ''
               } ${
                 isMainActive || isSectionActive
                   ? 'text-primary-700 dark:text-primary-400'
-                  : 'text-gray-400 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-300'
+                  : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300'
               }`}
             />
           )}
@@ -95,7 +92,7 @@ const NavItem = ({ to, icon: Icon, label, badge, subItems }) => {
       </NavLink>
 
       {subItems && isExpanded && (
-        <div className="ml-8 mt-1 flex flex-col gap-1 border-l-2 border-gray-200 dark:border-dark-border pl-3 py-0.5">
+        <div className="ml-7 mt-0.5 flex flex-col gap-0.5 border-l border-slate-200 dark:border-dark-border pl-2.5 py-0.5">
           {subItems.map((sub, idx) => {
             const expectedSearch = '?' + sub.to.split('?')[1];
             const isSubActive = location.pathname.startsWith('/literatures') && (
@@ -107,21 +104,21 @@ const NavItem = ({ to, icon: Icon, label, badge, subItems }) => {
               <NavLink
                 key={idx}
                 to={sub.to}
-                className={`group/sub flex items-center gap-2 px-3 py-1.5 rounded-md text-xs transition-colors ${
+                className={`group/sub flex items-center gap-2 h-7 px-2.5 rounded-md text-xs transition-colors ${
                   isSubActive
-                    ? 'text-primary-900 dark:text-primary-200 font-semibold bg-primary-100 dark:bg-primary-900/40'
-                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-dark-hover font-medium'
+                    ? 'text-primary-950 dark:text-primary-100 font-semibold bg-primary-100 dark:bg-primary-900/50'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-dark-hover font-medium'
                 }`}
               >
                 <sub.icon
-                  size={14}
-                  className={`transition-colors ${
+                  size={13}
+                  className={`shrink-0 transition-colors ${
                     isSubActive
                       ? 'text-primary-700 dark:text-primary-400'
-                      : 'text-gray-400 dark:text-gray-500 group-hover/sub:text-gray-600 dark:group-hover/sub:text-gray-300'
+                      : 'text-slate-400 dark:text-slate-500 group-hover/sub:text-slate-600 dark:group-hover/sub:text-slate-300'
                   }`}
                 />
-                <span>{sub.label}</span>
+                <span className="truncate">{sub.label}</span>
               </NavLink>
             );
           })}
@@ -133,7 +130,6 @@ const NavItem = ({ to, icon: Icon, label, badge, subItems }) => {
 
 export default function MainLayout() {
   const navigate = useNavigate();
-  const { isDarkMode } = useTheme();
   const [stats, setStats] = useState({ inside: 0, borrowed: 0, overdue: 0, capacity: 40 });
 
   useEffect(() => {
@@ -178,7 +174,7 @@ export default function MainLayout() {
   return (
     <AttendanceScannerProvider>
     <BorrowingProvider>
-      <div className="flex h-screen bg-gray-50 dark:bg-dark-bg font-sans text-gray-900 dark:text-slate-200">
+      <div className="flex h-screen bg-slate-50 dark:bg-[#0f0f12] font-sans text-slate-900 dark:text-slate-100">
       
       {/* Global Sync Error Notifications */}
       {syncErrors.length > 0 && (
@@ -201,20 +197,20 @@ export default function MainLayout() {
         </div>
       )}
 
-      {/* Light Sidebar */}
-      <aside className="w-64 bg-sidebar-bg dark:bg-dark-sidebar border-r border-gray-200 dark:border-dark-border flex flex-col shadow-sm z-10 shrink-0 print:hidden">
+      {/* Collegiate Academic Sidebar */}
+      <aside className="w-[260px] bg-sidebar-bg dark:bg-dark-sidebar border-r border-slate-200 dark:border-dark-border flex flex-col shadow-xs z-10 shrink-0 print:hidden">
         {/* Logo Area */}
-        <div className="h-16 flex items-center px-6 border-b border-gray-200 dark:border-dark-border gap-3">
-          <img src="/CCC_icon.png" alt="Logo" className="w-9 h-9 object-contain drop-shadow-xs shrink-0" />
-          <div className="flex flex-col">
-            <span className="font-bold text-lg text-primary-900 dark:text-primary-300 leading-tight">CCC LIB APP</span>
-            <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Library System</span>
+        <div className="h-16 flex items-center px-5 border-b border-slate-200 dark:border-dark-border gap-3">
+          <img src="/CCC_icon.png" alt="CCC Crest" className="w-9 h-9 object-contain shrink-0" />
+          <div className="flex flex-col min-w-0">
+            <span className="font-bold text-sm tracking-tight text-slate-900 dark:text-slate-100 truncate">Calauan Community Campus</span>
+            <span className="text-[10px] font-semibold tracking-wider text-slate-500 dark:text-slate-400 uppercase">Library Workstation</span>
           </div>
         </div>
 
         {/* Navigation */}
-        <div className="flex-1 overflow-y-auto py-6 px-4 flex flex-col gap-1 scrollbar-hide">
-          <span className="text-xs font-semibold text-gray-400 mb-2 px-2 tracking-wider">NAVIGATION</span>
+        <div className="flex-1 overflow-y-auto pt-5 pb-4 px-3 flex flex-col gap-0.5 scrollbar-hide">
+          <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 mb-1.5 px-3 tracking-normal">Navigation</span>
           <NavItem to="/" icon={LayoutDashboard} label="Dashboard" />
           <NavItem to="/literatures" icon={BookCopy} label="Literatures" subItems={literaturesSubItems} />
           <NavItem to="/borrowing" icon={ArrowRightLeft} label="Borrowing" badge={stats.overdue > 0 ? stats.overdue.toString() : null} />
@@ -225,49 +221,49 @@ export default function MainLayout() {
         </div>
 
         {/* Bottom Section: Quick Stats & Profile */}
-        <div className="p-4 border-t border-gray-200 dark:border-dark-border bg-sidebar-bg dark:bg-dark-sidebar flex flex-col gap-4">
+        <div className="p-3.5 border-t border-slate-200 dark:border-dark-border bg-sidebar-bg dark:bg-dark-sidebar flex flex-col gap-3">
           <div className="flex flex-col gap-2">
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Quick Stats</span>
-            <div className="flex justify-between items-center px-2">
-              <div className="flex flex-col items-center">
-                <UserCheck size={14} className="text-cyan-500 mb-1" />
-                <span className="text-sm font-bold">{stats.inside}</span>
-                <span className="text-[10px] text-gray-400">Inside</span>
+            <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 px-1 tracking-normal">Quick stats</span>
+            <div className="grid grid-cols-3 gap-1 px-1 py-1.5 bg-slate-50 dark:bg-slate-900/40 rounded-lg border border-slate-200/60 dark:border-slate-800">
+              <div className="flex flex-col items-center justify-center py-1">
+                <span className="text-sm font-bold text-slate-800 dark:text-slate-100 tabular-nums">{stats.inside}</span>
+                <span className="text-[10px] text-slate-500 font-medium">Inside</span>
               </div>
-              <div className="flex flex-col items-center">
-                <BookCopy size={14} className="text-yellow-500 mb-1" />
-                <span className="text-sm font-bold">{stats.borrowed}</span>
-                <span className="text-[10px] text-gray-400">Borrowed</span>
+              <div className="flex flex-col items-center justify-center py-1 border-x border-slate-200 dark:border-slate-800">
+                <span className="text-sm font-bold text-slate-800 dark:text-slate-100 tabular-nums">{stats.borrowed}</span>
+                <span className="text-[10px] text-slate-500 font-medium">Borrowed</span>
               </div>
-              <div className="flex flex-col items-center">
-                <ArrowRightLeft size={14} className="text-red-500 mb-1" />
-                <span className="text-sm font-bold">{stats.overdue}</span>
-                <span className="text-[10px] text-gray-400">Overdue</span>
+              <div className="flex flex-col items-center justify-center py-1">
+                <span className={`text-sm font-bold tabular-nums ${stats.overdue > 0 ? 'text-red-600 dark:text-red-400' : 'text-slate-800 dark:text-slate-100'}`}>{stats.overdue}</span>
+                <span className="text-[10px] text-slate-500 font-medium">Overdue</span>
               </div>
             </div>
-            <div className="flex items-center gap-2 mt-2 text-xs text-gray-500 px-2">
-              <div className="w-2 h-2 rounded-full bg-primary-600"></div>
-              <span>Open • {stats.capacity - stats.inside}/{stats.capacity} seats</span>
+            <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 px-1 pt-0.5">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
+                <span>Open for study</span>
+              </div>
+              <span className="tabular-nums font-medium">{stats.capacity - stats.inside} seats left</span>
             </div>
             
             {/* Network Status */}
-            <div className={`mt-3 p-2 rounded-lg border flex items-center justify-between transition-colors ${
+            <div className={`mt-1 p-2 rounded-md border flex items-center justify-between transition-colors ${
               isOnline 
-                ? 'bg-green-50 dark:bg-green-900/10 border-green-100 dark:border-green-900/30' 
-                : 'bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-900/30'
+                ? 'bg-slate-50 dark:bg-slate-900/30 border-slate-200 dark:border-slate-800' 
+                : 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/40'
             }`}>
               <div className="flex items-center gap-2">
                 {isOnline ? (
-                  <Wifi size={14} className="text-green-600 dark:text-green-500" />
+                  <Wifi size={13} className="text-emerald-600 dark:text-emerald-400" />
                 ) : (
-                  <WifiOff size={14} className="text-orange-600 dark:text-orange-500" />
+                  <WifiOff size={13} className="text-amber-600 dark:text-amber-400" />
                 )}
                 <div className="flex flex-col">
-                  <span className={`text-[10px] font-bold ${isOnline ? 'text-green-700' : 'text-orange-700'}`}>
-                    {isOnline ? 'System Online' : 'Offline Mode'}
+                  <span className={`text-[10px] font-semibold ${isOnline ? 'text-slate-700 dark:text-slate-300' : 'text-amber-700 dark:text-amber-300'}`}>
+                    {isOnline ? 'Connected' : 'Offline Mode'}
                   </span>
                   {syncQueue.length > 0 && (
-                    <span className="text-[9px] text-gray-500">
+                    <span className="text-[9px] text-slate-500 tabular-nums">
                       {syncQueue.length} pending sync{syncQueue.length > 1 ? 's' : ''}
                     </span>
                   )}
@@ -277,7 +273,7 @@ export default function MainLayout() {
                 <button 
                   onClick={processSyncQueue}
                   disabled={isSyncing}
-                  className={`p-1.5 rounded-full ${isSyncing ? 'animate-spin text-gray-400' : 'text-primary-600 hover:bg-primary-50'} transition-colors`}
+                  className={`p-1.5 rounded-md ${isSyncing ? 'animate-spin text-slate-400' : 'text-primary-600 hover:bg-slate-100 dark:hover:bg-slate-800'} transition-colors`}
                   title="Sync Now"
                 >
                   <RefreshCw size={12} />
@@ -288,33 +284,30 @@ export default function MainLayout() {
           </div>
           
           {/* Profile */}
-          <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-dark-border mt-2">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-primary-100 text-primary-800 flex items-center justify-center font-bold text-xs">
+          <div className="flex items-center justify-between pt-2.5 border-t border-slate-200 dark:border-dark-border">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-7 h-7 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center justify-center font-bold text-xs shrink-0">
                 {getInitials()}
               </div>
-              <div className="flex flex-col">
-                <span className="text-xs font-bold text-gray-800 dark:text-slate-200">{getDisplayName()}</span>
-                <span className="text-[10px] text-gray-400">{getRoleLabel()}</span>
+              <div className="flex flex-col min-w-0">
+                <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">{getDisplayName()}</span>
+                <span className="text-[10px] text-slate-500 truncate">{getRoleLabel()}</span>
               </div>
             </div>
-            <button onClick={handleLogout} className="text-gray-400 hover:text-gray-600 transition-colors">
+            <button 
+              onClick={handleLogout} 
+              className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors p-1"
+              title="Log out"
+            >
               <LogOut size={14} />
             </button>
           </div>
         </div>
       </aside>
 
-      {/* Main Content Wrapper with dynamic backdrop */}
-      <main 
-        className="flex-1 flex flex-col overflow-hidden bg-cover bg-center bg-no-repeat transition-all duration-300 relative"
-        style={{
-          backgroundImage: `url(${isDarkMode ? backdropDark : backdropLight})`
-        }}
-      >
-        {/* Subtle ambient overlay matching theme */}
-        <div className="absolute inset-0 bg-white/30 dark:bg-black/45 backdrop-blur-[1px] pointer-events-none" />
-        <div className="relative z-10 flex-1 flex flex-col overflow-auto">
+      {/* Main Content Area */}
+      <main className="flex-1 flex flex-col overflow-hidden bg-slate-50 dark:bg-[#0f0f12] text-slate-900 dark:text-slate-100 transition-colors">
+        <div className="flex-1 flex flex-col overflow-auto">
           <Outlet />
         </div>
       </main>
