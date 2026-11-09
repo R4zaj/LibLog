@@ -231,37 +231,37 @@ export default function Dashboard() {
         <div className="grid grid-cols-4 gap-4">
           <div 
             onClick={() => navigate('/borrowing')} 
-            className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-slate-800 p-4.5 flex flex-col items-start text-left cursor-pointer hover:border-primary-400 dark:hover:border-primary-600 hover:shadow-xs transition-all group"
+            className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-slate-800 border-t-4 border-t-orange-400 p-4.5 flex flex-col items-start text-left cursor-pointer hover:border-orange-300 dark:hover:border-orange-500 hover:shadow-xs transition-all group"
           >
-            <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center group-hover:bg-primary-50 dark:group-hover:bg-primary-950/40 group-hover:text-primary-700 dark:group-hover:text-primary-300 transition-colors">
+            <div className="w-10 h-10 rounded-lg bg-orange-50 dark:bg-orange-950/40 text-orange-500 dark:text-orange-400 flex items-center justify-center transition-colors">
               <BookUp size={20} />
             </div>
             <h3 className="font-semibold text-slate-900 dark:text-slate-100 text-sm mt-3">Check Out Book</h3>
             <span className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Process circulation return or borrow</span>
-            <span className="text-[11px] font-medium text-primary-700 dark:text-primary-400 mt-3 inline-flex items-center gap-1 group-hover:underline">
+            <span className="text-[11px] font-medium text-orange-600 dark:text-orange-400 mt-3 inline-flex items-center gap-1 group-hover:underline">
               Open Circulation Desk →
             </span>
           </div>
 
           <div 
             onClick={() => navigate('/attendance')} 
-            className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-slate-800 p-4.5 flex flex-col items-start text-left cursor-pointer hover:border-primary-400 dark:hover:border-primary-600 hover:shadow-xs transition-all group"
+            className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-slate-800 border-t-4 border-t-cyan-400 p-4.5 flex flex-col items-start text-left cursor-pointer hover:border-cyan-300 dark:hover:border-cyan-500 hover:shadow-xs transition-all group"
           >
-            <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center group-hover:bg-primary-50 dark:group-hover:bg-primary-950/40 group-hover:text-primary-700 dark:group-hover:text-primary-300 transition-colors">
+            <div className="w-10 h-10 rounded-lg bg-cyan-50 dark:bg-cyan-950/40 text-cyan-500 dark:text-cyan-400 flex items-center justify-center transition-colors">
               <UserCheck size={20} />
             </div>
             <h3 className="font-semibold text-slate-900 dark:text-slate-100 text-sm mt-3">Scan Student</h3>
             <span className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">QR attendance log-in or log-out</span>
-            <span className="text-[11px] font-medium text-primary-700 dark:text-primary-400 mt-3 inline-flex items-center gap-1 group-hover:underline">
+            <span className="text-[11px] font-medium text-cyan-600 dark:text-cyan-400 mt-3 inline-flex items-center gap-1 group-hover:underline">
               Launch Attendance Scanner →
             </span>
           </div>
 
           <div 
             onClick={() => navigate('/literatures')} 
-            className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-slate-800 p-4.5 flex flex-col items-start text-left cursor-pointer hover:border-primary-400 dark:hover:border-primary-600 hover:shadow-xs transition-all group"
+            className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-slate-800 border-t-4 border-t-primary-500 p-4.5 flex flex-col items-start text-left cursor-pointer hover:border-primary-300 dark:hover:border-primary-500 hover:shadow-xs transition-all group"
           >
-            <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center group-hover:bg-primary-50 dark:group-hover:bg-primary-950/40 group-hover:text-primary-700 dark:group-hover:text-primary-300 transition-colors">
+            <div className="w-10 h-10 rounded-lg bg-primary-50 dark:bg-primary-950/40 text-primary-600 dark:text-primary-400 flex items-center justify-center transition-colors">
               <PlusSquare size={20} />
             </div>
             <h3 className="font-semibold text-slate-900 dark:text-slate-100 text-sm mt-3">Add New Book</h3>
@@ -273,14 +273,14 @@ export default function Dashboard() {
 
           <div 
             onClick={() => navigate('/reports')} 
-            className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-slate-800 p-4.5 flex flex-col items-start text-left cursor-pointer hover:border-primary-400 dark:hover:border-primary-600 hover:shadow-xs transition-all group"
+            className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-slate-800 border-t-4 border-t-blue-400 p-4.5 flex flex-col items-start text-left cursor-pointer hover:border-blue-300 dark:hover:border-blue-500 hover:shadow-xs transition-all group"
           >
-            <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center group-hover:bg-primary-50 dark:group-hover:bg-primary-950/40 group-hover:text-primary-700 dark:group-hover:text-primary-300 transition-colors">
+            <div className="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-500 dark:text-blue-400 flex items-center justify-center transition-colors">
               <BarChart3 size={20} />
             </div>
             <h3 className="font-semibold text-slate-900 dark:text-slate-100 text-sm mt-3">View Reports</h3>
             <span className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Circulation statistics and analytics</span>
-            <span className="text-[11px] font-medium text-primary-700 dark:text-primary-400 mt-3 inline-flex items-center gap-1 group-hover:underline">
+            <span className="text-[11px] font-medium text-blue-600 dark:text-blue-400 mt-3 inline-flex items-center gap-1 group-hover:underline">
               Generate Institutional Summary →
             </span>
           </div>
@@ -288,7 +288,7 @@ export default function Dashboard() {
 
         {/* Top Stat Cards */}
         <div className="grid grid-cols-5 gap-4">
-          <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-slate-800 p-4.5 flex flex-col justify-between shadow-2xs">
+          <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-slate-800 border-l-4 border-l-primary-600 p-4.5 flex flex-col justify-between shadow-2xs">
             <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Total Titles</span>
             <span className="text-2xl font-bold text-slate-900 dark:text-slate-100 tabular-nums my-1">{data.totalTitles}</span>
             <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
@@ -296,7 +296,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-slate-800 p-4.5 flex flex-col justify-between shadow-2xs">
+          <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-slate-800 border-l-4 border-l-orange-400 p-4.5 flex flex-col justify-between shadow-2xs">
             <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Total Borrowed</span>
             <span className="text-2xl font-bold text-slate-900 dark:text-slate-100 tabular-nums my-1">{data.totalBorrowed}</span>
             <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
@@ -304,16 +304,16 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-slate-800 p-4.5 flex flex-col justify-between shadow-2xs">
+          <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-slate-800 border-l-4 border-l-cyan-400 p-4.5 flex flex-col justify-between shadow-2xs">
             <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Students Inside</span>
             <span className="text-2xl font-bold text-slate-900 dark:text-slate-100 tabular-nums my-1">{data.studentsInside}</span>
             <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 inline-block"></span>
               <span>Currently in library</span>
             </div>
           </div>
 
-          <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-slate-800 p-4.5 flex flex-col justify-between shadow-2xs">
+          <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-slate-800 border-l-4 border-l-emerald-500 p-4.5 flex flex-col justify-between shadow-2xs">
             <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Available Slots</span>
             <span className="text-2xl font-bold text-slate-900 dark:text-slate-100 tabular-nums my-1">{data.availableSlots}</span>
             <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
@@ -321,7 +321,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-slate-800 p-4.5 flex flex-col justify-between shadow-2xs">
+          <div className="bg-white dark:bg-dark-card rounded-xl border border-slate-200 dark:border-slate-800 border-l-4 border-l-red-500 p-4.5 flex flex-col justify-between shadow-2xs">
             <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Overdue Books</span>
             <span className={`text-2xl font-bold tabular-nums my-1 ${data.overdueCount > 0 ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-slate-100'}`}>
               {data.overdueCount}
