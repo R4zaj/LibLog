@@ -131,36 +131,70 @@ const previewEmail = async (req, res) => {
         student_id: req.query.studentId || 'CCC-2023-0149',
         email: req.query.email || 'msantos@calauan.edu.ph'
       };
-      const dummyBook = {
-        title: req.query.bookTitle || 'Data Structures and Algorithms in Java (4th Edition)',
-        author: { name: req.query.author || 'Robert Lafore' }
-      };
-      const borrowDate = new Date();
-      borrowDate.setDate(borrowDate.getDate() - 17);
-      const dueDate = new Date();
-      dueDate.setDate(dueDate.getDate() - 10);
-      const dummyRecord = {
-        borrow_date: borrowDate.toISOString(),
-        due_date: dueDate.toISOString()
-      };
-      const daysOverdue = parseInt(req.query.daysOverdue || '10', 10);
+
       const dailyRate = parseFloat(req.query.dailyRate || '5');
-      const penaltyAmount = parseFloat(req.query.penaltyAmount || (daysOverdue * dailyRate));
+      const isMulti = req.query.multi === 'true' || req.query.count > 1;
+
+      let items = [];
+      if (isMulti) {
+        items = [
+          {
+            book: {
+              title: req.query.bookTitle || 'Data Structures and Algorithms in Java (4th Edition)',
+              author: { name: req.query.author || 'Robert Lafore' }
+            },
+            record: {
+              borrow_date: new Date(Date.now() - 17 * 86400000).toISOString(),
+              due_date: new Date(Date.now() - 10 * 86400000).toISOString()
+            },
+            daysOverdue: 10,
+            penaltyAmount: 10 * dailyRate
+          },
+          {
+            book: {
+              title: 'Database System Concepts (6th Edition)',
+              author: { name: 'Abraham Silberschatz' }
+            },
+            record: {
+              borrow_date: new Date(Date.now() - 14 * 86400000).toISOString(),
+              due_date: new Date(Date.now() - 7 * 86400000).toISOString()
+            },
+            daysOverdue: 7,
+            penaltyAmount: 7 * dailyRate
+          }
+        ];
+      } else {
+        const borrowDate = new Date();
+        borrowDate.setDate(borrowDate.getDate() - 17);
+        const dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() - 10);
+        const daysOverdue = parseInt(req.query.daysOverdue || '10', 10);
+        const penaltyAmount = parseFloat(req.query.penaltyAmount || (daysOverdue * dailyRate));
+
+        items = [
+          {
+            book: {
+              title: req.query.bookTitle || 'Data Structures and Algorithms in Java (4th Edition)',
+              author: { name: req.query.author || 'Robert Lafore' }
+            },
+            record: {
+              borrow_date: borrowDate.toISOString(),
+              due_date: dueDate.toISOString()
+            },
+            daysOverdue,
+            penaltyAmount
+          }
+        ];
+      }
 
       const html = generateOverdueEmailHtml({
         user: dummyUser,
-        book: dummyBook,
-        record: dummyRecord,
-        daysOverdue,
-        penaltyAmount,
+        items,
         dailyRate
       });
       const text = generateOverdueEmailText({
         user: dummyUser,
-        book: dummyBook,
-        record: dummyRecord,
-        daysOverdue,
-        penaltyAmount,
+        items,
         dailyRate
       });
 
@@ -171,10 +205,8 @@ const previewEmail = async (req, res) => {
       return res.json({
         type: 'penalty',
         user: dummyUser,
-        book: dummyBook,
-        daysOverdue,
+        items,
         dailyRate,
-        penaltyAmount,
         html,
         text
       });
@@ -219,20 +251,23 @@ const sendTestEmail = async (req, res) => {
         first_name: studentName.split(' ')[0] || 'Student', 
         last_name: studentName.split(' ').slice(1).join(' ') || '' 
       };
-      const dummyBook = { 
-        title: bookTitle || 'Data Structures and Algorithms in Java (4th Edition)', 
-        author: { name: author || 'Robert Lafore' } 
-      };
-      const record = { 
-        borrow_date: new Date().toISOString(), 
-        due_date: new Date().toISOString() 
-      };
+      const items = req.body.items && req.body.items.length > 0
+        ? req.body.items
+        : [{
+            book: { 
+              title: bookTitle || 'Data Structures and Algorithms in Java (4th Edition)', 
+              author: { name: author || 'Robert Lafore' } 
+            },
+            record: { 
+              borrow_date: new Date().toISOString(), 
+              due_date: new Date().toISOString() 
+            },
+            daysOverdue,
+            penaltyAmount
+          }];
       const result = await sendOverdueNotice({
         user: dummyUser,
-        book: dummyBook,
-        record,
-        daysOverdue,
-        penaltyAmount,
+        items,
         dailyRate
       });
       return res.json({ success: true, message: `Overdue penalty notice email dispatched to ${to}`, result });

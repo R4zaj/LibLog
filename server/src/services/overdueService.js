@@ -9,7 +9,7 @@ const { calculateOverdueDetails, syncUserPenaltyBalance } = require('../utils/pe
  * - Updates status to 'OVERDUE'
  * - Calculates & upserts penalty record
  * - Dispatches desktop & mobile notifications
- * - Sends overdue notice email via Brevo API (throttled to max 1 per 24 hours per borrow record)
+ * - Dispatches a single consolidated overdue notice email per student (throttled to max 1 per 24 hours per user)
  */
 async function checkAndProcessOverdueBooks() {
   const now = new Date();
@@ -44,6 +44,9 @@ async function checkAndProcessOverdueBooks() {
     emailsSent: 0,
     errors: []
   };
+
+  // Group overdue records by student (userId) for a single consolidated email
+  const userOverdueGroups = new Map();
 
   for (const record of overdueRecords) {
     try {
@@ -89,7 +92,7 @@ async function checkAndProcessOverdueBooks() {
 
       await syncUserPenaltyBalance(prisma, record.user_id, settings);
 
-      // Check if overdue notification/email was already sent today for this borrow record
+      // Check if overdue in-app notification was already sent today for this borrow record
       const notifiedToday = await prisma.notification.findFirst({
         where: {
           ref_table: 'borrow_records',
@@ -101,7 +104,7 @@ async function checkAndProcessOverdueBooks() {
       });
 
       if (!notifiedToday) {
-        // Dispatch mobile and desktop notifications
+        // Dispatch mobile and desktop notifications per book
         await notifyOverdue({
           user: record.user,
           book: record.book,
@@ -110,28 +113,72 @@ async function checkAndProcessOverdueBooks() {
           borrowRecordId: record.id,
           tx: prisma
         });
+      }
 
-        // Send Email Notice via Brevo if student has an email
-        if (record.user?.email) {
-          try {
-            await sendOverdueNotice({
-              user: record.user,
-              book: record.book,
-              record,
-              daysOverdue,
-              penaltyAmount,
-              dailyRate: parseFloat(settings?.penalty_fee_per_day || 5)
-            });
-            results.emailsSent++;
-          } catch (emailErr) {
-            console.error(`Failed to send overdue email to ${record.user.email}:`, emailErr.message);
-            results.errors.push({ userId: record.user_id, error: emailErr.message });
-          }
+      // Collect for consolidated email dispatch if user has an email
+      if (record.user?.email) {
+        if (!userOverdueGroups.has(record.user_id)) {
+          userOverdueGroups.set(record.user_id, {
+            user: record.user,
+            items: []
+          });
         }
+        userOverdueGroups.get(record.user_id).items.push({
+          book: record.book,
+          record,
+          daysOverdue,
+          penaltyAmount,
+          borrowDate: record.borrow_date,
+          dueDate: record.due_date
+        });
       }
     } catch (recordErr) {
       console.error(`Error processing overdue record #${record.id}:`, recordErr);
       results.errors.push({ recordId: record.id, error: recordErr.message });
+    }
+  }
+
+  // 3. Dispatch exactly ONE consolidated email per student across all their overdue books
+  const dailyRate = parseFloat(settings?.penalty_fee_per_day || 5);
+
+  for (const [userId, group] of userOverdueGroups.entries()) {
+    try {
+      // Check if consolidated overdue email was already dispatched to this student today
+      const emailSentToday = await prisma.notification.findFirst({
+        where: {
+          target_user_id: userId,
+          category: 'BORROWING',
+          title: 'Overdue Email Notice Dispatched',
+          created_at: { gte: todayStart }
+        }
+      });
+
+      if (emailSentToday) {
+        continue; // Throttled: max 1 consolidated overdue email per student per calendar day
+      }
+
+      // Dispatch single consolidated overdue email containing all overdue books
+      await sendOverdueNotice({
+        user: group.user,
+        items: group.items,
+        dailyRate
+      });
+      results.emailsSent++;
+
+      // Record dispatch to enforce 24-hour daily throttle
+      await prisma.notification.create({
+        data: {
+          category: 'BORROWING',
+          title: 'Overdue Email Notice Dispatched',
+          message: `Consolidated overdue notice dispatched to ${group.user.email} for ${group.items.length} overdue book${group.items.length > 1 ? 's' : ''}.`,
+          target_user_id: userId,
+          ref_table: 'users',
+          ref_id: userId
+        }
+      });
+    } catch (emailErr) {
+      console.error(`Failed to send consolidated overdue email to ${group.user.email}:`, emailErr.message);
+      results.errors.push({ userId, error: emailErr.message });
     }
   }
 

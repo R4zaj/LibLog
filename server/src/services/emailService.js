@@ -397,20 +397,69 @@ Calauan, Laguna, Philippines
 /**
  * Redesigned Overdue Circulation Notice HTML
  * Design: Direction A - Campus Official / Collegiate Academic
+ * Supports both consolidated multi-book digests and single-book notices.
  */
-function generateOverdueEmailHtml({ user, book, record, daysOverdue, penaltyAmount, dailyRate = 5 }) {
+function generateOverdueEmailHtml({ user, items = [], book, record, daysOverdue, penaltyAmount, dailyRate = 5 }) {
   const studentName = `${user?.first_name || ''} ${user?.last_name || ''}`.trim() || user?.student_id || 'Student';
   const studentId = user?.student_id || 'N/A';
-  const bookTitle = book?.title || 'Borrowed Literature';
-  const bookAuthor = book?.author?.name || book?.author || 'Unknown Author';
-  const borrowDateStr = record?.borrow_date
-    ? new Date(record.borrow_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-    : 'N/A';
-  const dueDateStr = record?.due_date
-    ? new Date(record.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-    : 'N/A';
-  const formattedPenalty = `₱${parseFloat(penaltyAmount || 0).toFixed(2)}`;
+
+  const overdueItems = (items && items.length > 0)
+    ? items
+    : (book ? [{
+        book,
+        record,
+        daysOverdue: daysOverdue || 0,
+        penaltyAmount: penaltyAmount || 0,
+        borrowDate: record?.borrow_date,
+        dueDate: record?.due_date
+      }] : []);
+
+  const itemCount = overdueItems.length;
+  const isMultiple = itemCount > 1;
+  const totalPenalty = overdueItems.reduce((sum, item) => sum + parseFloat(item.penaltyAmount || 0), 0);
+  const maxDaysOverdue = overdueItems.reduce((max, item) => Math.max(max, parseInt(item.daysOverdue || 0, 10)), 0);
+
+  const formattedTotalPenalty = `₱${totalPenalty.toFixed(2)}`;
   const formattedDailyRate = `₱${parseFloat(dailyRate || 5).toFixed(2)}`;
+
+  const itemRowsHtml = overdueItems.map((item, index) => {
+    const bTitle = item.book?.title || 'Borrowed Literature';
+    const bAuthor = item.book?.author?.name || item.book?.author || 'Unknown Author';
+    const rawDue = item.dueDate || item.record?.due_date;
+    const dStr = rawDue
+      ? new Date(rawDue).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      : 'N/A';
+    const rawBorrow = item.borrowDate || item.record?.borrow_date;
+    const bStr = rawBorrow
+      ? new Date(rawBorrow).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      : null;
+    const days = parseInt(item.daysOverdue || 0, 10);
+    const itemFine = `₱${parseFloat(item.penaltyAmount || 0).toFixed(2)}`;
+    const isLast = index === overdueItems.length - 1;
+    const borderStyle = isLast ? '' : 'border-bottom: 1px solid #f1f5f9;';
+
+    return `
+      <tr>
+        <td style="padding: 12px 14px; ${borderStyle} vertical-align: top;">
+          <span style="font-size: 13px; font-weight: 700; color: #0f172a; display: block; line-height: 1.35;">
+            ${index + 1}. ${bTitle}
+          </span>
+          <span style="font-size: 11px; color: #64748b; display: block; margin-top: 3px;">
+            By ${bAuthor}${bStr ? ` • Borrowed: ${bStr}` : ''}
+          </span>
+        </td>
+        <td style="padding: 12px 14px; ${borderStyle} font-size: 12px; color: #b91c1c; font-weight: 600; vertical-align: top; white-space: nowrap;">
+          ${dStr}
+        </td>
+        <td style="padding: 12px 14px; ${borderStyle} font-size: 12px; color: #334155; font-weight: 600; text-align: center; vertical-align: top; white-space: nowrap;">
+          ${days}d
+        </td>
+        <td style="padding: 12px 14px; ${borderStyle} font-size: 13px; color: #b91c1c; font-weight: 800; text-align: right; vertical-align: top; white-space: nowrap;">
+          ${itemFine}
+        </td>
+      </tr>
+    `;
+  }).join('');
 
   return `
 <!DOCTYPE html>
@@ -435,8 +484,8 @@ function generateOverdueEmailHtml({ user, book, record, daysOverdue, penaltyAmou
                   <td align="left" valign="middle">
                     <table role="presentation" border="0" cellspacing="0" cellpadding="0">
                       <tr>
-                        <td style="background-color: #dc2626; width: 34px; height: 34px; border-radius: 8px; text-align: center; vertical-align: middle;">
-                          <span style="color: #ffffff; font-weight: 800; font-size: 16px; line-height: 34px; display: block;">!</span>
+                        <td style="width: 36px; height: 36px; vertical-align: middle; text-align: center;">
+                          <img src="${LOGO_URL}" width="36" height="36" alt="CCC Logo" style="display: block; width: 36px; height: 36px; border: 0; outline: none; text-decoration: none;" />
                         </td>
                         <td style="padding-left: 12px;">
                           <span style="font-size: 14px; font-weight: 800; letter-spacing: 1px; color: #0f172a; display: block; text-transform: uppercase;">Calauan Community Campus</span>
@@ -459,10 +508,10 @@ function generateOverdueEmailHtml({ user, book, record, daysOverdue, penaltyAmou
           <tr>
             <td style="padding: 28px 28px 32px 28px;">
               <h1 style="margin: 0 0 6px 0; font-size: 20px; font-weight: 800; color: #0f172a; letter-spacing: -0.3px;">
-                Overdue Book Reminder
+                ${isMultiple ? 'Overdue Books Reminder' : 'Overdue Book Reminder'}
               </h1>
               <p style="margin: 0 0 20px 0; font-size: 13.5px; line-height: 1.5; color: #475569;">
-                Dear ${studentName} (ID: ${studentId}), library records indicate that the following borrowed book has exceeded its loan period and has not yet been checked in at the circulation desk.
+                Dear ${studentName} (ID: ${studentId}), library records indicate that ${isMultiple ? `the following ${itemCount} borrowed books have exceeded their loan period` : 'the following borrowed book has exceeded its loan period'} and ${isMultiple ? 'have' : 'has'} not yet been checked in at the circulation desk.
               </p>
 
               <!-- Highlight Fine Box -->
@@ -473,19 +522,19 @@ function generateOverdueEmailHtml({ user, book, record, daysOverdue, penaltyAmou
                       <tr>
                         <td align="left" valign="middle">
                           <span style="font-size: 11px; font-weight: 700; color: #b91c1c; text-transform: uppercase; letter-spacing: 0.8px; display: block; margin-bottom: 4px;">
-                            Accrued Overdue Fine
+                            ${isMultiple ? 'Total Accrued Overdue Fines' : 'Accrued Overdue Fine'}
                           </span>
                           <span style="font-size: 28px; font-weight: 900; color: #b91c1c; line-height: 1.1; display: block;">
-                            ${formattedPenalty}
+                            ${formattedTotalPenalty}
                           </span>
                           <span style="font-size: 11px; color: #991b1b; font-weight: 500; display: block; margin-top: 4px;">
-                            Rate: ${formattedDailyRate} per calendar day
+                            ${isMultiple ? `${itemCount} items overdue • Rate: ${formattedDailyRate} per calendar day per item` : `Rate: ${formattedDailyRate} per calendar day`}
                           </span>
                         </td>
                         <td align="right" valign="middle">
                           <div style="background-color: #ffffff; border: 1px solid #fca5a5; border-radius: 8px; padding: 8px 14px; text-align: center; display: inline-block;">
                             <span style="font-size: 14px; font-weight: 800; color: #b91c1c; display: block;">
-                              ${daysOverdue} Days
+                              ${isMultiple ? `${itemCount} Books` : `${maxDaysOverdue} Days`}
                             </span>
                             <span style="font-size: 10px; font-weight: 600; color: #7f1d1d; text-transform: uppercase; display: block; margin-top: 2px;">
                               Past Due
@@ -498,55 +547,27 @@ function generateOverdueEmailHtml({ user, book, record, daysOverdue, penaltyAmou
                 </tr>
               </table>
 
-              <!-- Itemized Book Details Grid -->
-              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-bottom: 24px;">
-                <tr>
-                  <td colspan="2" style="background-color: #f1f5f9; padding: 10px 16px; border-bottom: 1px solid #e2e8f0;">
-                    <span style="font-size: 11px; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 0.6px;">
-                      Borrowed Item Information
-                    </span>
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 12.5px; color: #64748b; font-weight: 500; width: 38%;">
-                    Book Title
-                  </td>
-                  <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 12.5px; color: #0f172a; font-weight: 600; text-align: right;">
-                    ${bookTitle}
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 12.5px; color: #64748b; font-weight: 500;">
-                    Author
-                  </td>
-                  <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 12.5px; color: #334155; font-weight: 500; text-align: right;">
-                    ${bookAuthor}
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 12.5px; color: #64748b; font-weight: 500;">
-                    Date Borrowed
-                  </td>
-                  <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 12.5px; color: #334155; font-weight: 500; text-align: right;">
-                    ${borrowDateStr}
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 12.5px; color: #64748b; font-weight: 500;">
-                    Expected Due Date
-                  </td>
-                  <td style="padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 12.5px; color: #b91c1c; font-weight: 700; text-align: right;">
-                    ${dueDateStr}
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding: 10px 16px; font-size: 12.5px; color: #64748b; font-weight: 500;">
-                    Current Status
-                  </td>
-                  <td style="padding: 10px 16px; font-size: 12.5px; color: #b91c1c; font-weight: 700; text-align: right; text-transform: uppercase;">
-                    Not Yet Returned
-                  </td>
-                </tr>
+              <!-- Itemized Overdue Books Table -->
+              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-bottom: 24px; border-collapse: separate;">
+                <thead>
+                  <tr style="background-color: #f1f5f9;">
+                    <th style="padding: 10px 14px; font-size: 11px; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 0.6px; text-align: left; border-bottom: 1px solid #e2e8f0;">
+                      Overdue Item / Title
+                    </th>
+                    <th style="padding: 10px 14px; font-size: 11px; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 0.6px; text-align: left; border-bottom: 1px solid #e2e8f0;">
+                      Expected Due
+                    </th>
+                    <th style="padding: 10px 14px; font-size: 11px; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 0.6px; text-align: center; border-bottom: 1px solid #e2e8f0;">
+                      Days
+                    </th>
+                    <th style="padding: 10px 14px; font-size: 11px; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 0.6px; text-align: right; border-bottom: 1px solid #e2e8f0;">
+                      Fine
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${itemRowsHtml}
+                </tbody>
               </table>
 
               <!-- Instructions Box -->
@@ -555,7 +576,7 @@ function generateOverdueEmailHtml({ user, book, record, daysOverdue, penaltyAmou
                   How to Return:
                 </p>
                 <p style="margin: 0; font-size: 12px; line-height: 1.5; color: #475569;">
-                  Please return this book to the Calauan Community Campus Library circulation desk during standard operating hours (Monday to Friday, 8:00 AM to 5:00 PM). Handing in the book halts further daily penalty calculations immediately.
+                  Please return ${isMultiple ? 'all borrowed books' : 'this book'} to the Calauan Community Campus Library circulation desk during standard operating hours (Monday to Friday, 8:00 AM to 5:00 PM). Handing in the ${isMultiple ? 'books halts' : 'book halts'} further daily penalty calculations immediately.
                 </p>
               </div>
 
@@ -589,20 +610,44 @@ function generateOverdueEmailHtml({ user, book, record, daysOverdue, penaltyAmou
 
 /**
  * Redesigned Overdue Circulation Notice Plaintext
+ * Supports both consolidated multi-book digests and single-book notices.
  */
-function generateOverdueEmailText({ user, book, record, daysOverdue, penaltyAmount, dailyRate = 5 }) {
+function generateOverdueEmailText({ user, items = [], book, record, daysOverdue, penaltyAmount, dailyRate = 5 }) {
   const studentName = `${user?.first_name || ''} ${user?.last_name || ''}`.trim() || user?.student_id || 'Student';
   const studentId = user?.student_id || 'N/A';
-  const bookTitle = book?.title || 'Borrowed Literature';
-  const bookAuthor = book?.author?.name || book?.author || 'Unknown Author';
-  const borrowDateStr = record?.borrow_date
-    ? new Date(record.borrow_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-    : 'N/A';
-  const dueDateStr = record?.due_date
-    ? new Date(record.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-    : 'N/A';
-  const formattedPenalty = `PHP ${parseFloat(penaltyAmount || 0).toFixed(2)}`;
+
+  const overdueItems = (items && items.length > 0)
+    ? items
+    : (book ? [{
+        book,
+        record,
+        daysOverdue: daysOverdue || 0,
+        penaltyAmount: penaltyAmount || 0,
+        borrowDate: record?.borrow_date,
+        dueDate: record?.due_date
+      }] : []);
+
+  const totalPenalty = overdueItems.reduce((sum, item) => sum + parseFloat(item.penaltyAmount || 0), 0);
+  const formattedTotalPenalty = `PHP ${totalPenalty.toFixed(2)}`;
   const formattedDailyRate = `PHP ${parseFloat(dailyRate || 5).toFixed(2)}`;
+  const isMultiple = overdueItems.length > 1;
+
+  const itemsListText = overdueItems.map((item, index) => {
+    const bTitle = item.book?.title || 'Borrowed Literature';
+    const bAuthor = item.book?.author?.name || item.book?.author || 'Unknown Author';
+    const rawBorrow = item.borrowDate || item.record?.borrow_date;
+    const bStr = rawBorrow
+      ? new Date(rawBorrow).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      : 'N/A';
+    const rawDue = item.dueDate || item.record?.due_date;
+    const dStr = rawDue
+      ? new Date(rawDue).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      : 'N/A';
+    const days = parseInt(item.daysOverdue || 0, 10);
+    const penalty = `PHP ${parseFloat(item.penaltyAmount || 0).toFixed(2)}`;
+
+    return `${index + 1}. "${bTitle}" by ${bAuthor}\n   - Date Borrowed: ${bStr}\n   - Expected Due Date: ${dStr}\n   - Days Overdue: ${days} day(s)\n   - Accrued Penalty: ${penalty}`;
+  }).join('\n\n');
 
   return `
 CALAUAN COMMUNITY CAMPUS LIBRARY
@@ -610,18 +655,15 @@ OVERDUE BOOK CIRCULATION NOTICE
 
 Dear ${studentName} (ID: ${studentId}),
 
-This is a reminder from the Calauan Community Campus Library that the following borrowed book has exceeded its loan duration:
+This is a reminder from the Calauan Community Campus Library that ${isMultiple ? `you have ${overdueItems.length} borrowed books that have exceeded their loan duration` : 'the following borrowed book has exceeded its loan duration'}:
 
-BOOK DETAILS:
-- Title: ${bookTitle}
-- Author: ${bookAuthor}
-- Date Borrowed: ${borrowDateStr}
-- Original Due Date: ${dueDateStr}
-- Days Overdue: ${daysOverdue} day(s)
-- Accrued Penalty: ${formattedPenalty} (${formattedDailyRate} per calendar day)
+OVERDUE ITEMS:
+${itemsListText}
+
+TOTAL ACCRUED OVERDUE FINES: ${formattedTotalPenalty} (${formattedDailyRate} per calendar day per item)
 
 RETURN GUIDELINES:
-Please return this book directly to the Calauan Community Campus Library circulation desk during campus hours (Monday to Friday, 8:00 AM to 5:00 PM). Returning the item freezes further overdue calculations immediately.
+Please return ${isMultiple ? 'all borrowed items' : 'this book'} directly to the Calauan Community Campus Library circulation desk during campus hours (Monday to Friday, 8:00 AM to 5:00 PM). Returning items freezes further overdue calculations immediately.
 
 Calauan Community Campus Library
 Automated Notification System
@@ -795,13 +837,27 @@ async function sendOtpEmail({ to, otp, type = 'verify', studentName = 'Student' 
 
 /**
  * High-level helper to send an Overdue Notice email
+ * Supports both consolidated multi-book digests and single-book notices.
  */
-async function sendOverdueNotice({ user, book, record, daysOverdue, penaltyAmount, dailyRate = 5 }) {
-  const bookTitle = book?.title || 'Borrowed Book';
-  const subject = `[Circulation Notice] Overdue Book Reminder: "${bookTitle}" (Calauan Community Campus Library)`;
+async function sendOverdueNotice({ user, items = [], book, record, daysOverdue, penaltyAmount, dailyRate = 5 }) {
+  const overdueItems = (items && items.length > 0)
+    ? items
+    : (book ? [{
+        book,
+        record,
+        daysOverdue: daysOverdue || 0,
+        penaltyAmount: penaltyAmount || 0,
+        borrowDate: record?.borrow_date,
+        dueDate: record?.due_date
+      }] : []);
 
-  const htmlContent = generateOverdueEmailHtml({ user, book, record, daysOverdue, penaltyAmount, dailyRate });
-  const textContent = generateOverdueEmailText({ user, book, record, daysOverdue, penaltyAmount, dailyRate });
+  const count = overdueItems.length;
+  const subject = count === 1
+    ? `[Circulation Notice] Overdue Book Reminder: "${overdueItems[0]?.book?.title || 'Borrowed Book'}" (Calauan Community Campus Library)`
+    : `[Circulation Notice] Overdue Books Reminder: ${count} Books Overdue (Calauan Community Campus Library)`;
+
+  const htmlContent = generateOverdueEmailHtml({ user, items: overdueItems, dailyRate });
+  const textContent = generateOverdueEmailText({ user, items: overdueItems, dailyRate });
 
   return sendEmail({
     to: user.email,
