@@ -15,7 +15,8 @@ const {
   payPenalty,
   resendPenaltyReceiptEmail,
   checkOverdue,
-  sendPenaltyNoticeEmail
+  sendPenaltyNoticeEmail,
+  sendUserOverdueNoticeEmail
 } = require('../controllers/borrowingController');
 
 router.get('/stats', getStats);
@@ -31,6 +32,7 @@ router.post('/return', returnBook);
 router.get('/penalties', getPenalties);
 router.post('/penalties/:id/pay', payPenalty);
 router.post('/penalties/:id/send-email', sendPenaltyNoticeEmail);
+router.post('/penalties/user/:userId/send-email', sendUserOverdueNoticeEmail);
 router.post('/penalties/:id/resend-receipt', resendPenaltyReceiptEmail);
 router.post('/check-overdue', checkOverdue);
 

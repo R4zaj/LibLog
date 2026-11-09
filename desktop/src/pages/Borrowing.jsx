@@ -42,6 +42,7 @@ export default function Borrowing() {
   const [resendingReceiptId, setResendingReceiptId] = useState(null);
   const [expandedUserIds, setExpandedUserIds] = useState(new Set());
   const [sendingEmailPenaltyId, setSendingEmailPenaltyId] = useState(null);
+  const [sendingEmailUserId, setSendingEmailUserId] = useState(null);
   const [emailToast, setEmailToast] = useState(null);
 
   const toggleUserExpanded = (userId) => {
@@ -323,6 +324,57 @@ export default function Borrowing() {
       });
     } finally {
       setSendingEmailPenaltyId(null);
+      setTimeout(() => {
+        setEmailToast((prev) => (prev ? null : prev));
+      }, 5000);
+    }
+  };
+
+  const handleSendStudentEmailNotice = async (group) => {
+    const studentUser = group?.user;
+    if (!studentUser?.email) {
+      setEmailToast({ type: 'error', message: 'Student does not have a registered email address.' });
+      setTimeout(() => setEmailToast(null), 4000);
+      return;
+    }
+
+    setSendingEmailUserId(studentUser.id);
+    setEmailToast(null);
+
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/borrowing/penalties/user/${studentUser.id}/send-email`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      let data = {};
+      try {
+        data = await res.json();
+      } catch (jsonErr) {
+        data = { error: `Server responded with status ${res.status}` };
+      }
+
+      if (res.ok) {
+        setEmailToast({
+          type: 'success',
+          message: data.message || `Overdue notice sent to ${studentUser.email}`
+        });
+      } else {
+        setEmailToast({
+          type: 'error',
+          message: data.error || 'Failed to dispatch email notice'
+        });
+      }
+    } catch (e) {
+      console.error('Error sending student email notice:', e);
+      setEmailToast({
+        type: 'error',
+        message: e.message || 'Network error while attempting to send notice'
+      });
+    } finally {
+      setSendingEmailUserId(null);
       setTimeout(() => {
         setEmailToast((prev) => (prev ? null : prev));
       }, 5000);
@@ -770,24 +822,36 @@ export default function Borrowing() {
                                 </span>
                               </td>
                               <td className="px-6 py-4 text-center">
-                                <button
-                                  onClick={() => toggleUserExpanded(group.user.id)}
-                                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 mx-auto ${
-                                    isExpanded
-                                      ? 'bg-gray-200 dark:bg-dark-hover text-gray-800 dark:text-slate-200'
-                                      : 'bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/50'
-                                  }`}
-                                >
-                                  {isExpanded ? (
-                                    <>
-                                      <ChevronUp size={13} /> Close
-                                    </>
-                                  ) : (
-                                    <>
-                                      <ChevronDown size={13} /> Details
-                                    </>
-                                  )}
-                                </button>
+                                <div className="flex items-center justify-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSendStudentEmailNotice(group)}
+                                    disabled={sendingEmailUserId === group.user.id || !group.user?.email}
+                                    title={group.user?.email ? `Send consolidated overdue notice to ${group.user.email}` : 'No email address registered for student'}
+                                    className="px-2.5 py-1.5 bg-sky-50 text-sky-700 hover:bg-sky-100 dark:bg-sky-950/40 dark:text-sky-300 dark:hover:bg-sky-900/40 border border-sky-200/60 dark:border-sky-800/60 rounded-lg text-xs font-semibold transition-all inline-flex items-center gap-1.5 shadow-2xs disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                                  >
+                                    <Mail size={12} className={sendingEmailUserId === group.user.id ? 'animate-pulse' : ''} />
+                                    <span>{sendingEmailUserId === group.user.id ? 'Sending...' : 'Send Notice'}</span>
+                                  </button>
+                                  <button
+                                    onClick={() => toggleUserExpanded(group.user.id)}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                                      isExpanded
+                                        ? 'bg-gray-200 dark:bg-dark-hover text-gray-800 dark:text-slate-200'
+                                        : 'bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/50'
+                                    }`}
+                                  >
+                                    {isExpanded ? (
+                                      <>
+                                        <ChevronUp size={13} /> Close
+                                      </>
+                                    ) : (
+                                      <>
+                                        <ChevronDown size={13} /> Details
+                                      </>
+                                    )}
+                                  </button>
+                                </div>
                               </td>
                             </tr>
 
@@ -801,9 +865,21 @@ export default function Borrowing() {
                                         <span className="w-2 h-2 rounded-full bg-primary-600"></span>
                                         Penalties for {group.user.first_name} {group.user.last_name} ({group.penalties.length} Item{group.penalties.length !== 1 ? 's' : ''})
                                       </span>
-                                      <span className="text-xs text-gray-500 dark:text-slate-400">
-                                        Subtotal: <strong className="text-gray-900 dark:text-slate-200 font-bold">₱{group.totalAmount.toFixed(2)}</strong>
-                                      </span>
+                                      <div className="flex items-center gap-3">
+                                        <span className="text-xs text-gray-500 dark:text-slate-400">
+                                          Subtotal: <strong className="text-gray-900 dark:text-slate-200 font-bold">₱{group.totalAmount.toFixed(2)}</strong>
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleSendStudentEmailNotice(group)}
+                                          disabled={sendingEmailUserId === group.user.id || !group.user?.email}
+                                          title={group.user?.email ? `Send consolidated overdue notice to ${group.user.email}` : 'No email address registered for student'}
+                                          className="px-3 py-1 bg-sky-50 text-sky-700 hover:bg-sky-100 dark:bg-sky-950/40 dark:text-sky-300 dark:hover:bg-sky-900/40 border border-sky-200/60 dark:border-sky-800/60 rounded text-xs font-semibold transition-all inline-flex items-center gap-1.5 shadow-2xs disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                                        >
+                                          <Mail size={12} className={sendingEmailUserId === group.user.id ? 'animate-pulse' : ''} />
+                                          <span>{sendingEmailUserId === group.user.id ? 'Sending...' : 'Send Notice'}</span>
+                                        </button>
+                                      </div>
                                     </div>
                                     
                                     <div className="overflow-x-auto">
@@ -847,24 +923,12 @@ export default function Borrowing() {
                                                 </span>
                                               </td>
                                               <td className="py-2.5 text-center">
-                                                <div className="flex items-center justify-center gap-1.5">
-                                                  <button
-                                                    type="button"
-                                                    onClick={() => handleSendEmailNotice(p, group.user)}
-                                                    disabled={sendingEmailPenaltyId === p.id || !group.user?.email}
-                                                    title={group.user?.email ? `Send overdue notice to ${group.user.email}` : 'No email address registered for student'}
-                                                    className="px-2.5 py-1 bg-sky-50 text-sky-700 hover:bg-sky-100 dark:bg-sky-950/40 dark:text-sky-300 dark:hover:bg-sky-900/40 border border-sky-200/60 dark:border-sky-800/60 rounded text-xs font-semibold transition-all inline-flex items-center gap-1 shadow-xs disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                                                  >
-                                                    <Mail size={12} className={sendingEmailPenaltyId === p.id ? 'animate-pulse' : ''} />
-                                                    <span>{sendingEmailPenaltyId === p.id ? 'Sending...' : 'Send Notice'}</span>
-                                                  </button>
-                                                  <button
-                                                    onClick={() => handlePayPenalty(p.id)}
-                                                    className="px-3 py-1 bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 rounded text-xs font-bold transition-colors shadow-sm cursor-pointer"
-                                                  >
-                                                    Mark Paid
-                                                  </button>
-                                                </div>
+                                                <button
+                                                  onClick={() => handlePayPenalty(p.id)}
+                                                  className="px-3 py-1 bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 rounded text-xs font-bold transition-colors shadow-sm cursor-pointer"
+                                                >
+                                                  Mark Paid
+                                                </button>
                                               </td>
                                             </tr>
                                           ))}
