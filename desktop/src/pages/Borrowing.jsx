@@ -416,7 +416,7 @@ export default function Borrowing() {
       </header>
 
       {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto px-16 py-8 flex flex-col gap-6 max-w-6xl mx-auto w-full">
+      <div className="flex-1 overflow-y-auto px-8 py-8 flex flex-col gap-6 max-w-6xl mx-auto w-full">
         
         {/* Title and Print */}
         <div className="flex justify-between items-start border-b border-gray-300 pb-4">
@@ -951,13 +951,13 @@ export default function Borrowing() {
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-gray-50 dark:bg-dark-bg border-b border-gray-200 dark:border-dark-border text-xs text-gray-500 dark:text-slate-400 uppercase">
-                      <th className="px-6 py-3 font-bold">Receipt No.</th>
-                      <th className="px-6 py-3 font-bold">Student</th>
-                      <th className="px-6 py-3 font-bold">Book Details</th>
-                      <th className="px-6 py-3 font-bold">Type</th>
-                      <th className="px-6 py-3 font-bold text-right">Amount Settled</th>
-                      <th className="px-6 py-3 font-bold">Settled On</th>
-                      <th className="px-6 py-3 font-bold text-center">Receipt Actions</th>
+                      <th className="w-[155px] px-3.5 py-3 font-bold text-left">Receipt No.</th>
+                      <th className="min-w-[170px] px-3.5 py-3 font-bold text-left">Student</th>
+                      <th className="min-w-[180px] px-3.5 py-3 font-bold text-left">Book Details</th>
+                      <th className="w-[85px] px-3.5 py-3 font-bold text-center">Type</th>
+                      <th className="w-[115px] px-3.5 py-3 font-bold text-right">Amount Settled</th>
+                      <th className="w-[130px] px-3.5 py-3 font-bold text-left">Settled On</th>
+                      <th className="w-[145px] px-3.5 py-3 font-bold text-center">Receipt Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-dark-border">
@@ -966,13 +966,13 @@ export default function Borrowing() {
                     ) : (
                       penalties.slice((penaltiesPage - 1) * 10, penaltiesPage * 10).map((p) => (
                         <tr key={p.id} className="hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors">
-                          <td className="px-6 py-4">
-                            <span className="font-mono font-bold text-xs px-2.5 py-1 rounded bg-gray-100 dark:bg-dark-bg text-primary-800 dark:text-primary-300 border border-gray-200 dark:border-dark-border inline-flex items-center gap-1.5">
-                              <FileText size={12} />
+                          <td className="px-3.5 py-2.5 w-[155px]">
+                            <span className="font-mono font-bold text-xs px-2.5 py-1 rounded bg-gray-100 dark:bg-dark-bg text-primary-800 dark:text-primary-300 border border-gray-200 dark:border-dark-border inline-flex items-center gap-1.5 whitespace-nowrap">
+                              <FileText size={12} className="shrink-0" />
                               {p.receipt_number || `CCC-OR-${new Date().getFullYear()}-${String(p.id).padStart(5, '0')}`}
                             </span>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-3.5 py-2.5 min-w-[170px]">
                             <p className="font-bold text-sm text-gray-900 dark:text-slate-200">
                               {p.user?.first_name} {p.user?.last_name}
                             </p>
@@ -980,7 +980,7 @@ export default function Borrowing() {
                               {p.user?.student_id} {p.user?.email ? `• ${p.user?.email}` : ''}
                             </p>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-3.5 py-2.5 min-w-[180px]">
                             <p className="font-semibold text-xs text-gray-900 dark:text-slate-200 max-w-xs truncate" title={p.borrow?.book?.title}>
                               {p.borrow?.book?.title || 'Library Book'}
                             </p>
@@ -988,20 +988,20 @@ export default function Borrowing() {
                               {p.days_overdue} days overdue
                             </p>
                           </td>
-                          <td className="px-6 py-4">
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 dark:bg-dark-bg text-gray-700 dark:text-slate-300 border border-gray-200 dark:border-dark-border">
+                          <td className="px-3.5 py-2.5 w-[85px] text-center">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 dark:bg-dark-bg text-gray-700 dark:text-slate-300 border border-gray-200 dark:border-dark-border inline-block">
                               {p.type}
                             </span>
                           </td>
-                          <td className="px-6 py-4 text-right">
-                            <p className="font-bold text-sm text-gray-900 dark:text-slate-200">
+                          <td className="px-3.5 py-2.5 w-[115px] text-right">
+                            <p className="font-bold text-sm text-gray-900 dark:text-slate-200 tabular-nums">
                               ₱{parseFloat(p.amount || 0).toFixed(2)}
                             </p>
-                            <span className="inline-block mt-0.5 px-2 py-0.2 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                            <span className="inline-block mt-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                               PAID
                             </span>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-3.5 py-2.5 w-[130px] text-left">
                             <p className="text-xs text-gray-800 dark:text-slate-300">
                               {p.paid_at ? new Date(p.paid_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Settled'}
                             </p>
@@ -1009,7 +1009,7 @@ export default function Borrowing() {
                               {p.collector ? `${p.collector.first_name} ${p.collector.last_name}` : 'Library Cashier'}
                             </p>
                           </td>
-                          <td className="px-6 py-4 text-center">
+                          <td className="px-3.5 py-2.5 w-[145px] text-center">
                             <div className="flex items-center justify-center gap-1.5">
                               <button
                                 type="button"

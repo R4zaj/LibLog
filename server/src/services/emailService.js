@@ -445,17 +445,19 @@ function generateOverdueEmailHtml({ user, items = [], book, record, daysOverdue,
             ${index + 1}. ${bTitle}
           </span>
           <span style="font-size: 11px; color: #64748b; display: block; margin-top: 3px;">
-            By ${bAuthor}${bStr ? ` • Borrowed: ${bStr}` : ''}
+            By ${bAuthor}
           </span>
+          <div style="margin-top: 6px; display: inline-block; background-color: #fef2f2; border: 1px solid #fee2e2; border-radius: 4px; padding: 3px 8px; font-size: 11px; color: #991b1b; font-weight: 600;">
+            Due: <span style="color: #b91c1c; font-weight: 700;">${dStr}</span> &bull; <span style="color: #b91c1c; font-weight: 700;">${days} days overdue</span>${bStr ? ` &bull; Borrowed: ${bStr}` : ''}
+          </div>
         </td>
-        <td style="padding: 12px 14px; ${borderStyle} font-size: 12px; color: #b91c1c; font-weight: 600; vertical-align: top; white-space: nowrap;">
-          ${dStr}
-        </td>
-        <td style="padding: 12px 14px; ${borderStyle} font-size: 12px; color: #334155; font-weight: 600; text-align: center; vertical-align: top; white-space: nowrap;">
-          ${days}d
-        </td>
-        <td style="padding: 12px 14px; ${borderStyle} font-size: 13px; color: #b91c1c; font-weight: 800; text-align: right; vertical-align: top; white-space: nowrap;">
-          ${itemFine}
+        <td style="padding: 12px 14px; ${borderStyle} vertical-align: top; text-align: right; width: 130px; white-space: nowrap;">
+          <span style="font-size: 13.5px; color: #b91c1c; font-weight: 800; display: block; line-height: 1.35;">
+            ${itemFine}
+          </span>
+          <span style="font-size: 11px; color: #64748b; display: block; margin-top: 3px;">
+            ${days}d &times; ${formattedDailyRate}/d
+          </span>
         </td>
       </tr>
     `;
@@ -552,16 +554,10 @@ function generateOverdueEmailHtml({ user, items = [], book, record, daysOverdue,
                 <thead>
                   <tr style="background-color: #f1f5f9;">
                     <th style="padding: 10px 14px; font-size: 11px; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 0.6px; text-align: left; border-bottom: 1px solid #e2e8f0;">
-                      Overdue Item / Title
+                      Overdue Book &amp; Schedule Details
                     </th>
-                    <th style="padding: 10px 14px; font-size: 11px; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 0.6px; text-align: left; border-bottom: 1px solid #e2e8f0;">
-                      Expected Due
-                    </th>
-                    <th style="padding: 10px 14px; font-size: 11px; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 0.6px; text-align: center; border-bottom: 1px solid #e2e8f0;">
-                      Days
-                    </th>
-                    <th style="padding: 10px 14px; font-size: 11px; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 0.6px; text-align: right; border-bottom: 1px solid #e2e8f0;">
-                      Fine
+                    <th style="padding: 10px 14px; font-size: 11px; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 0.6px; text-align: right; width: 130px; border-bottom: 1px solid #e2e8f0; white-space: nowrap;">
+                      Fine Amount
                     </th>
                   </tr>
                 </thead>
