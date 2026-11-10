@@ -7,7 +7,7 @@ const { syncUserPenaltyBalance } = require('../utils/penaltyCalculator');
 const otpStore = new Map(); // Store OTPs in memory: { email: { otp, expiresAt } }
 
 const requestOtp = async (req, res) => {
-  try { console.log('Request body:', req.body);
+  try {
     const { email, identifier, type } = req.body;
     const lookupKey = (email || identifier || '').trim();
     if (!lookupKey) return res.status(400).json({ error: 'Email or Library ID is required' });
