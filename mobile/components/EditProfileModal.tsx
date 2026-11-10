@@ -50,6 +50,8 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
   const [viewMode, setViewMode] = useState<'form' | 'programs'>('form');
 
   // Form states
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -70,6 +72,8 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
   // Sync form data whenever user or visible changes
   useEffect(() => {
     if (visible) {
+      setFirstName(user?.first_name || '');
+      setLastName(user?.last_name || '');
       setEmail(user?.email || '');
       setPassword('');
       setShowPassword(false);
@@ -137,6 +141,14 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
   };
 
   const handleSave = async () => {
+    if (!firstName.trim()) {
+      setErrorMessage('First name cannot be empty.');
+      return;
+    }
+    if (!lastName.trim()) {
+      setErrorMessage('Last name cannot be empty.');
+      return;
+    }
     if (!email.trim()) {
       setErrorMessage('Email address cannot be empty.');
       return;
@@ -151,6 +163,8 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
 
     try {
       const payload: any = {
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
         email: email.trim(),
         year_level: yearLevel,
         program: program,
@@ -255,7 +269,7 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
               >
-                {/* User Info Read-only Pill */}
+                {/* User Info Live Preview Card */}
                 <View
                   style={[
                     styles.userBadgeCard,
@@ -264,7 +278,9 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
                 >
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.badgeName, { color: theme.text }]}>
-                      {user?.first_name} {user?.last_name}
+                      {firstName.trim() || lastName.trim()
+                        ? `${firstName} ${lastName}`.trim()
+                        : `${user?.first_name || ''} ${user?.last_name || ''}`.trim() || 'Student'}
                     </Text>
                     <Text style={[styles.badgeSub, { color: theme.textSecondary }]}>
                       ID: {user?.student_id || 'N/A'} • {user?.role || 'STUDENT'}
@@ -282,6 +298,50 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
                     <Text style={styles.errorText}>{errorMessage}</Text>
                   </View>
                 )}
+
+                {/* First Name Field */}
+                <View style={styles.fieldGroup}>
+                  <Text style={[styles.label, { color: theme.text }]}>{t('FirstName') || 'First Name'}</Text>
+                  <View
+                    style={[
+                      styles.inputWrapper,
+                      { backgroundColor: theme.background, borderColor: theme.border },
+                    ]}
+                  >
+                    <UserIcon size={18} color={theme.textSecondary} style={{ marginRight: 10 }} />
+                    <TextInput
+                      style={[styles.input, { color: theme.text }]}
+                      value={firstName}
+                      onChangeText={setFirstName}
+                      placeholder="e.g. Juan"
+                      placeholderTextColor={theme.textSecondary}
+                      autoCapitalize="words"
+                      autoCorrect={false}
+                    />
+                  </View>
+                </View>
+
+                {/* Last Name Field */}
+                <View style={styles.fieldGroup}>
+                  <Text style={[styles.label, { color: theme.text }]}>{t('LastName') || 'Last Name'}</Text>
+                  <View
+                    style={[
+                      styles.inputWrapper,
+                      { backgroundColor: theme.background, borderColor: theme.border },
+                    ]}
+                  >
+                    <UserIcon size={18} color={theme.textSecondary} style={{ marginRight: 10 }} />
+                    <TextInput
+                      style={[styles.input, { color: theme.text }]}
+                      value={lastName}
+                      onChangeText={setLastName}
+                      placeholder="e.g. Dela Cruz"
+                      placeholderTextColor={theme.textSecondary}
+                      autoCapitalize="words"
+                      autoCorrect={false}
+                    />
+                  </View>
+                </View>
 
                 {/* Email Field */}
                 <View style={styles.fieldGroup}>

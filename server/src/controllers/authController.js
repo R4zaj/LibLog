@@ -341,10 +341,24 @@ const getMe = async (req, res) => {
 
 const updateProfile = async (req, res) => {
   try {
-    const { email, password, year_level, program } = req.body;
+    const { first_name, last_name, email, password, year_level, program } = req.body;
     
     // Build update object
     const updateData = {};
+    if (typeof first_name === 'string') {
+      const trimmedFirst = first_name.trim();
+      if (!trimmedFirst) {
+        return res.status(400).json({ error: 'First name cannot be empty.' });
+      }
+      updateData.first_name = trimmedFirst;
+    }
+    if (typeof last_name === 'string') {
+      const trimmedLast = last_name.trim();
+      if (!trimmedLast) {
+        return res.status(400).json({ error: 'Last name cannot be empty.' });
+      }
+      updateData.last_name = trimmedLast;
+    }
     if (email) updateData.email = email;
     if (year_level) updateData.year_level = year_level;
     

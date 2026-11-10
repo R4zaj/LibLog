@@ -40,6 +40,8 @@ const translations = {
     AccountSubtitle: 'Manage your profile and account information',
     EditProfile: 'Edit Profile',
     EditProfileSubtitle: 'Update your student information',
+    FirstName: 'First Name',
+    LastName: 'Last Name',
     Save: 'Save Changes',
     Cancel: 'Cancel',
   },
@@ -73,6 +75,8 @@ const translations = {
     AccountSubtitle: 'Pamahalaan ang impormasyon ng profile',
     EditProfile: 'I-edit ang Profile',
     EditProfileSubtitle: 'I-update ang impormasyon ng mag-aaral',
+    FirstName: 'Pangalan',
+    LastName: 'Apelyido',
     Save: 'I-save ang Pagbabago',
     Cancel: 'Kanselahin',
   }
