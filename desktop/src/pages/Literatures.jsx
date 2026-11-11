@@ -11,6 +11,7 @@ import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import NotificationDropdown from '../components/NotificationDropdown';
+import ProfileDropdown from '../components/ProfileDropdown';
 import QRCode from 'react-qr-code';
 import { useTheme } from '../components/ThemeContext';
 import Pagination from '../components/Pagination';
@@ -1754,9 +1755,7 @@ export default function Literatures() {
               {isDarkMode ? <Moon size={18} /> : <Sun size={18} />}
             </button>
             <NotificationDropdown />
-            <div className="w-8 h-8 rounded-full bg-primary-100 text-primary-800 flex items-center justify-center font-bold text-xs cursor-pointer ml-1">
-              AL
-            </div>
+            <ProfileDropdown />
           </div>
 
           {activeTab === 'Literature Catalog' && (

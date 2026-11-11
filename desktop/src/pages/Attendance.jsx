@@ -4,6 +4,7 @@ import {
 import ScannerSim from '../components/ScannerSim';
 import { useState, useEffect, useMemo, useContext } from 'react';
 import NotificationDropdown from '../components/NotificationDropdown';
+import ProfileDropdown from '../components/ProfileDropdown';
 import { AttendanceScannerContext } from '../context/AttendanceScannerContext';
 import { authHeaders } from '../auth';
 
@@ -150,9 +151,7 @@ export default function Attendance() {
               {isDarkMode ? <Moon size={18} /> : <Sun size={18} />}
             </button>
             <NotificationDropdown />
-            <div className="w-8 h-8 rounded-full bg-primary-100 text-primary-800 flex items-center justify-center font-bold text-xs ml-1 cursor-pointer">
-              AL
-            </div>
+            <ProfileDropdown />
           </div>
         </div>
       </header>

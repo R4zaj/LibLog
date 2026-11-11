@@ -4,6 +4,8 @@ import {
   ChevronDown, ChevronUp, Mail, FileText
 } from 'lucide-react';
 import ScannerSim from '../components/ScannerSim';
+import NotificationDropdown from '../components/NotificationDropdown';
+import ProfileDropdown from '../components/ProfileDropdown';
 import { useTheme } from '../components/ThemeContext';
 import { BorrowingContext } from '../context/BorrowingContext';
 import { useOfflineApi } from '../hooks/useOfflineApi';
@@ -405,12 +407,8 @@ export default function Borrowing() {
             <button onClick={toggleDarkMode} className="text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:text-slate-300">
               {isDarkMode ? <Moon size={18} /> : <Sun size={18} />}
             </button>
-            <button className="text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:text-slate-300 relative">
-              <Bell size={18} />
-            </button>
-            <div className="w-8 h-8 rounded-full bg-primary-100 text-primary-800 flex items-center justify-center font-bold text-xs">
-              AL
-            </div>
+            <NotificationDropdown />
+            <ProfileDropdown />
           </div>
         </div>
       </header>

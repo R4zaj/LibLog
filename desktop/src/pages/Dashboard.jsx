@@ -6,8 +6,8 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import NotificationDropdown from '../components/NotificationDropdown';
+import ProfileDropdown from '../components/ProfileDropdown';
 import { useTheme } from '../components/ThemeContext';
-import { clearSession, getDisplayName, getInitials, getUser } from '../auth';
 import cccCrest from '../assets/CCC_icon.png';
 
 export default function Dashboard() {
@@ -41,7 +41,6 @@ export default function Dashboard() {
 
   const [currentTime, setCurrentTime] = useState(new Date());
   const { isDarkMode, toggleDarkMode } = useTheme();
-  const [profileOpen, setProfileOpen] = useState(false);
   const containerRef = useRef(null);
 
   // Full Log Modal State
@@ -109,11 +108,6 @@ export default function Dashboard() {
     };
   }, [data]);
 
-  const handleLogout = () => {
-    clearSession();
-    navigate('/login', { replace: true });
-  };
-
   const currentCapacity = data.capacity || 40;
   const capacityPercent = (data.studentsInside / currentCapacity) * 100;
   const currentCollectionTarget = data.collectionTarget || 5000;
@@ -152,26 +146,7 @@ export default function Dashboard() {
               {isDarkMode ? <Moon size={17} /> : <Sun size={17} />}
             </button>
             <NotificationDropdown />
-            <div className="relative">
-              <div
-                onClick={() => setProfileOpen(!profileOpen)}
-                className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-100 flex items-center justify-center font-bold text-xs cursor-pointer hover:ring-2 hover:ring-slate-300 dark:hover:ring-slate-600 transition-all"
-              >
-                {getInitials()}
-              </div>
-              {profileOpen && (
-                <div className="absolute right-0 mt-2 w-52 bg-white dark:bg-dark-card border border-slate-200 dark:border-slate-800 rounded-lg shadow-lg py-1 z-50">
-                  <div className="px-4 py-2.5 border-b border-slate-100 dark:border-slate-800">
-                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">{getDisplayName()}</p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{getUser()?.email || ''}</p>
-                  </div>
-                  <button onClick={handleLogout} className="w-full text-left px-4 py-2 text-xs font-medium text-red-600 hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center gap-2">
-                    <LogOut size={13} />
-                    <span>Log out</span>
-                  </button>
-                </div>
-              )}
-            </div>
+            <ProfileDropdown />
           </div>
         </div>
       </header>

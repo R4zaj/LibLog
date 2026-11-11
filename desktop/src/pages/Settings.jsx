@@ -3,12 +3,10 @@ import { Search, Sun, Moon, Bell, Settings as SettingsIcon, Save, Users, Clock, 
 import { useTheme } from '../components/ThemeContext';
 import { useNavigate } from 'react-router-dom';
 import NotificationDropdown from '../components/NotificationDropdown';
-import { clearSession, getDisplayName, getInitials, getUser } from '../auth';
+import ProfileDropdown from '../components/ProfileDropdown';
 
 export default function Settings() {
   const navigate = useNavigate();
-  const [profileOpen, setProfileOpen] = useState(false);
-  const profileRef = useRef(null);
   const { isDarkMode, toggleDarkMode } = useTheme();
   const [activeTab, setActiveTab] = useState('manage-users');
   const getCached = (key, fallback) => {
@@ -173,21 +171,6 @@ export default function Settings() {
       console.error(e);
     }
     setSaving(false);
-  };
-
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (profileRef.current && !profileRef.current.contains(event.target)) {
-        setProfileOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const handleLogout = () => {
-    clearSession();
-    navigate('/login', { replace: true });
   };
 
   const handleCreateAnnouncement = async (e) => {
@@ -362,37 +345,7 @@ export default function Settings() {
               {isDarkMode ? <Moon size={18} /> : <Sun size={18} />}
             </button>
             <NotificationDropdown />
-            
-            {/* Profile Dropdown */}
-            <div className="relative" ref={profileRef}>
-              <div 
-                onClick={() => setProfileOpen(!profileOpen)}
-                className="w-8 h-8 rounded-full bg-primary-100 text-primary-800 flex items-center justify-center font-bold text-xs cursor-pointer hover:ring-2 hover:ring-primary-300 transition-all"
-              >
-                {getInitials()}
-              </div>
-              {profileOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-lg shadow-lg py-1 z-50 animate-fade-in">
-                  <div className="px-4 py-2 border-b border-gray-100 dark:border-dark-border">
-                    <p className="text-sm font-bold text-gray-800 dark:text-slate-200">{getDisplayName()}</p>
-                    <p className="text-xs text-gray-500 dark:text-slate-400">{getUser()?.email || ''}</p>
-                  </div>
-                  <button className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-dark-hover flex items-center gap-2">
-                    <User size={14} /> Profile
-                  </button>
-                  <button className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-dark-hover flex items-center gap-2">
-                    <SettingsIcon size={14} /> Settings
-                  </button>
-                  <div className="border-t border-gray-100 dark:border-dark-border my-1"></div>
-                  <button 
-                    onClick={handleLogout}
-                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
-                  >
-                    <LogOut size={14} /> Log out
-                  </button>
-                </div>
-              )}
-            </div>
+            <ProfileDropdown />
           </div>
         </div>
       </header>
