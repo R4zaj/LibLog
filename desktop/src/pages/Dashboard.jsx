@@ -8,6 +8,7 @@ import { useState, useEffect, useRef } from 'react';
 import NotificationDropdown from '../components/NotificationDropdown';
 import { useTheme } from '../components/ThemeContext';
 import { clearSession, getDisplayName, getInitials, getUser } from '../auth';
+import cccCrest from '../assets/CCC_icon.png';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -186,7 +187,7 @@ export default function Dashboard() {
         {/* Collegiate Operational Context Header */}
         <div className="bg-white dark:bg-dark-card rounded-xl p-6 text-slate-900 dark:text-slate-100 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 shadow-2xs border border-slate-200/90 dark:border-slate-800">
           <div className="flex items-center gap-4">
-            <img src="/CCC_icon.png" alt="CCC Crest" className="w-12 h-12 object-contain shrink-0" />
+            <img src={cccCrest} alt="CCC Crest" className="w-12 h-12 object-contain shrink-0" />
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
                 <span className="text-[11px] font-semibold tracking-wider text-primary-700 dark:text-primary-400 uppercase">Calauan Community Campus</span>

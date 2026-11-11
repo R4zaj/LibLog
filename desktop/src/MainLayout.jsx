@@ -23,6 +23,7 @@ import { useState, useEffect } from 'react';
 import { useNetwork } from './contexts/NetworkContext';
 import { clearSession, getDisplayName, getInitials, getRoleLabel } from './auth';
 import { AlertCircle, X } from 'lucide-react';
+import cccCrest from './assets/CCC_icon.png';
 
 const NavItem = ({ to, icon: Icon, label, badge, subItems }) => {
   const location = useLocation();
@@ -201,7 +202,7 @@ export default function MainLayout() {
       <aside className="w-[260px] bg-sidebar-bg dark:bg-dark-sidebar border-r border-slate-200 dark:border-dark-border flex flex-col shadow-xs z-10 shrink-0 print:hidden">
         {/* Logo Area */}
         <div className="h-16 flex items-center px-5 border-b border-slate-200 dark:border-dark-border gap-3">
-          <img src="/CCC_icon.png" alt="CCC Crest" className="w-9 h-9 object-contain shrink-0" />
+          <img src={cccCrest} alt="CCC Crest" className="w-9 h-9 object-contain shrink-0" />
           <div className="flex flex-col min-w-0">
             <span className="font-bold text-sm tracking-tight text-slate-900 dark:text-slate-100 truncate">Calauan Community Campus</span>
             <span className="text-[10px] font-semibold tracking-wider text-slate-500 dark:text-slate-400 uppercase">Library Workstation</span>

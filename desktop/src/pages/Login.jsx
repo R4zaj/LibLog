@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Key, Info, Loader2 } from 'lucide-react';
 import { setSession } from '../auth';
 import backdropLight from '../assets/backdrop-light.png';
+import cccCrest from '../assets/CCC_icon.png';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -49,7 +50,7 @@ export default function Login() {
       
       {/* Branding */}
       <div className="flex flex-col items-center mb-8 relative z-10">
-        <img src="/CCC_icon.png" alt="Logo" className="w-16 h-16 object-contain mb-3 drop-shadow-md" />
+        <img src={cccCrest} alt="Logo" className="w-16 h-16 object-contain mb-3 drop-shadow-md" />
         <h1 className="text-2xl font-bold text-[#1A1A1A] mb-1 drop-shadow-sm">CCC LIB APP</h1>
         <p className="text-xs text-[#555555] font-semibold tracking-wide">Library Logbook Management System</p>
       </div>
