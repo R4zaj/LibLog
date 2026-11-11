@@ -75,17 +75,22 @@ function CustomTabBar({ state, descriptors, navigation, translateY }: any) {
         pointerEvents="box-none"
       >
         <XStack
-        flex={1}
-        marginRight={12}
-        backgroundColor={theme.tabBar}
-        borderRadius={30}
-        borderWidth={1}
-        borderColor={theme.border}
-        paddingHorizontal={8}
-        paddingVertical={10}
-        elevation={8}
-        style={{ boxShadow: '0px 8px 16px rgba(0, 0, 0, 0.08)' }}
-      >
+          flex={1}
+          marginRight={12}
+          backgroundColor={theme.tabBar as any}
+          borderRadius={30}
+          borderWidth={1}
+          borderColor={theme.border as any}
+          paddingHorizontal={8}
+          paddingVertical={10}
+          style={{
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.08,
+            shadowRadius: 16,
+            elevation: 8,
+          }}
+        >
         {dockRoutes.map((route: any) => {
           const { options } = descriptors[route.key];
           const isFocused = state.index === state.routes.findIndex((r: any) => r.key === route.key);
@@ -119,11 +124,14 @@ function CustomTabBar({ state, descriptors, navigation, translateY }: any) {
             width: 56, 
             height: 56, 
             borderRadius: 20, 
-            backgroundColor: '#6C48C5',
+            backgroundColor: theme.primary,
             justifyContent: 'center',
             alignItems: 'center',
+            shadowColor: theme.primary,
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.25,
+            shadowRadius: 8,
             elevation: 5,
-            boxShadow: '0px 4px 8px rgba(108, 72, 197, 0.25)',
           }}
         >
           <QrCode color="#ffffff" size={26} />
@@ -189,7 +197,7 @@ export default function TabLayout() {
             <YStack alignItems="center">
               <Text style={{ color, fontSize: 11, fontWeight: focused ? '700' : '500', marginTop: 3, textAlign: 'center' }}>{t('Home')}</Text>
               <YStack alignItems="center" height={6} justifyContent="center" marginTop={2}>
-                {focused ? <YStack backgroundColor={theme.primary} borderRadius={2} height={4} width={4}/> : null}
+                {focused ? <View style={{ backgroundColor: theme.primary, borderRadius: 2, height: 4, width: 4 }} /> : null}
               </YStack>
             </YStack>
           ),
@@ -209,7 +217,7 @@ export default function TabLayout() {
             <YStack alignItems="center">
               <Text style={{ color, fontSize: 11, fontWeight: focused ? '700' : '500', marginTop: 3, textAlign: 'center' }}>{t('Search')}</Text>
               <YStack alignItems="center" height={6} justifyContent="center" marginTop={2}>
-                {focused ? <YStack backgroundColor={theme.primary} borderRadius={2} height={4} width={4}/> : null}
+                {focused ? <View style={{ backgroundColor: theme.primary, borderRadius: 2, height: 4, width: 4 }} /> : null}
               </YStack>
             </YStack>
           ),
@@ -238,7 +246,7 @@ export default function TabLayout() {
             <YStack alignItems="center">
               <Text style={{ color, fontSize: 11, fontWeight: focused ? '700' : '500', marginTop: 3, textAlign: 'center' }}>{t('Borrowed')}</Text>
               <YStack alignItems="center" height={6} justifyContent="center" marginTop={2}>
-                {focused ? <YStack backgroundColor={theme.primary} borderRadius={2} height={4} width={4}/> : null}
+                {focused ? <View style={{ backgroundColor: theme.primary, borderRadius: 2, height: 4, width: 4 }} /> : null}
               </YStack>
             </YStack>
           ),
@@ -273,7 +281,7 @@ export default function TabLayout() {
             <YStack alignItems="center">
               <Text style={{ color, fontSize: 11, fontWeight: focused ? '700' : '500', marginTop: 3, textAlign: 'center' }}>{t('History')}</Text>
               <YStack alignItems="center" height={6} justifyContent="center" marginTop={2}>
-                {focused ? <YStack backgroundColor={theme.primary} borderRadius={2} height={4} width={4}/> : null}
+                {focused ? <View style={{ backgroundColor: theme.primary, borderRadius: 2, height: 4, width: 4 }} /> : null}
               </YStack>
             </YStack>
           ),
