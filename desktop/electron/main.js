@@ -1,15 +1,20 @@
 import { app, BrowserWindow } from 'electron';
 import path from 'node:path';
+import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL;
 
 function createWindow() {
+  const distIcon = path.join(__dirname, '../dist/icon.ico');
+  const publicIcon = path.join(__dirname, '../public/icon.ico');
+  const resolvedIcon = fs.existsSync(distIcon) ? distIcon : publicIcon;
+
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
-    icon: path.join(__dirname, '../public/icon.ico'),
+    icon: resolvedIcon,
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,

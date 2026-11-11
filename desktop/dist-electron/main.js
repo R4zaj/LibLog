@@ -1,24 +1,25 @@
 import { BrowserWindow as e, app as t } from "electron";
 import n from "node:path";
-import { fileURLToPath as r } from "node:url";
+import r from "node:fs";
+import { fileURLToPath as i } from "node:url";
 //#region electron/main.js
-var i = n.dirname(r(import.meta.url)), a = process.env.VITE_DEV_SERVER_URL;
-function o() {
-	let t = new e({
+var a = n.dirname(i(import.meta.url)), o = process.env.VITE_DEV_SERVER_URL;
+function s() {
+	let t = n.join(a, "../dist/icon.ico"), i = n.join(a, "../public/icon.ico"), s = new e({
 		width: 1200,
 		height: 800,
-		icon: n.join(i, "../public/icon.ico"),
+		icon: r.existsSync(t) ? t : i,
 		webPreferences: {
 			nodeIntegration: !0,
 			contextIsolation: !1
 		}
 	});
-	a ? t.loadURL(a) : t.loadFile(n.join(i, "../dist/index.html"));
+	o ? s.loadURL(o) : s.loadFile(n.join(a, "../dist/index.html"));
 }
-t.whenReady().then(o), t.on("window-all-closed", () => {
+t.whenReady().then(s), t.on("window-all-closed", () => {
 	process.platform !== "darwin" && t.quit();
 }), t.on("activate", () => {
-	e.getAllWindows().length === 0 && o();
+	e.getAllWindows().length === 0 && s();
 });
 //#endregion
 export {};

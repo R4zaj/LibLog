@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { HashRouter, Routes, Route } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import MainLayout from './MainLayout';
 import Login from './pages/Login';
@@ -23,7 +23,7 @@ function App() {
   return (
     <ThemeProvider>
       <NetworkProvider>
-        <BrowserRouter>
+        <HashRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route
@@ -50,7 +50,7 @@ function App() {
               <Route path="settings" element={<Settings />} />
             </Route>
           </Routes>
-        </BrowserRouter>
+        </HashRouter>
       </NetworkProvider>
     </ThemeProvider>
   );

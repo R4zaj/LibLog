@@ -1,7 +1,9 @@
 {
   "name": "desktop",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "CCC LIB APP Desktop - Library Circulation and Management System",
+  "author": "Calauan Community Campus Library",
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
@@ -19,6 +21,7 @@
       "output": "../desktop-release"
     },
     "win": {
+      "icon": "public/icon.ico",
       "target": [
         "nsis"
       ]
