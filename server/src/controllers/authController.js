@@ -341,7 +341,7 @@ const getMe = async (req, res) => {
 
 const updateProfile = async (req, res) => {
   try {
-    const { first_name, last_name, email, password, year_level, program } = req.body;
+    const { first_name, last_name, email, student_id, password, year_level, program } = req.body;
     
     // Build update object
     const updateData = {};
@@ -359,11 +359,46 @@ const updateProfile = async (req, res) => {
       }
       updateData.last_name = trimmedLast;
     }
-    if (email) updateData.email = email;
+    if (email !== undefined) {
+      const cleanEmail = (email || '').trim().toLowerCase();
+      if (!cleanEmail) {
+        return res.status(400).json({ error: 'Email cannot be empty.' });
+      }
+      const existingEmail = await prisma.user.findFirst({
+        where: {
+          email: { equals: cleanEmail, mode: 'insensitive' },
+          NOT: { id: req.user.id }
+        }
+      });
+      if (existingEmail) {
+        return res.status(400).json({ error: 'This email is already in use by another account.' });
+      }
+      updateData.email = cleanEmail;
+    }
+    if (student_id !== undefined) {
+      const cleanId = (student_id || '').trim();
+      if (!cleanId) {
+        return res.status(400).json({ error: 'Staff/Library ID cannot be empty.' });
+      }
+      const existingId = await prisma.user.findFirst({
+        where: {
+          student_id: cleanId,
+          NOT: { id: req.user.id }
+        }
+      });
+      if (existingId) {
+        return res.status(400).json({ error: 'This Staff/Library ID is already taken.' });
+      }
+      updateData.student_id = cleanId;
+      updateData.card_no = cleanId;
+    }
     if (year_level) updateData.year_level = year_level;
     
     // Hash new password if provided
     if (password) {
+      if (password.length < 8) {
+        return res.status(400).json({ error: 'Password must be at least 8 characters long.' });
+      }
       const salt = await bcrypt.genSalt(12);
       updateData.password_hash = await bcrypt.hash(password, salt);
     }
@@ -394,6 +429,8 @@ const updateProfile = async (req, res) => {
     const { password_hash, ...userWithoutPassword } = user;
     userWithoutPassword.stats = await computeUserStats(user.id);
     userWithoutPassword.penalty_balance = (await syncUserPenaltyBalance(prisma, user.id)).toFixed(2);
+    const crypto = require('crypto');
+    userWithoutPassword.offline_secret = crypto.createHmac('sha256', process.env.JWT_SECRET).update(user.student_id).digest('hex');
     res.json({ user: userWithoutPassword, message: 'Profile updated successfully' });
   } catch (error) {
     console.error('Update profile error:', error);

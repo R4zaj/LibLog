@@ -132,6 +132,17 @@ const NavItem = ({ to, icon: Icon, label, badge, subItems }) => {
 export default function MainLayout() {
   const navigate = useNavigate();
   const [stats, setStats] = useState({ inside: 0, borrowed: 0, overdue: 0, capacity: 40 });
+  const [, setProfileVersion] = useState(0);
+
+  useEffect(() => {
+    const handleProfileUpdate = () => setProfileVersion(v => v + 1);
+    window.addEventListener('liblog-user-updated', handleProfileUpdate);
+    window.addEventListener('storage', handleProfileUpdate);
+    return () => {
+      window.removeEventListener('liblog-user-updated', handleProfileUpdate);
+      window.removeEventListener('storage', handleProfileUpdate);
+    };
+  }, []);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -204,7 +215,7 @@ export default function MainLayout() {
         <div className="h-16 flex items-center px-5 border-b border-slate-200 dark:border-dark-border gap-3">
           <img src={cccCrest} alt="CCC Crest" className="w-9 h-9 object-contain shrink-0" />
           <div className="flex flex-col min-w-0">
-            <span className="font-bold text-sm tracking-tight text-slate-900 dark:text-slate-100 truncate">Calauan Community Campus</span>
+            <span className="font-bold text-sm tracking-tight text-slate-900 dark:text-slate-100">CCC</span>
             <span className="text-[10px] font-semibold tracking-wider text-slate-500 dark:text-slate-400 uppercase">Library Workstation</span>
           </div>
         </div>

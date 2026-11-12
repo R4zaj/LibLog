@@ -24,6 +24,19 @@ export const getUser = () => {
 export const setSession = (token, user) => {
   localStorage.setItem(TOKEN_KEY, token);
   localStorage.setItem(USER_KEY, JSON.stringify(user));
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('liblog-user-updated', { detail: user }));
+  }
+};
+
+export const updateUser = (updatedUser) => {
+  const current = getUser() || {};
+  const merged = { ...current, ...updatedUser };
+  localStorage.setItem(USER_KEY, JSON.stringify(merged));
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('liblog-user-updated', { detail: merged }));
+  }
+  return merged;
 };
 
 export const clearSession = () => {

@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Key, Info, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Key, Loader2 } from 'lucide-react';
 import { setSession } from '../auth';
 import backdropLight from '../assets/backdrop-light.png';
 import cccCrest from '../assets/CCC_icon.png';
 
 export default function Login() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(() => localStorage.getItem('liblog_saved_email') || '');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(() => localStorage.getItem('liblog_remember_me') === 'true');
 
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -19,13 +20,24 @@ export default function Login() {
     setErrorMsg('');
     setIsLoading(true);
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       });
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.error || 'Failed to log in');
       }
+
+      if (rememberMe) {
+        localStorage.setItem('liblog_saved_email', email.trim());
+        localStorage.setItem('liblog_remember_me', 'true');
+      } else {
+        localStorage.removeItem('liblog_saved_email');
+        localStorage.removeItem('liblog_remember_me');
+      }
+
       setSession(data.token, data.user);
       navigate('/', { replace: true });
     } catch (err) {
@@ -33,11 +45,6 @@ export default function Login() {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleDemoFill = () => {
-    setEmail('librarian@liblog.com');
-    setPassword('librarian123');
   };
 
   return (
@@ -73,9 +80,10 @@ export default function Login() {
               <label className="text-[13px] font-bold text-[#1A1A1A]">Email</label>
               <input 
                 type="email" 
+                required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="librarian@liblog.com"
+                placeholder="admin@ccc.edu.ph"
                 className="w-full px-4 py-2.5 border border-[#E0D8EB] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#4B226E]/20 focus:border-[#4B226E] placeholder-gray-400"
               />
             </div>
@@ -86,6 +94,7 @@ export default function Login() {
               <div className="relative">
                 <input 
                   type={showPassword ? 'text' : 'password'} 
+                  required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••••••"
@@ -103,15 +112,16 @@ export default function Login() {
             </div>
 
             {/* Remember Me */}
-            <div className="flex items-center gap-2 mt-1">
-              <div className="w-4 h-4 bg-[#4B226E] rounded flex items-center justify-center">
-                <svg width="10" height="8" viewBox="0 0 10 8" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M3.50005 5.87865L1.62137 3.99997L0.207153 5.41418L3.50005 8.70708L9.86396 2.34313L8.44975 0.928917L3.50005 5.87865Z" fill="white"/>
-                </svg>
-              </div>
-              <Key size={12} className="text-[#666666] ml-1" />
-              <span className="text-[11px] text-[#666666] font-medium">Save email & password</span>
-            </div>
+            <label className="flex items-center gap-2 mt-1 cursor-pointer select-none">
+              <input 
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="w-4 h-4 rounded text-[#4B226E] focus:ring-[#4B226E] border-gray-300 accent-[#4B226E] cursor-pointer"
+              />
+              <Key size={12} className="text-[#666666]" />
+              <span className="text-[11px] text-[#666666] font-medium">Remember my email</span>
+            </label>
 
             {/* Submit Button */}
             <button 
@@ -131,38 +141,12 @@ export default function Login() {
           </form>
         </div>
 
-        {/* Demo Credentials Box */}
-        <div className="px-10 pb-8 bg-white">
-          <div className="bg-[#fcf8ff] border border-[#e8ddf5] rounded-xl p-5 flex flex-col gap-3">
-            <div className="flex items-center gap-2 mb-1">
-              <Info size={14} className="text-[#4B226E]" />
-              <span className="text-[11px] font-bold text-[#4B226E]">Demo Account</span>
-            </div>
-            
-            <div className="flex justify-between items-center px-1">
-              <span className="text-[11px] text-[#888888]">Email:</span>
-              <span className="text-[11px] font-mono bg-white px-2 py-0.5 rounded border border-[#e8ddf5] text-[#4B226E]">librarian@liblog.com</span>
-            </div>
-            <div className="flex justify-between items-center px-1">
-              <span className="text-[11px] text-[#888888]">Password:</span>
-              <span className="text-[11px] font-mono bg-white px-2 py-0.5 rounded border border-[#e8ddf5] text-[#4B226E]">librarian123</span>
-            </div>
-
-            <button 
-              onClick={handleDemoFill}
-              className="w-full mt-2 py-2 border border-[#d8c3ee] rounded-lg text-[#4B226E] text-[11px] font-bold hover:bg-[#f6f0fb] transition-colors"
-            >
-              Fill demo credentials
-            </button>
-          </div>
-        </div>
-
       </div>
 
       {/* Footer */}
       <div className="mt-8 relative z-10">
         <p className="text-[11px] font-medium text-[#4B226E]/90 bg-white/70 backdrop-blur-sm px-3.5 py-1 rounded-full border border-purple-200/60 shadow-xs">
-          CCC LIB APP v2.0 — Library Management System
+          CCC LIB APP v2.0 - Library Management System
         </p>
       </div>
 

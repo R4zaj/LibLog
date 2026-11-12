@@ -41,7 +41,17 @@ export default function ProfileDropdown() {
     navigate('/settings');
   };
 
-  const user = getUser();
+  const [user, setUser] = useState(getUser());
+
+  useEffect(() => {
+    const handleUpdate = () => setUser(getUser());
+    window.addEventListener('liblog-user-updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+    return () => {
+      window.removeEventListener('liblog-user-updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, []);
 
   return (
     <div className="relative" ref={dropdownRef}>

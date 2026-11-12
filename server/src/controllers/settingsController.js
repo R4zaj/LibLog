@@ -277,13 +277,18 @@ const updateUserRole = async (req, res) => {
   try {
     const { id } = req.params;
     const { role } = req.body;
+    const targetUserId = parseInt(id, 10);
 
-    if (!['STUDENT', 'FACULTY'].includes(role)) {
-      return res.status(400).json({ error: 'Invalid role. Must be STUDENT or FACULTY.' });
+    if (!['STUDENT', 'FACULTY', 'ADMIN'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid role. Must be STUDENT, FACULTY, or ADMIN.' });
+    }
+
+    if (req.user && req.user.id === targetUserId && role !== 'ADMIN') {
+      return res.status(400).json({ error: 'You cannot remove your own admin privileges.' });
     }
 
     const user = await prisma.user.update({
-      where: { id: parseInt(id) },
+      where: { id: targetUserId },
       data: { role }
     });
 

@@ -165,7 +165,7 @@ export default function Dashboard() {
             <img src={cccCrest} alt="CCC Crest" className="w-12 h-12 object-contain shrink-0" />
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
-                <span className="text-[11px] font-semibold tracking-wider text-primary-700 dark:text-primary-400 uppercase">Calauan Community Campus</span>
+                <span className="text-[11px] font-semibold tracking-wider text-primary-700 dark:text-primary-400 uppercase">CCC</span>
                 <span className="text-slate-300 dark:text-slate-700">•</span>
                 <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Library Services</span>
               </div>

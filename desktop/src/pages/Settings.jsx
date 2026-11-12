@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, Sun, Moon, Bell, Settings as SettingsIcon, Save, Users, Clock, DollarSign, Megaphone, AlertTriangle, BookX, Download, Plus, Check, LogOut, User, Trash2, GraduationCap, Edit } from 'lucide-react';
+import { Search, Sun, Moon, Bell, Settings as SettingsIcon, Save, Users, Clock, DollarSign, Megaphone, AlertTriangle, BookX, Download, Plus, Check, LogOut, User, Key, Trash2, GraduationCap, Edit } from 'lucide-react';
 import { useTheme } from '../components/ThemeContext';
 import { useNavigate } from 'react-router-dom';
 import NotificationDropdown from '../components/NotificationDropdown';
 import ProfileDropdown from '../components/ProfileDropdown';
+import { getUser, updateUser } from '../auth';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -286,6 +287,75 @@ export default function Settings() {
     setSavingRoles(false);
   };
 
+  const currentUser = getUser();
+  const [profileForm, setProfileForm] = useState({
+    first_name: currentUser?.first_name || '',
+    last_name: currentUser?.last_name || '',
+    email: currentUser?.email || '',
+    student_id: currentUser?.student_id || ''
+  });
+  const [profileStatus, setProfileStatus] = useState({ type: '', message: '' });
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  useEffect(() => {
+    const fetchMe = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/auth/me`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.user) {
+            setProfileForm({
+              first_name: data.user.first_name || '',
+              last_name: data.user.last_name || '',
+              email: data.user.email || '',
+              student_id: data.user.student_id || ''
+            });
+            updateUser(data.user);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to fetch /auth/me:', err);
+      }
+    };
+    fetchMe();
+  }, []);
+
+  const handleSaveProfile = async (e) => {
+    e.preventDefault();
+    setSavingProfile(true);
+    setProfileStatus({ type: '', message: '' });
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/auth/me`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          first_name: profileForm.first_name,
+          last_name: profileForm.last_name,
+          email: profileForm.email,
+          student_id: profileForm.student_id
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        updateUser(data.user);
+        setProfileStatus({ type: 'success', message: 'Admin profile updated successfully!' });
+      } else {
+        setProfileStatus({ type: 'error', message: data.error || 'Failed to update profile' });
+      }
+    } catch (error) {
+      setProfileStatus({ type: 'error', message: 'An error occurred while saving profile' });
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [passwordStatus, setPasswordStatus] = useState({ type: '', message: '' });
   const [changingPassword, setChangingPassword] = useState(false);
@@ -479,64 +549,165 @@ export default function Settings() {
 
         {/* Tab Content: Account */}
         {activeTab === 'account' && (
-          <div className="bg-white dark:bg-transparent border border-gray-200 dark:border-dark-border rounded-xl shadow-sm overflow-hidden p-6 max-w-2xl mx-auto">
-            <div className="mb-6">
-              <h3 className="font-bold text-gray-800 dark:text-slate-300 text-lg mb-1">Change Password</h3>
-              <p className="text-sm text-gray-500 dark:text-slate-400">Ensure your account is using a long, random password to stay secure.</p>
+          <div className="flex flex-col gap-6 max-w-3xl mx-auto w-full">
+            {/* Admin Profile Details Card */}
+            <div className="bg-white dark:bg-transparent border border-gray-200 dark:border-dark-border rounded-xl shadow-sm overflow-hidden p-6">
+              <div className="mb-6 flex items-start justify-between border-b border-gray-100 dark:border-dark-border pb-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <User size={18} className="text-primary-700 dark:text-primary-400" />
+                    <h3 className="font-bold text-gray-800 dark:text-slate-300 text-lg">Administrator Profile</h3>
+                  </div>
+                  <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">Update your administrator name, contact email address, and staff identifier.</p>
+                </div>
+                <span className="text-[11px] font-bold bg-primary-50 dark:bg-primary-950/40 text-primary-700 dark:text-primary-400 border border-primary-200 dark:border-primary-800/60 px-2.5 py-1 rounded-full">
+                  Admin Access
+                </span>
+              </div>
+
+              <form onSubmit={handleSaveProfile} className="flex flex-col gap-5">
+                {profileStatus.message && (
+                  <div className={"p-3 rounded-lg text-sm font-medium " + (profileStatus.type === 'error' ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-green-50 text-green-600 border border-green-100')}>
+                    {profileStatus.message}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-bold text-gray-700 dark:text-slate-300">First Name</label>
+                    <input 
+                      type="text"
+                      required
+                      value={profileForm.first_name}
+                      onChange={(e) => setProfileForm({ ...profileForm, first_name: e.target.value })}
+                      placeholder="First name"
+                      className="w-full px-3 py-2 border border-gray-200 dark:border-dark-border rounded-lg text-sm focus:ring-1 focus:ring-primary-500 bg-white dark:bg-dark-bg dark:text-slate-200"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-bold text-gray-700 dark:text-slate-300">Last Name</label>
+                    <input 
+                      type="text"
+                      required
+                      value={profileForm.last_name}
+                      onChange={(e) => setProfileForm({ ...profileForm, last_name: e.target.value })}
+                      placeholder="Last name"
+                      className="w-full px-3 py-2 border border-gray-200 dark:border-dark-border rounded-lg text-sm focus:ring-1 focus:ring-primary-500 bg-white dark:bg-dark-bg dark:text-slate-200"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-bold text-gray-700 dark:text-slate-300">Email Address</label>
+                    <input 
+                      type="email"
+                      required
+                      value={profileForm.email}
+                      onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+                      placeholder="admin@ccc.edu.ph"
+                      className="w-full px-3 py-2 border border-gray-200 dark:border-dark-border rounded-lg text-sm focus:ring-1 focus:ring-primary-500 bg-white dark:bg-dark-bg dark:text-slate-200"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-bold text-gray-700 dark:text-slate-300">Staff / Library ID</label>
+                    <input 
+                      type="text"
+                      required
+                      value={profileForm.student_id}
+                      onChange={(e) => setProfileForm({ ...profileForm, student_id: e.target.value })}
+                      placeholder="LIB-001"
+                      className="w-full px-3 py-2 border border-gray-200 dark:border-dark-border rounded-lg text-sm focus:ring-1 focus:ring-primary-500 bg-white dark:bg-dark-bg dark:text-slate-200 font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2 border-t border-gray-100 dark:border-dark-border">
+                  <button 
+                    type="submit" 
+                    disabled={savingProfile}
+                    className="flex items-center gap-2 px-6 py-2 bg-primary-800 text-white rounded-lg text-sm font-bold hover:bg-primary-900 shadow-sm transition-colors disabled:opacity-50 cursor-pointer"
+                  >
+                    <Save size={14} />
+                    <span>{savingProfile ? 'Saving...' : 'Save Profile'}</span>
+                  </button>
+                </div>
+              </form>
             </div>
 
-            <form onSubmit={handleChangePassword} className="flex flex-col gap-5">
-              {passwordStatus.message && (
-                <div className={`p-3 rounded-lg text-sm font-medium ${passwordStatus.type === 'error' ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-green-50 text-green-600 border border-green-100'}`}>
-                  {passwordStatus.message}
+            {/* Change Password Card */}
+            <div className="bg-white dark:bg-transparent border border-gray-200 dark:border-dark-border rounded-xl shadow-sm overflow-hidden p-6">
+              <div className="mb-6 flex items-start justify-between border-b border-gray-100 dark:border-dark-border pb-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Key size={18} className="text-primary-700 dark:text-primary-400" />
+                    <h3 className="font-bold text-gray-800 dark:text-slate-300 text-lg">Change Password</h3>
+                  </div>
+                  <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">Ensure your account is using a long, secure password to stay protected.</p>
                 </div>
-              )}
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-bold text-gray-700 dark:text-slate-300">Current Password</label>
-                <input 
-                  type="password"
-                  required
-                  value={passwordForm.currentPassword}
-                  onChange={(e) => setPasswordForm({...passwordForm, currentPassword: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-200 dark:border-dark-border rounded-lg text-sm focus:ring-1 focus:ring-primary-500 bg-white dark:bg-dark-bg dark:text-slate-200"
-                />
               </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-bold text-gray-700 dark:text-slate-300">New Password</label>
-                <input 
-                  type="password"
-                  required
-                  minLength={8}
-                  value={passwordForm.newPassword}
-                  onChange={(e) => setPasswordForm({...passwordForm, newPassword: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-200 dark:border-dark-border rounded-lg text-sm focus:ring-1 focus:ring-primary-500 bg-white dark:bg-dark-bg dark:text-slate-200"
-                />
-              </div>
+              <form onSubmit={handleChangePassword} className="flex flex-col gap-5">
+                {passwordStatus.message && (
+                  <div className={"p-3 rounded-lg text-sm font-medium " + (passwordStatus.type === 'error' ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-green-50 text-green-600 border border-green-100')}>
+                    {passwordStatus.message}
+                  </div>
+                )}
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-bold text-gray-700 dark:text-slate-300">Confirm New Password</label>
-                <input 
-                  type="password"
-                  required
-                  minLength={8}
-                  value={passwordForm.confirmPassword}
-                  onChange={(e) => setPasswordForm({...passwordForm, confirmPassword: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-200 dark:border-dark-border rounded-lg text-sm focus:ring-1 focus:ring-primary-500 bg-white dark:bg-dark-bg dark:text-slate-200"
-                />
-              </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-bold text-gray-700 dark:text-slate-300">Current Password</label>
+                  <input 
+                    type="password"
+                    required
+                    value={passwordForm.currentPassword}
+                    onChange={(e) => setPasswordForm({...passwordForm, currentPassword: e.target.value})}
+                    placeholder="Enter current password"
+                    className="w-full px-3 py-2 border border-gray-200 dark:border-dark-border rounded-lg text-sm focus:ring-1 focus:ring-primary-500 bg-white dark:bg-dark-bg dark:text-slate-200"
+                  />
+                </div>
 
-              <div className="flex justify-end pt-2">
-                <button 
-                  type="submit" 
-                  disabled={changingPassword}
-                  className="flex items-center gap-2 px-6 py-2 bg-primary-800 text-white rounded-lg text-sm font-bold hover:bg-primary-900 shadow-sm transition-colors disabled:opacity-50"
-                >
-                  {changingPassword ? 'Saving...' : 'Save Password'}
-                </button>
-              </div>
-            </form>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-bold text-gray-700 dark:text-slate-300">New Password</label>
+                    <input 
+                      type="password"
+                      required
+                      minLength={8}
+                      value={passwordForm.newPassword}
+                      onChange={(e) => setPasswordForm({...passwordForm, newPassword: e.target.value})}
+                      placeholder="At least 8 characters"
+                      className="w-full px-3 py-2 border border-gray-200 dark:border-dark-border rounded-lg text-sm focus:ring-1 focus:ring-primary-500 bg-white dark:bg-dark-bg dark:text-slate-200"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-bold text-gray-700 dark:text-slate-300">Confirm New Password</label>
+                    <input 
+                      type="password"
+                      required
+                      minLength={8}
+                      value={passwordForm.confirmPassword}
+                      onChange={(e) => setPasswordForm({...passwordForm, confirmPassword: e.target.value})}
+                      placeholder="Re-enter new password"
+                      className="w-full px-3 py-2 border border-gray-200 dark:border-dark-border rounded-lg text-sm focus:ring-1 focus:ring-primary-500 bg-white dark:bg-dark-bg dark:text-slate-200"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2 border-t border-gray-100 dark:border-dark-border">
+                  <button 
+                    type="submit" 
+                    disabled={changingPassword}
+                    className="flex items-center gap-2 px-6 py-2 bg-primary-800 text-white rounded-lg text-sm font-bold hover:bg-primary-900 shadow-sm transition-colors disabled:opacity-50 cursor-pointer"
+                  >
+                    <Key size={14} />
+                    <span>{changingPassword ? 'Saving...' : 'Save Password'}</span>
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         )}
 
@@ -580,20 +751,25 @@ export default function Settings() {
                       <td className="p-4 font-medium text-gray-800 dark:text-slate-300">{u.name}</td>
                       <td className="p-4 text-gray-500 dark:text-slate-400">{u.email}</td>
                       <td className="p-4">
-                        {u.role === 'ADMIN' ? (
-                          <span className="text-[10px] font-bold bg-red-50 text-red-700 px-2 py-0.5 rounded border border-red-100">{u.role}</span>
+                        {u.id === currentUser?.id ? (
+                          <span className="text-[10px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 px-2 py-0.5 rounded border border-purple-200 dark:border-purple-800">
+                            {u.role} (You)
+                          </span>
                         ) : (
                           <select 
                             value={pendingRoleChanges[u.id] || u.role}
                             onChange={(e) => handleUpdateRole(u.id, e.target.value)}
-                            className={`text-[10px] font-bold px-2 py-1 rounded border cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary-500 transition-colors ${
+                            className={"text-[10px] font-bold px-2 py-1 rounded border cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary-500 transition-colors " + (
                               pendingRoleChanges[u.id] 
-                                ? 'bg-yellow-50 text-yellow-700 border-yellow-300 ring-1 ring-yellow-200' 
-                                : 'bg-purple-50 text-purple-700 border-purple-100 hover:bg-purple-100'
-                            }`}
+                                ? 'bg-yellow-50 text-yellow-700 border-yellow-300 ring-1 ring-yellow-200 dark:bg-yellow-950/40 dark:text-yellow-300' 
+                                : (pendingRoleChanges[u.id] || u.role) === 'ADMIN'
+                                  ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100 dark:bg-red-950/40 dark:text-red-300'
+                                  : 'bg-purple-50 text-purple-700 border-purple-100 hover:bg-purple-100 dark:bg-purple-950/40 dark:text-purple-300'
+                            )}
                           >
                             <option value="STUDENT">STUDENT</option>
                             <option value="FACULTY">FACULTY</option>
+                            <option value="ADMIN">ADMIN</option>
                           </select>
                         )}
                       </td>
