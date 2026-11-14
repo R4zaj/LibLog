@@ -10,6 +10,7 @@ import { useTheme } from '../components/ThemeContext';
 import { BorrowingContext } from '../context/BorrowingContext';
 import { useOfflineApi } from '../hooks/useOfflineApi';
 import Pagination from '../components/Pagination';
+import { StatusModal, ConfirmModal } from '../components/FeedbackModal';
 
 export default function Borrowing() {
   const { isDarkMode, toggleDarkMode } = useTheme();
@@ -88,6 +89,7 @@ export default function Borrowing() {
   const [confirmPenaltyId, setConfirmPenaltyId] = useState(null);
   const [penaltyCondition, setPenaltyCondition] = useState('RETURNED');
   const [penaltyError, setPenaltyError] = useState(null);
+  const [isPayingPenalty, setIsPayingPenalty] = useState(false);
   
   // Borrow Option State
   const [borrowType, setBorrowType] = useState('TAKE_OUT');
@@ -148,9 +150,16 @@ export default function Borrowing() {
       const data = await res.json();
       if (res.ok) {
         if (data.offlineQueued) {
-          alert('Saved offline. Will sync when connection is restored.');
+          setSuccessMessage({
+            title: 'Borrowing Saved Offline',
+            description: 'Queued locally and will sync automatically when connection is restored.',
+            variant: 'info'
+          });
         } else {
-          setSuccessMessage('Borrowing Successful!');
+          setSuccessMessage({
+            title: 'Borrowing Successful',
+            description: 'The book checkout has been recorded.'
+          });
         }
         setStep(1);
         setScannedBook(null);
@@ -174,9 +183,16 @@ export default function Borrowing() {
       const data = await res.json();
       if (res.ok) {
         if (data.offlineQueued) {
-          setSuccessMessage('Return saved offline. Will sync when connection is restored.');
+          setSuccessMessage({
+            title: 'Return Saved Offline',
+            description: 'Queued locally and will sync automatically when connection is restored.',
+            variant: 'info'
+          });
         } else {
-          setSuccessMessage('Return Successful!');
+          setSuccessMessage({
+            title: 'Return Successful',
+            description: 'The book has been marked as returned and inventory updated.'
+          });
         }
         setReturnStep(1);
         setReturnRecord(null);
@@ -207,8 +223,10 @@ export default function Borrowing() {
   };
 
   const confirmPayPenalty = async () => {
+    if (isPayingPenalty) return;
     const id = confirmPenaltyId;
     setPenaltyError(null);
+    setIsPayingPenalty(true);
     try {
       const currentPenaltyItem = penalties.find(p => p.id === id);
       const res = await fetchWithOfflineSupport(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/borrowing/penalties/${id}/pay`, { 
@@ -223,22 +241,24 @@ export default function Borrowing() {
         const data = await res.json();
         setConfirmPenaltyId(null);
         const rNo = data.receiptNumber || '';
-        const emailMsg = data.emailSent
-          ? ` Official receipt ${rNo} was emailed to the student.`
-          : (data.emailError ? ` (Note: Email delivery error: ${data.emailError})` : '');
-        setSuccessMessage(`Penalty Marked as Paid!${emailMsg}`);
+        const receiptData = data.penalty ? {
+          ...data.penalty,
+          receipt_number: rNo,
+          user: currentPenaltyItem?.user || data.penalty.user,
+          borrow: currentPenaltyItem?.borrow || data.penalty.borrow
+        } : null;
+
+        setSuccessMessage({
+          title: 'Penalty Marked as Paid',
+          description: data.emailSent
+            ? `Official receipt ${rNo} was emailed to the student.`
+            : (data.emailError
+              ? `Settled, but email delivery failed: ${data.emailError}`
+              : 'The penalty settlement has been recorded.'),
+          receiptData
+        });
         fetchPenalties();
         fetchStats();
-
-        // Immediately open the receipt modal so the librarian can print or inspect the receipt
-        if (data.penalty) {
-          setActiveReceiptModal({
-            ...data.penalty,
-            receipt_number: rNo,
-            user: currentPenaltyItem?.user || data.penalty.user,
-            borrow: currentPenaltyItem?.borrow || data.penalty.borrow
-          });
-        }
       } else {
         const data = await res.json();
         setPenaltyError(data.error || 'Failed to pay penalty');
@@ -246,6 +266,8 @@ export default function Borrowing() {
     } catch (e) {
       console.error('Failed to pay penalty');
       setPenaltyError('Server error while processing penalty');
+    } finally {
+      setIsPayingPenalty(false);
     }
   };
 
@@ -1125,79 +1147,74 @@ export default function Borrowing() {
 
       </div>
 
-      {/* Success Modal */}
-      {successMessage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-          <div 
-            className="bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-2xl flex flex-col items-center justify-center animate-fade-in"
-            style={{ minWidth: '320px' }}
-          >
-            <div className="bg-primary-100 dark:bg-primary-900/30 p-4 rounded-full mb-6">
-              <CheckCircle className="text-primary-600 dark:text-primary-400 w-16 h-16" />
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-8 text-center">
-              {successMessage}
-            </h2>
-            <button 
-              onClick={() => setSuccessMessage(null)}
-              className="bg-primary-800 text-white px-10 py-3 rounded-xl font-bold text-lg hover:bg-primary-900 transition-colors shadow-lg shadow-primary-800/30 w-full"
-            >
-              Done
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Success / Status Modal */}
+      <StatusModal
+        isOpen={Boolean(successMessage)}
+        onClose={() => setSuccessMessage(null)}
+        title={typeof successMessage === 'string' ? successMessage : successMessage?.title}
+        description={typeof successMessage === 'string' ? undefined : successMessage?.description}
+        variant={successMessage?.variant || 'success'}
+        secondaryLabel={successMessage?.receiptData ? 'View Receipt' : undefined}
+        onSecondaryAction={
+          successMessage?.receiptData
+            ? () => {
+                const receipt = successMessage.receiptData;
+                setSuccessMessage(null);
+                setActiveReceiptModal(receipt);
+              }
+            : undefined
+        }
+      />
 
       {/* Confirm Penalty Modal */}
-      {confirmPenaltyId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-          <div 
-            className="bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-2xl flex flex-col items-center justify-center animate-fade-in"
-            style={{ minWidth: '340px' }}
+      {(() => {
+        const selectedPenalty = confirmPenaltyId ? penalties.find(p => p.id === confirmPenaltyId) : null;
+        return (
+          <ConfirmModal
+            isOpen={Boolean(confirmPenaltyId)}
+            onClose={() => setConfirmPenaltyId(null)}
+            onConfirm={confirmPayPenalty}
+            title="Mark Penalty as Paid"
+            subtitle="Confirm the book condition and settle this penalty."
+            variant="primary"
+            confirmLabel="Confirm Payment"
+            loadingLabel="Processing..."
+            isLoading={isPayingPenalty}
+            error={penaltyError}
           >
-            <div className="bg-primary-100 dark:bg-primary-900/30 p-4 rounded-full mb-6">
-              <CheckCircle className="text-primary-600 dark:text-primary-400 w-14 h-14" />
-            </div>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2 text-center">
-              Mark as Paid?
-            </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 text-center">
-              Confirm the book condition and mark this penalty as paid.
-            </p>
-            {penaltyError && (
-              <div className="w-full p-3 mb-4 rounded-lg bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-sm font-medium border border-red-100 dark:border-red-800">
-                {penaltyError}
+            {selectedPenalty && (
+              <div className="p-3 rounded-xl bg-gray-50 dark:bg-dark-bg border border-gray-200/80 dark:border-dark-border flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-gray-900 dark:text-slate-100 truncate">
+                    {selectedPenalty.user ? `${selectedPenalty.user.first_name} ${selectedPenalty.user.last_name}` : 'Borrower'}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400 truncate">
+                    {selectedPenalty.borrow?.book?.title || 'Overdue book'}
+                  </p>
+                </div>
+                <span className="text-sm font-extrabold text-primary-700 dark:text-primary-400 shrink-0">
+                  ₱{parseFloat(selectedPenalty.amount || 0).toFixed(2)}
+                </span>
               </div>
             )}
-            <div className="w-full mb-6">
-              <label className="block text-sm font-bold text-gray-700 dark:text-slate-300 mb-2">Book Condition</label>
-              <select 
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-slate-400 mb-1.5">
+                Book Condition
+              </label>
+              <select
                 value={penaltyCondition}
                 onChange={(e) => setPenaltyCondition(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-200 dark:border-dark-border rounded-lg text-sm focus:ring-1 focus:ring-primary-500 bg-white dark:bg-dark-bg dark:text-slate-200"
+                disabled={isPayingPenalty}
+                className="w-full px-3 py-2 border border-gray-200 dark:border-dark-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 bg-white dark:bg-dark-bg dark:text-slate-200 disabled:opacity-60"
               >
                 <option value="RETURNED">Returned</option>
                 <option value="DAMAGED">Damaged</option>
                 <option value="LOST">Lost</option>
               </select>
             </div>
-            <div className="flex gap-3 w-full">
-              <button 
-                onClick={() => setConfirmPenaltyId(null)}
-                className="flex-1 py-3 rounded-xl font-bold text-base border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={confirmPayPenalty}
-                className="flex-1 bg-primary-800 text-white py-3 rounded-xl font-bold text-base hover:bg-primary-900 transition-colors shadow-lg shadow-primary-800/30"
-              >
-                Confirm
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          </ConfirmModal>
+        );
+      })()}
 
       {/* Official Receipt Modal */}
       {activeReceiptModal && (

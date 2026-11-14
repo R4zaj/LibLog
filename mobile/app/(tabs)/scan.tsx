@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { Animated, TouchableOpacity, Vibration, StyleSheet } from 'react-native';
+import { Animated, TouchableOpacity, Vibration, StyleSheet, RefreshControl } from 'react-native';
 import { useAppTheme } from '../../context/ThemeContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -23,6 +23,7 @@ export default function ScanScreen() {
   const router = useRouter();
   const [history, setHistory] = useState<any[]>([]);
   const [historyError, setHistoryError] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [showCheckmark, setShowCheckmark] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const lastSeenLogId = useRef<number | null>(null);
@@ -85,7 +86,24 @@ export default function ScanScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.pillContainer }}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={async () => {
+              setIsRefreshing(true);
+              try {
+                await fetchHistory();
+              } finally {
+                setIsRefreshing(false);
+              }
+            }}
+            tintColor={theme.primary}
+            colors={[theme.primary]}
+          />
+        }
+      >
         <YStack alignItems="center" paddingHorizontal="$5" paddingTop="$5" paddingBottom="$8">
 
           {/* ── Header ── */}

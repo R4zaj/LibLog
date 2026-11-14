@@ -62,7 +62,15 @@ export function DynamicQrCode({ fallbackId, offlineSecret, size = 200 }: Dynamic
 
   return (
     <YStack alignItems="center" gap="$2">
-      <QRCode value={value} size={size} color="#1e1e2e" backgroundColor="transparent" />
+      <YStack
+        backgroundColor="#ffffff"
+        padding={14}
+        borderRadius={14}
+        alignItems="center"
+        justifyContent="center"
+      >
+        <QRCode value={value} size={size} color="#1e1e2e" backgroundColor="#ffffff" />
+      </YStack>
       {isLive ? (
         <Text fontSize={12} color="#9ca3af" fontWeight="500">
           Refreshes in {secondsLeft}s

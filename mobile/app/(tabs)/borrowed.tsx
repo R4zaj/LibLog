@@ -24,7 +24,7 @@ export default function Borrowed() {
   const [fetchError, setFetchError] = useState(false);
   const insets = useSafeAreaInsets();
   
-  const { setTabBarVisible } = React.useContext(TabBarVisibilityContext);
+  const { setTabBarVisible, setBorrowCount } = React.useContext(TabBarVisibilityContext);
   const lastOffsetY = useRef(0);
 
   const fetchBorrows = useCallback(async () => {
@@ -34,7 +34,14 @@ export default function Borrowed() {
         api.get<BorrowRecordWithBook[]>(`/borrowing/user/${user?.id}/history`),
         api.get<UserPenaltiesResponse>(`/borrowing/user/${user?.id}/penalties`).catch(() => ({ data: null }))
       ]);
-      setBorrows(res.data || []);
+      const list = res.data || [];
+      setBorrows(list);
+      const activeBookIds = new Set(
+        list
+          .filter((b) => b.status === 'BORROWED' || b.status === 'OVERDUE')
+          .map((b) => b.book_id)
+      );
+      setBorrowCount(activeBookIds.size);
       if (penRes.data) setPenaltySummary(penRes.data);
       setFetchError(false);
     } catch (e) {
@@ -43,7 +50,7 @@ export default function Borrowed() {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id]);
+  }, [user?.id, setBorrowCount]);
 
   useFocusEffect(
     useCallback(() => {

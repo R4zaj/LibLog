@@ -15,6 +15,7 @@ import ProfileDropdown from '../components/ProfileDropdown';
 import QRCode from 'react-qr-code';
 import { useTheme } from '../components/ThemeContext';
 import Pagination from '../components/Pagination';
+import { ConfirmModal } from '../components/FeedbackModal';
 
 export default function Literatures() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -2126,37 +2127,19 @@ export default function Literatures() {
       )}
 
       {/* Delete Confirmation Modal */}
-      {isDeleteModalOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center animate-fade-in p-4">
-          <div className="bg-white dark:bg-dark-card w-full max-w-sm rounded-xl shadow-xl overflow-hidden">
-            <div className="p-6 flex flex-col items-center text-center">
-              <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 dark:bg-red-950 dark:text-red-400 flex items-center justify-center mb-4">
-                <Trash2 size={24} />
-              </div>
-              <h3 className="text-lg font-bold text-gray-900 dark:text-slate-200 mb-2">Delete {booksToDelete.length > 1 ? `${booksToDelete.length} Books` : 'Book'}?</h3>
-              <p className="text-sm text-gray-500 dark:text-slate-400 mb-6">
-                Are you sure you want to delete {booksToDelete.length > 1 ? 'these books' : 'this book'}? This action cannot be undone.
-              </p>
-              <div className="flex items-center gap-3 w-full">
-                <button 
-                  onClick={() => setIsDeleteModalOpen(false)}
-                  className="flex-1 py-2.5 bg-gray-100 text-gray-700 dark:bg-dark-bg dark:text-slate-300 font-semibold rounded-lg hover:bg-gray-200 dark:hover:bg-dark-hover transition-colors"
-                  disabled={isDeleting}
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={confirmDelete}
-                  className="flex-1 py-2.5 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-colors flex justify-center items-center gap-2"
-                  disabled={isDeleting}
-                >
-                  {isDeleting ? <Loader2 size={16} className="animate-spin" /> : 'Delete'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={confirmDelete}
+        title={`Delete ${booksToDelete.length > 1 ? `${booksToDelete.length} Books` : 'Book'}`}
+        subtitle={`Are you sure you want to delete ${booksToDelete.length > 1 ? 'these books' : 'this book'}? This action cannot be undone.`}
+        variant="danger"
+        icon={Trash2}
+        confirmLabel="Delete"
+        loadingLabel="Deleting..."
+        isLoading={isDeleting}
+        maxWidth="max-w-sm"
+      />
 
       {/* Archive by Year Modal */}
       {isYearArchiveModalOpen && (
@@ -2306,115 +2289,64 @@ export default function Literatures() {
       )}
 
       {/* Single / Multi-Archive Confirmation Modal */}
-      {isArchiveModalOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-white dark:bg-dark-card w-full max-w-md rounded-xl shadow-xl overflow-hidden flex flex-col">
-            <div className="p-6 flex flex-col">
-              <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 flex items-center justify-center mb-4 self-center">
-                <Archive size={24} />
-              </div>
-              
-              <h3 className="text-lg font-bold text-center text-gray-900 dark:text-slate-100 mb-2">
-                {booksToArchive.length > 1 ? `Archive ${booksToArchive.length} Selected Books?` : `Archive "${booksToArchive[0]?.title}"?`}
-              </h3>
-
-              <p className="text-xs text-center text-gray-500 dark:text-slate-400 mb-4">
-                Archived books are removed from active circulation, student search, and new borrowing checkouts. You can restore them at any time.
-              </p>
-
-              {/* Check if any book has active loans */}
-              {booksToArchive.some(b => b.available < b.total) && (
-                <div className="mb-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-lg p-3 text-xs text-amber-900 dark:text-amber-300 flex items-start gap-2">
-                  <AlertTriangle size={15} className="shrink-0 mt-0.5 text-amber-600" />
-                  <div>
-                    <span className="font-bold">Notice: </span>
-                    Some selected books currently have copies on loan. Books with active loans will be automatically skipped to prevent circulation errors.
-                  </div>
-                </div>
-              )}
-
-              {booksToArchive.length > 1 && (
-                <div className="max-h-40 overflow-y-auto space-y-1 mb-4 border border-gray-100 dark:border-dark-border rounded-lg p-2 bg-gray-50 dark:bg-dark-bg">
-                  {booksToArchive.map(b => (
-                    <div key={b.id} className="text-xs flex justify-between items-center py-1 px-2 border-b border-gray-100 dark:border-dark-border last:border-0">
-                      <span className="truncate max-w-[240px] text-gray-800 dark:text-slate-200">{b.title}</span>
-                      <span className="text-[10px] text-gray-500">Year {b.year}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="flex items-center gap-3 mt-2">
-                <button 
-                  onClick={() => setIsArchiveModalOpen(false)}
-                  className="flex-1 py-2.5 border border-gray-200 dark:border-dark-border text-gray-700 dark:text-slate-300 font-semibold rounded-lg hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors text-sm"
-                  disabled={isArchiving}
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={confirmArchive}
-                  className="flex-1 py-2.5 bg-amber-600 text-white font-semibold rounded-lg hover:bg-amber-700 transition-colors flex justify-center items-center gap-2 text-sm"
-                  disabled={isArchiving}
-                >
-                  {isArchiving ? <Loader2 size={16} className="animate-spin" /> : <Archive size={16} />}
-                  <span>Confirm Archive</span>
-                </button>
-              </div>
+      <ConfirmModal
+        isOpen={isArchiveModalOpen}
+        onClose={() => setIsArchiveModalOpen(false)}
+        onConfirm={confirmArchive}
+        title={booksToArchive.length > 1 ? `Archive ${booksToArchive.length} Selected Books` : `Archive "${booksToArchive[0]?.title}"`}
+        subtitle="Archived books are removed from active circulation, student search, and new borrowing checkouts. You can restore them at any time."
+        variant="warning"
+        icon={Archive}
+        confirmLabel="Confirm Archive"
+        loadingLabel="Archiving..."
+        isLoading={isArchiving}
+      >
+        {booksToArchive.some(b => b.available < b.total) && (
+          <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-xl p-3 text-xs text-amber-900 dark:text-amber-300 flex items-start gap-2">
+            <AlertTriangle size={15} className="shrink-0 mt-0.5 text-amber-600" />
+            <div>
+              <span className="font-bold">Notice: </span>
+              Some selected books currently have copies on loan. Books with active loans will be automatically skipped to prevent circulation errors.
             </div>
           </div>
-        </div>
-      )}
+        )}
+
+        {booksToArchive.length > 1 && (
+          <div className="max-h-40 overflow-y-auto space-y-1 border border-gray-100 dark:border-dark-border rounded-xl p-2 bg-gray-50 dark:bg-dark-bg">
+            {booksToArchive.map(b => (
+              <div key={b.id} className="text-xs flex justify-between items-center py-1 px-2 border-b border-gray-100 dark:border-dark-border last:border-0">
+                <span className="truncate max-w-[240px] text-gray-800 dark:text-slate-200">{b.title}</span>
+                <span className="text-[10px] text-gray-500">Year {b.year}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </ConfirmModal>
 
       {/* Single / Multi-Restore Confirmation Modal */}
-      {isRestoreModalOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-white dark:bg-dark-card w-full max-w-md rounded-xl shadow-xl overflow-hidden flex flex-col">
-            <div className="p-6 flex flex-col">
-              <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 flex items-center justify-center mb-4 self-center">
-                <RotateCcw size={24} />
+      <ConfirmModal
+        isOpen={isRestoreModalOpen}
+        onClose={() => setIsRestoreModalOpen(false)}
+        onConfirm={confirmRestore}
+        title={booksToRestore.length > 1 ? `Restore ${booksToRestore.length} Books to Catalog` : `Restore "${booksToRestore[0]?.title}"`}
+        subtitle="Restoring will return these books to the active literature catalog. They will immediately become visible to students in search and available for checkout."
+        variant="success"
+        icon={RotateCcw}
+        confirmLabel="Restore Now"
+        loadingLabel="Restoring..."
+        isLoading={isRestoring}
+      >
+        {booksToRestore.length > 1 && (
+          <div className="max-h-40 overflow-y-auto space-y-1 border border-gray-100 dark:border-dark-border rounded-xl p-2 bg-gray-50 dark:bg-dark-bg">
+            {booksToRestore.map(b => (
+              <div key={b.id} className="text-xs flex justify-between items-center py-1 px-2 border-b border-gray-100 dark:border-dark-border last:border-0">
+                <span className="truncate max-w-[240px] text-gray-800 dark:text-slate-200">{b.title}</span>
+                <span className="text-[10px] text-gray-500">Year {b.year}</span>
               </div>
-              
-              <h3 className="text-lg font-bold text-center text-gray-900 dark:text-slate-100 mb-2">
-                {booksToRestore.length > 1 ? `Restore ${booksToRestore.length} Books to Catalog?` : `Restore "${booksToRestore[0]?.title}"?`}
-              </h3>
-
-              <p className="text-xs text-center text-gray-500 dark:text-slate-400 mb-4">
-                Restoring will return these books to the active literature catalog. They will immediately become visible to students in search and available for checkout.
-              </p>
-
-              {booksToRestore.length > 1 && (
-                <div className="max-h-40 overflow-y-auto space-y-1 mb-4 border border-gray-100 dark:border-dark-border rounded-lg p-2 bg-gray-50 dark:bg-dark-bg">
-                  {booksToRestore.map(b => (
-                    <div key={b.id} className="text-xs flex justify-between items-center py-1 px-2 border-b border-gray-100 dark:border-dark-border last:border-0">
-                      <span className="truncate max-w-[240px] text-gray-800 dark:text-slate-200">{b.title}</span>
-                      <span className="text-[10px] text-gray-500">Year {b.year}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="flex items-center gap-3 mt-2">
-                <button 
-                  onClick={() => setIsRestoreModalOpen(false)}
-                  className="flex-1 py-2.5 border border-gray-200 dark:border-dark-border text-gray-700 dark:text-slate-300 font-semibold rounded-lg hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors text-sm"
-                  disabled={isRestoring}
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={confirmRestore}
-                  className="flex-1 py-2.5 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 transition-colors flex justify-center items-center gap-2 text-sm"
-                  disabled={isRestoring}
-                >
-                  {isRestoring ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}
-                  <span>Restore Now</span>
-                </button>
-              </div>
-            </div>
+            ))}
           </div>
-        </div>
-      )}
+        )}
+      </ConfirmModal>
 
     </div>
   );

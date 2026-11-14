@@ -28,7 +28,7 @@ interface ThemeContextType {
 }
 
 const ThemeContext = createContext<ThemeContextType>({
-  appearance: 'System',
+  appearance: 'Light',
   setAppearance: () => {},
   isDarkMode: false,
   theme: {
@@ -50,7 +50,7 @@ const ThemeContext = createContext<ThemeContextType>({
 
 export const ThemeProvider: React.FC<{children: React.ReactNode}> = ({ children }) => {
   const deviceColorScheme = useDeviceColorScheme();
-  const [appearance, setAppearanceState] = useState<AppearanceMode>('System');
+  const [appearance, setAppearanceState] = useState<AppearanceMode>('Light');
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {

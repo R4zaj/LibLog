@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import NotificationDropdown from '../components/NotificationDropdown';
 import ProfileDropdown from '../components/ProfileDropdown';
 import { getUser, updateUser } from '../auth';
+import { ConfirmModal } from '../components/FeedbackModal';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -1179,37 +1180,17 @@ export default function Settings() {
       )}
 
       {/* Delete Confirmation Modal */}
-      {announcementToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in no-print">
-          <div className="bg-white dark:bg-dark-card rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-slide-up border border-red-100 dark:border-red-900/30">
-            <div className="p-6 flex flex-col items-center text-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-500 flex items-center justify-center">
-                <Trash2 size={24} />
-              </div>
-              <div>
-                <h3 className="font-bold text-gray-900 dark:text-slate-100 text-lg mb-1">Delete Announcement?</h3>
-                <p className="text-sm text-gray-500 dark:text-slate-400">
-                  Are you sure you want to delete this announcement? This action cannot be undone.
-                </p>
-              </div>
-            </div>
-            <div className="p-4 bg-gray-50 dark:bg-dark-bg border-t border-gray-100 dark:border-dark-border flex gap-3 justify-center">
-              <button 
-                onClick={() => setAnnouncementToDelete(null)}
-                className="px-4 py-2 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-200 transition-colors"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={executeDeleteAnnouncement}
-                className="px-4 py-2 rounded-lg text-sm font-bold bg-red-600 hover:bg-red-700 text-white transition-colors"
-              >
-                Delete Announcement
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmModal
+        isOpen={Boolean(announcementToDelete)}
+        onClose={() => setAnnouncementToDelete(null)}
+        onConfirm={executeDeleteAnnouncement}
+        title="Delete Announcement"
+        subtitle="Are you sure you want to delete this announcement? This action cannot be undone."
+        variant="danger"
+        icon={Trash2}
+        confirmLabel="Delete Announcement"
+        maxWidth="max-w-sm"
+      />
 
       {/* Course Modal */}
       {isCourseModalOpen && (
@@ -1273,37 +1254,17 @@ export default function Settings() {
       )}
 
       {/* Delete Course Confirmation Modal */}
-      {courseToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in no-print">
-          <div className="bg-white dark:bg-dark-card rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-slide-up border border-red-100 dark:border-red-900/30">
-            <div className="p-6 flex flex-col items-center text-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-500 flex items-center justify-center">
-                <Trash2 size={24} />
-              </div>
-              <div>
-                <h3 className="font-bold text-gray-900 dark:text-slate-100 text-lg mb-1">Delete Course?</h3>
-                <p className="text-sm text-gray-500 dark:text-slate-400">
-                  Are you sure you want to delete this course? This action cannot be undone if no students are enrolled in it.
-                </p>
-              </div>
-            </div>
-            <div className="p-4 bg-gray-50 dark:bg-dark-bg border-t border-gray-100 dark:border-dark-border flex gap-3 justify-center">
-              <button 
-                onClick={() => setCourseToDelete(null)}
-                className="px-4 py-2 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-200 transition-colors"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={executeDeleteCourse}
-                className="px-4 py-2 rounded-lg text-sm font-bold bg-red-600 hover:bg-red-700 text-white transition-colors"
-              >
-                Delete Course
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmModal
+        isOpen={Boolean(courseToDelete)}
+        onClose={() => setCourseToDelete(null)}
+        onConfirm={executeDeleteCourse}
+        title="Delete Course"
+        subtitle="Are you sure you want to delete this course? This action cannot be undone if no students are enrolled in it."
+        variant="danger"
+        icon={Trash2}
+        confirmLabel="Delete Course"
+        maxWidth="max-w-sm"
+      />
     </div>
   );
 }

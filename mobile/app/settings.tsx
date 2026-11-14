@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, Easing, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, Easing, useColorScheme, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
 import { ChevronRight, RefreshCw, MessageSquare, ArrowLeft, User, Edit } from 'lucide-react-native';
+import * as Updates from 'expo-updates';
 import { useLanguage } from '../context/LanguageContext';
 import { useAppTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
@@ -18,7 +19,7 @@ export default function SettingsScreen() {
   const [isUpdating, setIsUpdating] = useState(false);
   const spinValue = React.useRef(new Animated.Value(0)).current;
 
-  const handleUpdateCheck = () => {
+  const handleUpdateCheck = async () => {
     setIsUpdating(true);
     Animated.loop(
       Animated.timing(spinValue, {
@@ -29,11 +30,53 @@ export default function SettingsScreen() {
       })
     ).start();
 
-    setTimeout(() => {
-      spinValue.stopAnimation();
-      spinValue.setValue(0);
-      setIsUpdating(false);
-    }, 2000);
+    try {
+      if (__DEV__) {
+        setTimeout(() => {
+          Alert.alert(
+            'Development Mode',
+            'Over-the-air updates are disabled in development builds. They work automatically in release/preview builds via EAS Update.'
+          );
+        }, 1200);
+        return;
+      }
+
+      const update = await Updates.checkForUpdateAsync();
+      if (update.isAvailable) {
+        Alert.alert(
+          'Update Available',
+          'A new update is available. Would you like to download and install it now?',
+          [
+            { text: 'Later', style: 'cancel' },
+            {
+              text: 'Update Now',
+              onPress: async () => {
+                try {
+                  await Updates.fetchUpdateAsync();
+                  Alert.alert(
+                    'Update Ready',
+                    'The update has been downloaded. The app will restart now to apply it.',
+                    [{ text: 'Restart', onPress: () => Updates.reloadAsync() }]
+                  );
+                } catch (e: any) {
+                  Alert.alert('Update Failed', e?.message || 'Could not download update.');
+                }
+              }
+            }
+          ]
+        );
+      } else {
+        Alert.alert('Up to Date', 'You are already running the latest version of the app.');
+      }
+    } catch (e: any) {
+      Alert.alert('Update Check', e?.message || 'Could not reach update service.');
+    } finally {
+      setTimeout(() => {
+        spinValue.stopAnimation();
+        spinValue.setValue(0);
+        setIsUpdating(false);
+      }, 1000);
+    }
   };
 
   const spin = spinValue.interpolate({

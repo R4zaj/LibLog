@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Pressable, Dimensions, useWindowDimensions, Alert, Modal, Animated, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Pressable, Dimensions, useWindowDimensions, Alert, Modal, Animated, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useAppTheme } from '../../context/ThemeContext';
@@ -46,6 +46,7 @@ export default function Home() {
   const [selectedBook, setSelectedBook] = useState<LiteratureBook | null>(null);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [fetchError, setFetchError] = useState(false);
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
   const insets = useSafeAreaInsets();
@@ -184,6 +185,21 @@ export default function Home() {
           style={[styles.container, { opacity: fadeAnim }]} 
           contentContainerStyle={{ paddingBottom: insets.bottom + 98 }}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={async () => {
+                setIsRefreshing(true);
+                try {
+                  await fetchDashboardData();
+                } finally {
+                  setIsRefreshing(false);
+                }
+              }}
+              tintColor={theme.primary}
+              colors={[theme.primary]}
+            />
+          }
           onScroll={(e) => {
             const offsetY = e.nativeEvent.contentOffset.y;
             if (offsetY <= 0) {

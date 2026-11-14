@@ -1,6 +1,6 @@
 import { Tabs, usePathname } from 'expo-router';
-import React, { useRef, useEffect, useState } from 'react';
-import { View, Platform, Text, Animated, Pressable, TouchableOpacity } from 'react-native';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { View, Platform, Text, Animated, Pressable, TouchableOpacity, AppState } from 'react-native';
 import { Home, Search, QrCode, BookCopy, User, History } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
@@ -53,7 +53,9 @@ const TabButton = (props: TabButtonProps) => {
 };
 
 export const TabBarVisibilityContext = React.createContext({
-  setTabBarVisible: (visible: boolean) => {}
+  setTabBarVisible: (visible: boolean) => {},
+  setBorrowCount: (count: number) => {},
+  refreshBorrowCount: () => {},
 });
 
 function CustomTabBar({ state, descriptors, navigation, translateY }: any) {
@@ -159,18 +161,38 @@ export default function TabLayout() {
     }).start();
   }, [tabBarVisible]);
 
-  useEffect(() => {
-    if (user?.id) {
-      api.get(`/borrowing/user/${user.id}`)
-        .then(res => {
-          setBorrowCount(res.data.length || 0);
-        })
-        .catch(err => console.error('Failed to fetch borrow count:', err));
+  const refreshBorrowCount = useCallback(() => {
+    if (!user?.id) {
+      setBorrowCount(0);
+      return;
     }
+    api.get(`/borrowing/user/${user.id}`)
+      .then(res => {
+        const list = Array.isArray(res.data) ? res.data : [];
+        const uniqueCount = new Set(list.map((b: any) => b.book_id ?? b.id)).size;
+        setBorrowCount(uniqueCount);
+      })
+      .catch(err => console.error('Failed to fetch borrow count:', err));
   }, [user?.id]);
 
+  useEffect(() => {
+    refreshBorrowCount();
+  }, [refreshBorrowCount, pathname]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') refreshBorrowCount();
+    });
+    const timer = setInterval(refreshBorrowCount, 15000);
+    return () => {
+      sub.remove();
+      clearInterval(timer);
+    };
+  }, [user?.id, refreshBorrowCount]);
+
   return (
-    <TabBarVisibilityContext.Provider value={{ setTabBarVisible }}>
+    <TabBarVisibilityContext.Provider value={{ setTabBarVisible, setBorrowCount, refreshBorrowCount }}>
     <Tabs
       tabBar={(props) => <CustomTabBar {...props} translateY={translateY} />}
       screenOptions={{
