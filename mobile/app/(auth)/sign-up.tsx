@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert, Image } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Check, UserCircle2, GraduationCap, ShieldCheck, Eye, EyeOff } from 'lucide-react-native';
+import { ArrowLeft, Check, UserCircle2, GraduationCap, Eye, EyeOff } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api';
+import FloatingLabelInput from '../../components/FloatingLabelInput';
 
 export default function SignUp() {
   const router = useRouter();
@@ -60,7 +61,7 @@ export default function SignUp() {
   const hasSymbol = /[!@#$%^&*(),.?":{}|<>]/.test(password);
   const isPasswordValid = hasMinLength && hasUpperCase && hasLowerCase && hasSymbol;
 
-  const years = ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year'];
+  const years = ['1st Year', '2nd Year', '3rd Year', '4th Year'];
 
   const handleNext = async () => {
     setError('');
@@ -156,26 +157,15 @@ export default function SignUp() {
         <TouchableOpacity style={styles.backButton} onPress={handleBack}>
           <ArrowLeft size={24} color="#6b7280" />
         </TouchableOpacity>
-        <View style={styles.iconRow}>
-          <View style={[styles.iconCircle, step >= 1 ? styles.iconActive : styles.iconInactive]}>
-            {step > 1 ? <Check size={16} color="#fff" /> : <UserCircle2 size={16} color={step === 1 ? "#fff" : "#9ca3af"} />}
-          </View>
-          <View style={[styles.iconCircle, step >= 2 ? styles.iconActive : styles.iconInactive]}>
-            {step > 2 ? <Check size={16} color="#fff" /> : <UserCircle2 size={16} color={step === 2 ? "#fff" : "#9ca3af"} />}
-          </View>
-          <View style={[styles.iconCircle, step >= 3 ? styles.iconActive : styles.iconInactive]}>
-            {step > 3 ? <Check size={16} color="#fff" /> : <GraduationCap size={16} color={step === 3 ? "#fff" : "#9ca3af"} />}
-          </View>
-          <View style={[styles.iconCircle, step >= 4 ? styles.iconActive : styles.iconInactive]}>
-            {step > 4 ? <Check size={16} color="#fff" /> : <ShieldCheck size={16} color={step === 4 ? "#fff" : "#9ca3af"} />}
-          </View>
-          <View style={[styles.iconCircle, step >= 5 ? styles.iconActive : styles.iconInactive]}>
-            {step > 5 ? <Check size={16} color="#fff" /> : <ShieldCheck size={16} color={step === 5 ? "#fff" : "#9ca3af"} />}
-          </View>
-        </View>
       </View>
     );
   };
+
+  const renderLogo = () => (
+    <View style={styles.largeIconCircle}>
+      <Image source={require('../../assets/images/CCC_icon.png')} style={{ width: 90, height: 90 }} resizeMode="contain" />
+    </View>
+  );
 
 
   return (
@@ -195,9 +185,7 @@ export default function SignUp() {
           {step === 1 && (
             <View style={styles.stepContent}>
               <View style={styles.stepHeader}>
-                <View style={[styles.largeIconCircle, { backgroundColor: 'transparent' }]}>
-                  <Image source={require('../../assets/images/CCC_icon.png')} style={{ width: 90, height: 90 }} resizeMode="contain" />
-                </View>
+                {renderLogo()}
                 <Text style={styles.title}>Welcome to CCC LIB APP</Text>
                 <Text style={styles.subtitle}>Choose your role to get started with the digital library</Text>
               </View>
@@ -240,23 +228,19 @@ export default function SignUp() {
           {step === 2 && (
             <View style={styles.stepContent}>
               <View style={styles.stepHeader}>
-                <View style={styles.largeIconCircle}>
-                  <UserCircle2 size={40} color="#fff" />
-                </View>
+                {renderLogo()}
                 <Text style={styles.title}>Personal Information</Text>
                 <Text style={styles.subtitle}>Tell us about yourself</Text>
               </View>
 
-              <Text style={styles.label}>First Name</Text>
-              <TextInput
-                style={styles.input}
+              <FloatingLabelInput
+                label="First Name"
                 value={firstName}
                 onChangeText={setFirstName}
               />
 
-              <Text style={styles.label}>Last Name</Text>
-              <TextInput
-                style={styles.input}
+              <FloatingLabelInput
+                label="Last Name"
                 value={lastName}
                 onChangeText={setLastName}
               />
@@ -268,9 +252,7 @@ export default function SignUp() {
           {step === 3 && (
             <View style={styles.stepContent}>
               <View style={styles.stepHeader}>
-                <View style={styles.largeIconCircle}>
-                  <GraduationCap size={40} color="#fff" />
-                </View>
+                {renderLogo()}
                 <Text style={styles.title}>Academic Information</Text>
                 <Text style={styles.subtitle}>Your program and year</Text>
               </View>
@@ -308,34 +290,31 @@ export default function SignUp() {
           {step === 4 && (
             <View style={styles.stepContent}>
               <View style={styles.stepHeader}>
-                <View style={styles.largeIconCircle}>
-                  <ShieldCheck size={40} color="#fff" />
-                </View>
+                {renderLogo()}
                 <Text style={styles.title}>Account Setup</Text>
                 <Text style={styles.subtitle}>Create your login credentials</Text>
               </View>
 
-              <Text style={styles.label}>Email Address</Text>
-              <TextInput
-                style={styles.input}
+              <FloatingLabelInput
+                label="Email Address"
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
 
-              <Text style={styles.label}>Password</Text>
-              <View style={styles.passwordContainer}>
-                <TextInput
-                  style={styles.passwordInput}
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                />
-                <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
-                  {showPassword ? <Eye size={20} color="#9ca3af" /> : <EyeOff size={20} color="#9ca3af" />}
-                </TouchableOpacity>
-              </View>
+              <FloatingLabelInput
+                label="Password"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+                containerStyle={{ marginBottom: 12 }}
+                rightElement={
+                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
+                    {showPassword ? <Eye size={20} color="#9ca3af" /> : <EyeOff size={20} color="#9ca3af" />}
+                  </TouchableOpacity>
+                }
+              />
 
               <View style={styles.passwordRequirements}>
                 <Text style={styles.reqTitle}>Password must contain:</Text>
@@ -357,18 +336,18 @@ export default function SignUp() {
                 </View>
               </View>
 
-              <Text style={[styles.label, { marginTop: 16 }]}>Confirm Password</Text>
-              <View style={styles.passwordContainer}>
-                <TextInput
-                  style={styles.passwordInput}
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  secureTextEntry={!showConfirmPassword}
-                />
-                <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.eyeIcon}>
-                  {showConfirmPassword ? <Eye size={20} color="#9ca3af" /> : <EyeOff size={20} color="#9ca3af" />}
-                </TouchableOpacity>
-              </View>
+              <FloatingLabelInput
+                label="Confirm Password"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry={!showConfirmPassword}
+                containerStyle={{ marginBottom: 4 }}
+                rightElement={
+                  <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.eyeIcon}>
+                    {showConfirmPassword ? <Eye size={20} color="#9ca3af" /> : <EyeOff size={20} color="#9ca3af" />}
+                  </TouchableOpacity>
+                }
+              />
               {confirmPassword.length > 0 && password === confirmPassword && (
                 <Text style={styles.matchPassword}>✓ Passwords match</Text>
               )}
@@ -379,9 +358,7 @@ export default function SignUp() {
           {step === 5 && (
             <View style={styles.stepContent}>
               <View style={styles.stepHeader}>
-                <View style={styles.largeIconCircle}>
-                  <ShieldCheck size={40} color="#fff" />
-                </View>
+                {renderLogo()}
                 <Text style={styles.title}>Email Verification</Text>
                 <Text style={styles.subtitle}>Enter the 6-digit code sent to {email}</Text>
               </View>
@@ -445,23 +422,17 @@ const styles = StyleSheet.create({
   progressSegment: { height: 4, flex: 1, marginHorizontal: 2, borderRadius: 2 },
   progressActive: { backgroundColor: '#6C48C5' },
   progressInactive: { backgroundColor: '#e5e7eb' },
-  headerIconsContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 24 },
-  backButton: { position: 'absolute', left: 0, zIndex: 10, padding: 8, minHeight: 48, minWidth: 48, justifyContent: 'center', alignItems: 'center' },
-  iconRow: { flex: 1, flexDirection: 'row', justifyContent: 'center' },
-  iconCircle: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginHorizontal: 6 },
-  iconActive: { backgroundColor: '#6C48C5' },
-  iconInactive: { backgroundColor: '#f3e8ff' },
+  headerIconsContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  backButton: { padding: 8, minHeight: 48, minWidth: 48, justifyContent: 'center', alignItems: 'flex-start' },
   scrollContainer: { flexGrow: 1, padding: 24 },
   stepContent: { flex: 1 },
   stepHeader: { alignItems: 'center', marginBottom: 40 },
-  largeIconCircle: { width: 80, height: 80, borderRadius: 16, backgroundColor: '#6C48C5', justifyContent: 'center', alignItems: 'center', marginBottom: 24 },
+  largeIconCircle: { width: 90, height: 90, borderRadius: 16, backgroundColor: 'transparent', justifyContent: 'center', alignItems: 'center', marginBottom: 24 },
   title: { fontSize: 28, fontWeight: '800', color: '#1e1e2e', marginBottom: 8, textAlign: 'center' },
   subtitle: { fontSize: 14, fontWeight: '500', color: '#7c7c8a', textAlign: 'center' },
   label: { fontSize: 14, fontWeight: '600', color: '#4b5563', marginBottom: 8 },
-  input: { borderWidth: 1, borderColor: '#ede9f6', borderRadius: 16, padding: 16, fontSize: 16, marginBottom: 20, color: '#1e1e2e', backgroundColor: '#ffffff' },
-  passwordContainer: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#ede9f6', borderRadius: 16, backgroundColor: '#ffffff', marginBottom: 12 },
-  passwordInput: { flex: 1, padding: 16, fontSize: 16, color: '#1e1e2e' },
-  eyeIcon: { padding: 16, minHeight: 48, minWidth: 48, justifyContent: 'center', alignItems: 'center' },
+  input: { borderWidth: 1.2, borderColor: '#cbd5e1', borderRadius: 16, padding: 16, fontSize: 16, marginBottom: 20, color: '#1e1e2e', backgroundColor: '#ffffff' },
+  eyeIcon: { padding: 12, minHeight: 48, minWidth: 48, justifyContent: 'center', alignItems: 'center' },
   passwordRequirements: { backgroundColor: '#f9fafb', padding: 12, borderRadius: 12, marginBottom: 20 },
   reqTitle: { fontSize: 13, fontWeight: '600', color: '#4b5563', marginBottom: 8 },
   reqRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
