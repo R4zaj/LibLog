@@ -120,7 +120,7 @@ export default function Literatures() {
   // Global theme context
   const { isDarkMode, toggleDarkMode } = useTheme();
   const [formData, setFormData] = useState({
-    isbn: '', title: '', authorName: '', genreName: '', lccn: '', year_published: '', shelf_number: '', total_copies: 1, condition: 'GOOD', library_use_only: false
+    isbn: '', title: '', authorName: '', genreName: '', lccn: '', year_published: '', shelf_number: '', total_copies: 1, condition: 'GOOD', library_use_only: false, is_special: false, custom_penalty_fee: ''
   });
   
   const fileInputRef = useRef(null);
@@ -337,7 +337,7 @@ export default function Literatures() {
 
   const handleAddClick = () => {
     setEditingBook(null);
-    setFormData({ isbn: '', title: '', authorName: '', genreName: '', lccn: '', year_published: '', shelf_number: '', total_copies: 1, condition: 'GOOD', library_use_only: false });
+    setFormData({ isbn: '', title: '', authorName: '', genreName: '', lccn: '', year_published: '', shelf_number: '', total_copies: 1, condition: 'GOOD', library_use_only: false, is_special: false, custom_penalty_fee: '' });
     setIsModalOpen(true);
   };
 
@@ -353,7 +353,9 @@ export default function Literatures() {
       shelf_number: book.shelf !== 'N/A' ? book.shelf : '',
       total_copies: book.total || 1,
       condition: book.condition || 'GOOD',
-      library_use_only: Boolean(book.library_use_only)
+      library_use_only: Boolean(book.library_use_only),
+      is_special: Boolean(book.is_special),
+      custom_penalty_fee: book.custom_penalty_fee != null ? String(book.custom_penalty_fee) : ''
     });
     setIsModalOpen(true);
   };
@@ -907,6 +909,11 @@ export default function Literatures() {
                           In Circulation
                         </span>
                       )}
+                      {book.is_special && book.custom_penalty_fee != null && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 whitespace-nowrap" title="Special book custom overdue penalty">
+                          Special · ₱{Number(book.custom_penalty_fee).toFixed(2)}/day
+                        </span>
+                      )}
                     </div>
                     <span className={`text-[10px] font-medium ${book.available > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
                       {book.available}/{book.total} available{book.library_use_only ? ' • Library use only' : ''}
@@ -1342,6 +1349,11 @@ export default function Literatures() {
                       {book.library_use_only && (
                         <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 whitespace-nowrap" title="In Circulation: Library use only">
                           In Circulation
+                        </span>
+                      )}
+                      {book.is_special && book.custom_penalty_fee != null && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 whitespace-nowrap" title="Special book custom overdue penalty">
+                          Special · ₱{Number(book.custom_penalty_fee).toFixed(2)}/day
                         </span>
                       )}
                     </div>
@@ -1917,6 +1929,57 @@ export default function Literatures() {
                     <div className="w-10 h-5 bg-gray-300 dark:bg-slate-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary-500 rounded-full peer peer-checked:bg-amber-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-5"></div>
                   </div>
                 </label>
+
+                <div className={`mt-3 p-3.5 rounded-lg border transition-colors ${formData.is_special ? 'bg-purple-50/70 dark:bg-purple-950/25 border-purple-300 dark:border-purple-800' : 'bg-gray-50/70 dark:bg-dark-bg border-gray-200 dark:border-dark-border hover:border-gray-300 dark:hover:border-slate-600'}`}>
+                  <label className="flex items-start justify-between gap-4 cursor-pointer">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-sm font-semibold text-gray-800 dark:text-slate-200">
+                        Special Book (Custom Penalty Rate)
+                      </span>
+                      <span className="text-xs text-gray-500 dark:text-slate-400">
+                        Charge a higher daily overdue penalty set by the librarian instead of the default rate.
+                      </span>
+                    </div>
+                    <div className="relative inline-flex items-center shrink-0 mt-0.5">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(formData.is_special)}
+                        onChange={e => {
+                          const checked = e.target.checked;
+                          setFormData({
+                            ...formData,
+                            is_special: checked,
+                            custom_penalty_fee: checked ? (formData.custom_penalty_fee || '20.00') : ''
+                          });
+                        }}
+                        className="sr-only peer"
+                      />
+                      <div className="w-10 h-5 bg-gray-300 dark:bg-slate-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary-500 rounded-full peer peer-checked:bg-primary-700 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-5"></div>
+                    </div>
+                  </label>
+
+                  {formData.is_special && (
+                    <div className="mt-3 pt-3 border-t border-purple-200/70 dark:border-purple-800/60 flex items-center justify-between gap-4">
+                      <label className="text-xs font-semibold text-gray-700 dark:text-slate-300">
+                        Custom Overdue Fee <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative w-44">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-500 dark:text-slate-400 font-semibold">₱</span>
+                        <input
+                          required={Boolean(formData.is_special)}
+                          type="number"
+                          min="1"
+                          step="0.01"
+                          value={formData.custom_penalty_fee}
+                          onChange={e => setFormData({ ...formData, custom_penalty_fee: e.target.value })}
+                          placeholder="20.00"
+                          className="w-full pl-7 pr-14 py-1.5 bg-white dark:bg-dark-card border border-purple-300 dark:border-purple-700 rounded-md text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-slate-200"
+                        />
+                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px] text-gray-400 dark:text-slate-500 font-medium">/ day</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="px-6 py-4 border-t border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-bg flex justify-end gap-3 mt-auto shrink-0">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 border border-gray-300 dark:border-dark-border text-gray-700 dark:text-slate-300 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-dark-hover">Cancel</button>

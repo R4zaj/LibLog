@@ -195,8 +195,8 @@ export default function ScanScreen() {
             />
 
             {/* QR Code — sits directly on the outer card; no inner tray */}
-            {user?.student_id ? (
-              <DynamicQrCode fallbackId={user.student_id} offlineSecret={user.offline_secret} size={200} />
+            {user?.student_id || user?.qr_code ? (
+              <DynamicQrCode qrCode={user.qr_code} fallbackId={user.student_id} size={200} />
             ) : (
               <YStack width={200} height={200} alignItems="center" justifyContent="center">
                 <Text color={theme.textSecondary} fontSize={14}>Loading QR...</Text>

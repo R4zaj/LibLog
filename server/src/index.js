@@ -105,4 +105,23 @@ app.listen(PORT, () => {
       .then(res => console.log('[Overdue Service] Scheduled check completed:', res))
       .catch(err => console.error('[Overdue Service] Scheduled check error:', err));
   }, 6 * 60 * 60 * 1000);
+
+  // Schedule end-of-day attendance auto-logout (catches forgotten check-outs from prior days)
+  const { autoLogoutEndOfDay } = require('./services/attendanceAutoLogoutService');
+  setTimeout(() => {
+    autoLogoutEndOfDay()
+      .then(res => console.log('[Attendance Auto-Logout] Initial check completed:', res))
+      .catch(err => console.error('[Attendance Auto-Logout] Initial check error:', err));
+  }, 10000);
+
+  // Check every 15 minutes so midnight rollovers are processed promptly
+  setInterval(() => {
+    autoLogoutEndOfDay()
+      .then(res => {
+        if (res.checkedOutCount > 0) {
+          console.log('[Attendance Auto-Logout] Checked out users:', res);
+        }
+      })
+      .catch(err => console.error('[Attendance Auto-Logout] Scheduled check error:', err));
+  }, 15 * 60 * 1000);
 });

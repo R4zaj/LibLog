@@ -96,17 +96,7 @@ export default function Dashboard() {
     if (containerRef.current) {
       containerRef.current.scrollTop = 0;
     }
-    const t1 = setTimeout(() => {
-      if (containerRef.current) containerRef.current.scrollTop = 0;
-    }, 100);
-    const t2 = setTimeout(() => {
-      if (containerRef.current) containerRef.current.scrollTop = 0;
-    }, 500);
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-    };
-  }, [data]);
+  }, []);
 
   const currentCapacity = data.capacity || 40;
   const capacityPercent = (data.studentsInside / currentCapacity) * 100;

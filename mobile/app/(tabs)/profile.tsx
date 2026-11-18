@@ -182,7 +182,7 @@ export default function Profile() {
               borderWidth={1}
               borderColor={theme.border}
             >
-              <DynamicQrCode fallbackId={user?.student_id || ''} offlineSecret={user?.offline_secret} size={200} />
+              <DynamicQrCode qrCode={user?.qr_code} fallbackId={user?.student_id || ''} size={200} />
             </YStack>
             <Text marginTop="$3" fontSize={16} fontWeight="700" color={theme.primary} letterSpacing={2}>
               {user?.student_id}

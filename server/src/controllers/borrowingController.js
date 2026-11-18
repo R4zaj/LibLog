@@ -1,7 +1,7 @@
 const prisma = require('../db');
 const jwt = require('jsonwebtoken');
 const { notifyBorrow, notifyReturn, notifyPenalty, notifyPenaltyPaid } = require('../services/notificationService');
-const { calculateOverdueDetails, buildBorrowPenaltyInfo, syncUserPenaltyBalance } = require('../utils/penaltyCalculator');
+const { resolveDailyRate, calculateOverdueDetails, buildBorrowPenaltyInfo, syncUserPenaltyBalance } = require('../utils/penaltyCalculator');
 
 const getStats = async (req, res) => {
   try {
@@ -339,9 +339,7 @@ const returnBook = async (req, res) => {
       // Secure penalty calculation
       if (new Date() > new Date(record.due_date)) {
         const settings = await tx.librarySettings.findFirst();
-        const penaltyFee = settings && settings.penalty_fee_per_day 
-          ? parseFloat(settings.penalty_fee_per_day) 
-          : 5.0;
+        const penaltyFee = resolveDailyRate({ book: bookToReturn || record.book }, settings);
         
         const returnDate = new Date();
         const diffMs = returnDate.getTime() - new Date(record.due_date).getTime();
@@ -736,6 +734,7 @@ const getUserPenalties = async (req, res) => {
         return_date: null
       },
       include: {
+        book: true,
         penalties: {
           where: { status: 'UNPAID', type: 'OVERDUE' }
         }

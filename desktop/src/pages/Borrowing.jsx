@@ -917,7 +917,14 @@ export default function Borrowing() {
                                           {group.penalties.map((p) => (
                                             <tr key={p.id} className="hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors">
                                               <td className="py-2.5 font-semibold text-gray-800 dark:text-slate-300">
-                                                {p.borrow?.book?.title || 'Unknown Book'}
+                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                  <span>{p.borrow?.book?.title || 'Unknown Book'}</span>
+                                                  {p.borrow?.book?.is_special && (
+                                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                                                      SPECIAL
+                                                    </span>
+                                                  )}
+                                                </div>
                                               </td>
                                               <td className="py-2.5">
                                                 <span className="text-red-500 font-semibold">{p.days_overdue} days overdue</span>
@@ -1001,9 +1008,16 @@ export default function Borrowing() {
                             </p>
                           </td>
                           <td className="px-3.5 py-2.5 min-w-[170px]">
-                            <p className="font-semibold text-xs text-gray-900 dark:text-slate-200 truncate max-w-[200px]" title={p.borrow?.book?.title}>
-                              {p.borrow?.book?.title || 'Library Book'}
-                            </p>
+                            <div className="flex items-center gap-1.5">
+                              <p className="font-semibold text-xs text-gray-900 dark:text-slate-200 truncate max-w-[200px]" title={p.borrow?.book?.title}>
+                                {p.borrow?.book?.title || 'Library Book'}
+                              </p>
+                              {p.borrow?.book?.is_special && (
+                                <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 border border-purple-200 dark:border-purple-800 shrink-0">
+                                  SPECIAL
+                                </span>
+                              )}
+                            </div>
                             <p className="text-[11px] text-gray-500 dark:text-slate-400">
                               {p.days_overdue} days overdue
                             </p>

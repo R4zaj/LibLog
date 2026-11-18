@@ -1,11 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, Sun, Moon, Bell, Settings as SettingsIcon, Save, Users, Clock, DollarSign, Megaphone, AlertTriangle, BookX, Download, Plus, Check, LogOut, User, Key, Trash2, GraduationCap, Edit } from 'lucide-react';
+import { Search, Sun, Moon, Bell, Settings as SettingsIcon, Save, Users, Clock, DollarSign, Megaphone, AlertTriangle, BookX, Plus, Check, LogOut, User, Key, Trash2, GraduationCap, Edit } from 'lucide-react';
 import { useTheme } from '../components/ThemeContext';
 import { useNavigate } from 'react-router-dom';
 import NotificationDropdown from '../components/NotificationDropdown';
 import ProfileDropdown from '../components/ProfileDropdown';
 import { getUser, updateUser } from '../auth';
 import { ConfirmModal } from '../components/FeedbackModal';
+import Pagination from '../components/Pagination';
+
+const ITEMS_PER_PAGE = 10;
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -32,6 +35,12 @@ export default function Settings() {
   const [users, setUsers] = useState(() => getCached('users', []));
   const [announcements, setAnnouncements] = useState(() => getCached('announcements', []));
   const [courses, setCourses] = useState(() => getCached('courses', []));
+  const [userSearch, setUserSearch] = useState('');
+  const [usersPage, setUsersPage] = useState(1);
+  const [announcementSearch, setAnnouncementSearch] = useState('');
+  const [announcementsPage, setAnnouncementsPage] = useState(1);
+  const [courseSearch, setCourseSearch] = useState('');
+  const [coursesPage, setCoursesPage] = useState(1);
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
   const [newCourse, setNewCourse] = useState({ id: null, code: '', name: '' });
   const [courseToDelete, setCourseToDelete] = useState(null);
@@ -713,20 +722,34 @@ export default function Settings() {
         )}
 
         {/* Tab Content: Manage Users */}
-        {activeTab === 'manage-users' && (
+        {activeTab === 'manage-users' && (() => {
+          const query = userSearch.trim().toLowerCase();
+          const filteredUsers = query
+            ? users.filter(u =>
+                (u.name || '').toLowerCase().includes(query) ||
+                (u.student_id || '').toLowerCase().includes(query) ||
+                (u.card_no || '').toLowerCase().includes(query) ||
+                (u.email || '').toLowerCase().includes(query) ||
+                (u.program || '').toLowerCase().includes(query)
+              )
+            : users;
+          const paginatedUsers = filteredUsers.slice((usersPage - 1) * ITEMS_PER_PAGE, usersPage * ITEMS_PER_PAGE);
+
+          return (
           <div className="bg-white dark:bg-transparent border border-gray-200 dark:border-dark-border rounded-xl shadow-sm overflow-hidden flex flex-col">
             <div className="p-4 border-b border-gray-100 dark:border-dark-border flex justify-between items-center bg-gray-50/50 dark:bg-transparent">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500" size={14} />
-                <input type="text" placeholder="Search by name or ID..." className="pl-9 pr-4 py-1.5 bg-white dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-lg text-sm w-64 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:text-slate-200" />
-              </div>
-              <div className="flex items-center gap-3">
-                <button className="flex items-center gap-2 px-3 py-1.5 border border-gray-200 dark:border-dark-border rounded-lg text-sm font-medium text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-dark-hover dark:bg-dark-bg bg-white dark:bg-transparent">
-                  <Download size={14} /> Import Users
-                </button>
-                <button className="flex items-center gap-2 px-3 py-1.5 bg-primary-800 text-white rounded-lg text-sm font-medium hover:bg-primary-900">
-                  <Plus size={14} /> Add User
-                </button>
+                <input
+                  type="text"
+                  value={userSearch}
+                  onChange={(e) => {
+                    setUserSearch(e.target.value);
+                    setUsersPage(1);
+                  }}
+                  placeholder="Search by name or ID..."
+                  className="pl-9 pr-4 py-1.5 bg-white dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-lg text-sm w-64 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:text-slate-200"
+                />
               </div>
             </div>
             
@@ -745,7 +768,7 @@ export default function Settings() {
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map(u => (
+                  {paginatedUsers.map(u => (
                     <tr key={u.id} className={`border-b border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-hover/50 transition-colors ${pendingRoleChanges[u.id] ? 'bg-purple-50/50 dark:bg-purple-900/10' : ''}`}>
                       <td className="p-4 font-mono text-gray-800 dark:text-slate-300">{u.student_id}</td>
                       <td className="p-4 font-mono text-gray-500 dark:text-slate-400">{u.card_no}</td>
@@ -783,7 +806,7 @@ export default function Settings() {
                       <td className="p-4 text-right font-medium text-gray-700">₱{u.penalty.toFixed(2)}</td>
                     </tr>
                   ))}
-                  {users.length === 0 && (
+                  {filteredUsers.length === 0 && (
                     loadingUsers ? (
                       <tr>
                         <td colSpan="8" className="p-8 text-center text-gray-400 dark:text-slate-500">
@@ -803,6 +826,15 @@ export default function Settings() {
                   )}
                 </tbody>
               </table>
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-card">
+              <Pagination
+                currentPage={usersPage}
+                totalItems={filteredUsers.length}
+                itemsPerPage={ITEMS_PER_PAGE}
+                onPageChange={setUsersPage}
+              />
             </div>
 
             {/* Save Changes Button */}
@@ -829,7 +861,8 @@ export default function Settings() {
               </div>
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {/* Tab Content: Library Rules */}
         {activeTab === 'library-rules' && (
@@ -951,12 +984,32 @@ export default function Settings() {
         )}
 
         {/* Tab Content: Announcements */}
-        {activeTab === 'announcements' && (
+        {activeTab === 'announcements' && (() => {
+          const query = announcementSearch.trim().toLowerCase();
+          const filteredAnnouncements = query
+            ? announcements.filter(a =>
+                (a.title || '').toLowerCase().includes(query) ||
+                (a.body || '').toLowerCase().includes(query) ||
+                (a.priority || '').toLowerCase().includes(query)
+              )
+            : announcements;
+          const paginatedAnnouncements = filteredAnnouncements.slice((announcementsPage - 1) * ITEMS_PER_PAGE, announcementsPage * ITEMS_PER_PAGE);
+
+          return (
           <div className="bg-white dark:bg-transparent border border-gray-200 dark:border-dark-border rounded-xl shadow-sm overflow-hidden flex flex-col">
             <div className="p-4 border-b border-gray-100 dark:border-dark-border flex justify-between items-center bg-gray-50/50 dark:bg-transparent">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500" size={14} />
-                <input type="text" placeholder="Search announcements..." className="pl-9 pr-4 py-1.5 border border-gray-200 dark:border-dark-border rounded-lg text-sm w-64 focus:outline-none focus:ring-1 focus:ring-primary-500" />
+                <input
+                  type="text"
+                  value={announcementSearch}
+                  onChange={(e) => {
+                    setAnnouncementSearch(e.target.value);
+                    setAnnouncementsPage(1);
+                  }}
+                  placeholder="Search announcements..."
+                  className="pl-9 pr-4 py-1.5 border border-gray-200 dark:border-dark-border rounded-lg text-sm w-64 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                />
               </div>
               <button 
                 onClick={() => setIsAnnouncementModalOpen(true)}
@@ -978,7 +1031,7 @@ export default function Settings() {
                   </tr>
                 </thead>
                 <tbody>
-                  {announcements.map(a => (
+                  {paginatedAnnouncements.map(a => (
                     <tr key={a.id} className="border-b border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-hover/50 transition-colors">
                       <td className="p-4">
                         <p className="font-bold text-gray-800 dark:text-slate-300 mb-0.5">{a.title}</p>
@@ -1016,20 +1069,49 @@ export default function Settings() {
                       </td>
                     </tr>
                   ))}
-                  {announcements.length === 0 && <tr><td colSpan="5" className="p-8 text-center text-gray-400 dark:text-slate-500">No announcements found.</td></tr>}
+                  {filteredAnnouncements.length === 0 && <tr><td colSpan="5" className="p-8 text-center text-gray-400 dark:text-slate-500">No announcements found.</td></tr>}
                 </tbody>
               </table>
             </div>
+
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-card">
+              <Pagination
+                currentPage={announcementsPage}
+                totalItems={filteredAnnouncements.length}
+                itemsPerPage={ITEMS_PER_PAGE}
+                onPageChange={setAnnouncementsPage}
+              />
+            </div>
           </div>
-        )}
+          );
+        })()}
 
         {/* Tab Content: Courses */}
-        {activeTab === 'courses' && (
+        {activeTab === 'courses' && (() => {
+          const query = courseSearch.trim().toLowerCase();
+          const filteredCourses = query
+            ? courses.filter(c =>
+                (c.code || '').toLowerCase().includes(query) ||
+                (c.name || '').toLowerCase().includes(query)
+              )
+            : courses;
+          const paginatedCourses = filteredCourses.slice((coursesPage - 1) * ITEMS_PER_PAGE, coursesPage * ITEMS_PER_PAGE);
+
+          return (
           <div className="bg-white dark:bg-transparent border border-gray-200 dark:border-dark-border rounded-xl shadow-sm overflow-hidden flex flex-col">
             <div className="p-4 border-b border-gray-100 dark:border-dark-border flex justify-between items-center bg-gray-50/50 dark:bg-transparent">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500" size={14} />
-                <input type="text" placeholder="Search courses..." className="pl-9 pr-4 py-1.5 border border-gray-200 dark:border-dark-border rounded-lg text-sm w-64 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:bg-dark-bg dark:text-slate-200" />
+                <input
+                  type="text"
+                  value={courseSearch}
+                  onChange={(e) => {
+                    setCourseSearch(e.target.value);
+                    setCoursesPage(1);
+                  }}
+                  placeholder="Search courses..."
+                  className="pl-9 pr-4 py-1.5 border border-gray-200 dark:border-dark-border rounded-lg text-sm w-64 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:bg-dark-bg dark:text-slate-200"
+                />
               </div>
               <button 
                 onClick={() => {
@@ -1052,7 +1134,7 @@ export default function Settings() {
                   </tr>
                 </thead>
                 <tbody>
-                  {courses.map(c => (
+                  {paginatedCourses.map(c => (
                     <tr key={c.id} className="border-b border-gray-100 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-hover/50 transition-colors">
                       <td className="p-4">
                         <span className="font-bold text-gray-800 dark:text-slate-300">{c.code}</span>
@@ -1081,12 +1163,22 @@ export default function Settings() {
                       </td>
                     </tr>
                   ))}
-                  {courses.length === 0 && <tr><td colSpan="3" className="p-8 text-center text-gray-400 dark:text-slate-500">No courses found.</td></tr>}
+                  {filteredCourses.length === 0 && <tr><td colSpan="3" className="p-8 text-center text-gray-400 dark:text-slate-500">No courses found.</td></tr>}
                 </tbody>
               </table>
             </div>
+
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-card">
+              <Pagination
+                currentPage={coursesPage}
+                totalItems={filteredCourses.length}
+                itemsPerPage={ITEMS_PER_PAGE}
+                onPageChange={setCoursesPage}
+              />
+            </div>
           </div>
-        )}
+          );
+        })()}
       </div>
 
       {/* Create Announcement Modal */}

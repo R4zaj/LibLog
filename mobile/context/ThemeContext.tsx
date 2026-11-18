@@ -4,20 +4,22 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type AppearanceMode = 'System' | 'Light' | 'Dark';
 
+type HexColor = `#${string}`;
+
 interface Theme {
-  background: string;
-  card: string;
-  border: string;
-  text: string;
-  textSecondary: string;
-  pillContainer: string;
-  pillActive: string;
-  pillText: string;
-  pillTextActive: string;
-  separator: string;
-  primary: string;
-  tabBar: string;
-  tabBarInactive: string;
+  background: HexColor;
+  card: HexColor;
+  border: HexColor;
+  text: HexColor;
+  textSecondary: HexColor;
+  pillContainer: HexColor;
+  pillActive: HexColor;
+  pillText: HexColor;
+  pillTextActive: HexColor;
+  separator: HexColor;
+  primary: HexColor;
+  tabBar: HexColor;
+  tabBarInactive: HexColor;
 }
 
 interface ThemeContextType {

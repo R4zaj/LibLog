@@ -23,7 +23,10 @@ import { useState, useEffect } from 'react';
 import { useNetwork } from './contexts/NetworkContext';
 import { clearSession, getDisplayName, getInitials, getRoleLabel } from './auth';
 import { AlertCircle, X } from 'lucide-react';
+import { useTheme } from './components/ThemeContext';
 import cccCrest from './assets/CCC_icon.png';
+import backdropLight from './assets/backdrop-light.png';
+import backdropDark from './assets/backdrop-dark.png';
 
 const NavItem = ({ to, icon: Icon, label, badge, subItems }) => {
   const location = useLocation();
@@ -170,6 +173,7 @@ export default function MainLayout() {
   }, []);
 
   const { isOnline, syncQueue, isSyncing, processSyncQueue, syncErrors, dismissSyncError } = useNetwork();
+  const { isDarkMode } = useTheme();
 
   const handleLogout = () => {
     clearSession();
@@ -317,9 +321,16 @@ export default function MainLayout() {
         </div>
       </aside>
 
-      {/* Main Content Area */}
-      <main className="flex-1 flex flex-col overflow-hidden bg-slate-50 dark:bg-[#0f0f12] text-slate-900 dark:text-slate-100 transition-colors">
-        <div className="flex-1 flex flex-col overflow-auto">
+      {/* Main Content Wrapper with dynamic backdrop */}
+      <main
+        className="flex-1 flex flex-col overflow-hidden bg-cover bg-center bg-no-repeat transition-all duration-300 relative text-slate-900 dark:text-slate-100"
+        style={{
+          backgroundImage: `url(${isDarkMode ? backdropDark : backdropLight})`
+        }}
+      >
+        {/* Subtle ambient overlay matching theme */}
+        <div className="absolute inset-0 bg-white/30 dark:bg-black/45 backdrop-blur-[1px] pointer-events-none" />
+        <div className="relative z-10 flex-1 flex flex-col overflow-auto">
           <Outlet />
         </div>
       </main>

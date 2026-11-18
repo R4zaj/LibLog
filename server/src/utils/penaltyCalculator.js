@@ -8,14 +8,26 @@
  * 2. For ACTIVE (NOT RETURNED) books:
  *    - The overdue period is calculated from due_date up to the current date (now).
  * 3. Exact Rate:
- *    - Reads penalty_fee_per_day from LibrarySettings (e.g. ₱5.00/day).
+ *    - Uses book.custom_penalty_fee if book.is_special is true and fee > 0;
+ *      otherwise reads penalty_fee_per_day from LibrarySettings (e.g. ₱5.00/day).
  *    - days_overdue * dailyRate is GUARANTEED to match penalty_amount.
  */
 
-function calculateOverdueDetails(borrow, settings, storedPenalty = null) {
-  const penaltyFeePerDay = settings && settings.penalty_fee_per_day 
-    ? parseFloat(settings.penalty_fee_per_day) 
+function resolveDailyRate(borrow, settings) {
+  const book = borrow?.book;
+  if (book?.is_special && book?.custom_penalty_fee != null) {
+    const customRate = parseFloat(book.custom_penalty_fee);
+    if (!Number.isNaN(customRate) && customRate > 0) {
+      return customRate;
+    }
+  }
+  return settings && settings.penalty_fee_per_day
+    ? parseFloat(settings.penalty_fee_per_day)
     : 5.0;
+}
+
+function calculateOverdueDetails(borrow, settings, storedPenalty = null) {
+  const penaltyFeePerDay = resolveDailyRate(borrow, settings);
 
   if (!borrow || !borrow.due_date) {
     const fallbackDays = storedPenalty?.days_overdue || 0;
@@ -82,9 +94,7 @@ function calculateOverdueDetails(borrow, settings, storedPenalty = null) {
 }
 
 function buildBorrowPenaltyInfo(borrow, settings) {
-  const penaltyFeePerDay = settings && settings.penalty_fee_per_day
-    ? parseFloat(settings.penalty_fee_per_day)
-    : 5.0;
+  const penaltyFeePerDay = resolveDailyRate(borrow, settings);
 
   const penalties = Array.isArray(borrow?.penalties) ? borrow.penalties : [];
   const unpaidPenalty = penalties.find(p => p.status === 'UNPAID');
@@ -146,7 +156,7 @@ async function syncUserPenaltyBalance(tx, userId, settingsArg = null) {
   const [unpaidPenalties, activeBorrows] = await Promise.all([
     tx.penalty.findMany({
       where: { user_id: userId, status: 'UNPAID' },
-      include: { borrow: true }
+      include: { borrow: { include: { book: true } } }
     }),
     tx.borrowRecord.findMany({
       where: {
@@ -155,6 +165,7 @@ async function syncUserPenaltyBalance(tx, userId, settingsArg = null) {
         return_date: null
       },
       include: {
+        book: true,
         penalties: { where: { status: 'UNPAID' } }
       }
     })
@@ -184,6 +195,7 @@ async function syncUserPenaltyBalance(tx, userId, settingsArg = null) {
 }
 
 module.exports = {
+  resolveDailyRate,
   calculateOverdueDetails,
   buildBorrowPenaltyInfo,
   syncUserPenaltyBalance

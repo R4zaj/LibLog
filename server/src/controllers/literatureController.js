@@ -2,6 +2,18 @@ const prisma = require('../db');
 
 const toBool = (v) => v === true || ['true', 'yes', 'y', '1', 'in circulation', 'library use only'].includes(String(v || '').trim().toLowerCase());
 
+const parseSpecialPenalty = (isSpecialRaw, feeRaw) => {
+  const isSpecial = toBool(isSpecialRaw);
+  if (!isSpecial) {
+    return { is_special: false, custom_penalty_fee: null };
+  }
+  const parsedFee = parseFloat(feeRaw);
+  if (Number.isNaN(parsedFee) || parsedFee <= 0) {
+    return { error: 'Custom penalty fee must be greater than 0 for special books' };
+  }
+  return { is_special: true, custom_penalty_fee: parsedFee };
+};
+
 const mapBook = (b) => ({
   id: b.id,
   isbn: b.isbn,
@@ -17,6 +29,8 @@ const mapBook = (b) => ({
   condition: b.condition,
   is_archived: b.is_archived || false,
   library_use_only: Boolean(b.library_use_only),
+  is_special: Boolean(b.is_special),
+  custom_penalty_fee: b.custom_penalty_fee != null ? parseFloat(b.custom_penalty_fee) : null,
   updated_at: b.updated_at
 });
 
@@ -159,7 +173,11 @@ const getGenres = async (req, res) => {
 
 const createBook = async (req, res) => {
   try {
-    const { isbn, title, authorName, genreName, lccn, year_published, shelf_number, total_copies, condition, library_use_only } = req.body;
+    const { isbn, title, authorName, genreName, lccn, year_published, shelf_number, total_copies, condition, library_use_only, is_special, custom_penalty_fee } = req.body;
+    const specialPenalty = parseSpecialPenalty(is_special, custom_penalty_fee);
+    if (specialPenalty.error) {
+      return res.status(400).json({ error: specialPenalty.error });
+    }
     
     // Connect or create author
     let author_id = null;
@@ -193,6 +211,8 @@ const createBook = async (req, res) => {
         total_copies: parseInt(total_copies),
         available_copies: parseInt(total_copies),
         library_use_only: toBool(library_use_only),
+        is_special: specialPenalty.is_special,
+        custom_penalty_fee: specialPenalty.custom_penalty_fee,
         condition: condition || 'GOOD'
       }
     });
@@ -207,7 +227,11 @@ const createBook = async (req, res) => {
 const updateBook = async (req, res) => {
   try {
     const { id } = req.params;
-    const { isbn, title, authorName, genreName, lccn, year_published, shelf_number, total_copies, condition, library_use_only } = req.body;
+    const { isbn, title, authorName, genreName, lccn, year_published, shelf_number, total_copies, condition, library_use_only, is_special, custom_penalty_fee } = req.body;
+    const specialPenalty = parseSpecialPenalty(is_special, custom_penalty_fee);
+    if (specialPenalty.error) {
+      return res.status(400).json({ error: specialPenalty.error });
+    }
     
     // Connect or create author
     let author_id = null;
@@ -251,6 +275,8 @@ const updateBook = async (req, res) => {
         total_copies: parseInt(total_copies),
         available_copies: newAvailable,
         library_use_only: library_use_only !== undefined ? toBool(library_use_only) : existingBook.library_use_only,
+        is_special: is_special !== undefined ? specialPenalty.is_special : existingBook.is_special,
+        custom_penalty_fee: is_special !== undefined ? specialPenalty.custom_penalty_fee : existingBook.custom_penalty_fee,
         condition: condition || 'GOOD'
       }
     });
