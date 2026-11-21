@@ -1,4 +1,5 @@
 const prisma = require('../db');
+const { notifySystem } = require('../services/notificationService');
 
 // GET /api/settings/stats
 const getStats = async (req, res) => {
@@ -87,7 +88,19 @@ const updateLibraryRules = async (req, res) => {
         lost_book_fee: parseFloat(req.body.lost_book_fee)
       }
     });
-    
+
+    try {
+      await notifySystem({
+        title: 'Library Rules Updated',
+        message: `Updated policy: Capacity ${updated.library_capacity}, Penalty ₱${parseFloat(updated.penalty_fee_per_day).toFixed(2)}/day, Damage ₱${parseFloat(updated.damage_fee).toFixed(2)}, Lost ₱${parseFloat(updated.lost_book_fee).toFixed(2)}.`,
+        triggeredBy: req.user?.id || null,
+        refTable: 'library_settings',
+        refId: updated.id
+      });
+    } catch (sysErr) {
+      console.error('Failed to log system notification for rule update:', sysErr.message);
+    }
+
     res.json({
       ...updated,
       penalty_fee_per_day: parseFloat(updated.penalty_fee_per_day),

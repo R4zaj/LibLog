@@ -233,7 +233,7 @@ export default function MainLayout() {
           <NavItem to="/attendance" icon={UserCheck} label="Attendance" />
           <NavItem to="/student-activities" icon={GraduationCap} label="Student Activities" />
           <NavItem to="/reports" icon={BarChart3} label="Reports" />
-          <NavItem to="/settings" icon={Settings} label="Settings" />
+          <NavItem to="/settings" icon={Settings} label="Control Panel" />
         </div>
 
         {/* Bottom Section: Quick Stats & Profile */}

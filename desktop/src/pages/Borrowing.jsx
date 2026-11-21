@@ -79,6 +79,25 @@ export default function Borrowing() {
   
   // Records State
   const [records, setRecords] = useState([]);
+  const [recordsFilter, setRecordsFilter] = useState('ALL');
+  const [recordsSearch, setRecordsSearch] = useState('');
+
+  const filteredRecords = useMemo(() => {
+    const q = recordsSearch.trim().toLowerCase();
+    return records.filter((r) => {
+      if (recordsFilter === 'OUT' && r.status !== 'BORROWED' && r.status !== 'OVERDUE') return false;
+      if (recordsFilter === 'OVERDUE' && r.status !== 'OVERDUE') return false;
+      if (recordsFilter === 'RETURNED' && r.status !== 'RETURNED') return false;
+      if (!q) return true;
+      const fullName = `${r.user?.first_name || ''} ${r.user?.last_name || ''}`.toLowerCase();
+      return (
+        (r.book?.title || '').toLowerCase().includes(q) ||
+        (r.book?.isbn || '').toLowerCase().includes(q) ||
+        fullName.includes(q) ||
+        (r.user?.student_id || '').toLowerCase().includes(q)
+      );
+    });
+  }, [records, recordsFilter, recordsSearch]);
 
   // Pagination States (10 items per page)
   const [recordsPage, setRecordsPage] = useState(1);
@@ -95,7 +114,7 @@ export default function Borrowing() {
   const [borrowType, setBorrowType] = useState('TAKE_OUT');
 
   useEffect(() => {
-    if (scannedBook?.library_use_only) {
+    if (scannedBook?.library_use_only || scannedBook?.is_special) {
       setBorrowType('READ_IN_LIBRARY');
     } else if (scannedBook) {
       setBorrowType('TAKE_OUT');
@@ -450,11 +469,32 @@ export default function Borrowing() {
         </div>
 
         {/* Currently Borrowed Pills */}
-        <div className="flex items-center gap-3 bg-white dark:bg-transparent p-3 rounded-lg border border-gray-200 dark:border-dark-border shadow-sm">
+        <div className="flex items-center gap-3 bg-white dark:bg-transparent p-3 rounded-lg border border-gray-200 dark:border-dark-border shadow-sm flex-wrap">
           <span className="text-sm font-semibold text-gray-700 dark:text-slate-200 ml-2">Currently Borrowed:</span>
-          <span className="px-3 py-1 bg-primary-100 dark:bg-primary-900/30 text-primary-800 dark:text-primary-400 rounded-full text-xs font-bold border border-primary-200 dark:border-primary-500/50">{stats.active} Active</span>
-          <span className="px-3 py-1 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full text-xs font-bold border border-red-100 dark:border-red-500/50">{stats.overdue} Overdue</span>
-          <span className="px-3 py-1 bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-full text-xs font-bold border border-green-100 dark:border-green-500/50">{stats.returned} Returned</span>
+          <button
+            type="button"
+            onClick={() => { setActiveTab('Records'); setRecordsFilter('OUT'); setRecordsPage(1); }}
+            className="px-3 py-1 bg-primary-100 dark:bg-primary-900/30 text-primary-800 dark:text-primary-400 rounded-full text-xs font-bold border border-primary-200 dark:border-primary-500/50 hover:opacity-85 transition-opacity cursor-pointer"
+            title="View currently borrowed books"
+          >
+            {stats.active} Active
+          </button>
+          <button
+            type="button"
+            onClick={() => { setActiveTab('Records'); setRecordsFilter('OVERDUE'); setRecordsPage(1); }}
+            className="px-3 py-1 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full text-xs font-bold border border-red-100 dark:border-red-500/50 hover:opacity-85 transition-opacity cursor-pointer"
+            title="View overdue books"
+          >
+            {stats.overdue} Overdue
+          </button>
+          <button
+            type="button"
+            onClick={() => { setActiveTab('Records'); setRecordsFilter('RETURNED'); setRecordsPage(1); }}
+            className="px-3 py-1 bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-full text-xs font-bold border border-green-100 dark:border-green-500/50 hover:opacity-85 transition-opacity cursor-pointer"
+            title="View returned books"
+          >
+            {stats.returned} Returned
+          </button>
         </div>
 
         {/* Tabs */}
@@ -517,12 +557,14 @@ export default function Borrowing() {
               />
             )}
 
-            {step === 2 && scannedBook?.library_use_only && (
+            {step === 2 && (scannedBook?.library_use_only || scannedBook?.is_special) && (
               <div className="flex items-start justify-between gap-4 p-4 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/70 text-amber-900 dark:text-amber-200">
                 <div className="flex items-start gap-3">
                   <AlertCircle size={18} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                   <div className="flex flex-col gap-0.5 text-xs">
-                    <span className="font-bold text-sm">In Circulation: Library Use Only</span>
+                    <span className="font-bold text-sm">
+                      {scannedBook?.is_special ? 'Circulation Book: Library Use Only' : 'In Circulation: Library Use Only'}
+                    </span>
                     <span>
                       <strong>{scannedBook.title}</strong> cannot be borrowed outside the library. Proceeding will check it out as <strong>Read in Library</strong>.
                     </span>
@@ -560,10 +602,10 @@ export default function Borrowing() {
                     <p className="font-bold text-gray-900 dark:text-slate-200 text-lg">{scannedBook.title}</p>
                     <p className="text-sm text-gray-600 dark:text-slate-300 mb-1">{scannedBook.author?.name || 'Unknown Author'}</p>
                     <p className="text-xs text-gray-400 dark:text-slate-500">ISBN: {scannedBook.isbn}</p>
-                    {scannedBook.library_use_only && (
+                    {(scannedBook.library_use_only || scannedBook.is_special) && (
                       <div className="mt-2.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
                         <AlertCircle size={13} className="shrink-0" />
-                        <span>In Circulation: Library Use Only</span>
+                        <span>{scannedBook.is_special ? 'Circulation Book: Library Use Only' : 'In Circulation: Library Use Only'}</span>
                       </div>
                     )}
                   </div>
@@ -586,12 +628,12 @@ export default function Borrowing() {
                       <span className={`text-sm font-bold whitespace-nowrap ${borrowType === 'READ_IN_LIBRARY' ? 'text-primary-800 dark:text-primary-400' : 'text-gray-600 dark:text-slate-400'}`}>Read in Library</span>
                       <span className="text-[10px] text-gray-500 mt-1 text-center">Due today before closing</span>
                     </label>
-                    <label className={`flex-1 flex flex-col items-center p-3 rounded-lg border-2 transition-colors ${scannedBook.library_use_only ? 'opacity-50 cursor-not-allowed border-gray-200 dark:border-dark-border bg-gray-100 dark:bg-dark-card' : borrowType === 'TAKE_OUT' ? 'cursor-pointer border-primary-600 bg-primary-50 dark:bg-primary-900/20' : 'cursor-pointer border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card hover:border-primary-300'}`}>
-                      <input type="radio" name="borrowType" value="TAKE_OUT" disabled={Boolean(scannedBook.library_use_only)} checked={borrowType === 'TAKE_OUT'} onChange={() => { if (!scannedBook.library_use_only) setBorrowType('TAKE_OUT'); }} className="sr-only" />
+                    <label className={`flex-1 flex flex-col items-center p-3 rounded-lg border-2 transition-colors ${(scannedBook.library_use_only || scannedBook.is_special) ? 'opacity-50 cursor-not-allowed border-gray-200 dark:border-dark-border bg-gray-100 dark:bg-dark-card' : borrowType === 'TAKE_OUT' ? 'cursor-pointer border-primary-600 bg-primary-50 dark:bg-primary-900/20' : 'cursor-pointer border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card hover:border-primary-300'}`}>
+                      <input type="radio" name="borrowType" value="TAKE_OUT" disabled={Boolean(scannedBook.library_use_only || scannedBook.is_special)} checked={borrowType === 'TAKE_OUT'} onChange={() => { if (!scannedBook.library_use_only && !scannedBook.is_special) setBorrowType('TAKE_OUT'); }} className="sr-only" />
                       <ArrowRightLeft size={24} className={`mb-2 ${borrowType === 'TAKE_OUT' ? 'text-primary-600' : 'text-gray-400'}`} />
                       <span className={`text-sm font-bold whitespace-nowrap ${borrowType === 'TAKE_OUT' ? 'text-primary-800 dark:text-primary-400' : 'text-gray-600 dark:text-slate-400'}`}>Borrow</span>
-                      <span className={`text-[10px] mt-1 text-center ${scannedBook.library_use_only ? 'text-amber-700 dark:text-amber-400 font-semibold' : 'text-gray-500'}`}>
-                        {scannedBook.library_use_only ? 'Not allowed: book is In Circulation' : 'Standard due date applies'}
+                      <span className={`text-[10px] mt-1 text-center ${(scannedBook.library_use_only || scannedBook.is_special) ? 'text-amber-700 dark:text-amber-400 font-semibold' : 'text-gray-500'}`}>
+                        {(scannedBook.library_use_only || scannedBook.is_special) ? 'Not allowed: Library Use Only' : 'Standard due date applies'}
                       </span>
                     </label>
                   </div>
@@ -921,7 +963,7 @@ export default function Borrowing() {
                                                   <span>{p.borrow?.book?.title || 'Unknown Book'}</span>
                                                   {p.borrow?.book?.is_special && (
                                                     <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
-                                                      SPECIAL
+                                                      CIRCULATION
                                                     </span>
                                                   )}
                                                 </div>
@@ -1014,7 +1056,7 @@ export default function Borrowing() {
                               </p>
                               {p.borrow?.book?.is_special && (
                                 <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 border border-purple-200 dark:border-purple-800 shrink-0">
-                                  SPECIAL
+                                  CIRCULATION
                                 </span>
                               )}
                             </div>
@@ -1088,10 +1130,52 @@ export default function Borrowing() {
         {/* Records TAB */}
         {activeTab === 'Records' && (
           <div className="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-xl overflow-hidden shadow-sm mt-4 flex flex-col animate-fade-in">
-            <div className="p-5 border-b border-gray-200 dark:border-dark-border flex justify-between items-center bg-gray-50 dark:bg-dark-bg">
+            <div className="p-5 border-b border-gray-200 dark:border-dark-border flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-gray-50 dark:bg-dark-bg">
               <div>
-                <h3 className="font-bold text-gray-800 dark:text-slate-300">All Borrowing Records</h3>
-                <p className="text-xs text-gray-500 dark:text-slate-400">Complete history of all borrowed and returned books</p>
+                <h3 className="font-bold text-gray-800 dark:text-slate-300">
+                  {recordsFilter === 'OUT' ? 'Currently Out / Borrowed Books' :
+                   recordsFilter === 'OVERDUE' ? 'Overdue Books' :
+                   recordsFilter === 'RETURNED' ? 'Returned Books' :
+                   'All Borrowing Records'}
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-slate-400">
+                  {recordsFilter === 'OUT'
+                    ? 'Books currently checked out and not yet returned'
+                    : 'Complete history of all borrowed and returned books'}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2.5">
+                <div className="flex items-center gap-1 bg-white dark:bg-dark-card p-1 rounded-lg border border-gray-200 dark:border-dark-border">
+                  {[
+                    { key: 'ALL', label: `All (${records.length})` },
+                    { key: 'OUT', label: `Currently Out (${records.filter(r => r.status === 'BORROWED' || r.status === 'OVERDUE').length})` },
+                    { key: 'OVERDUE', label: `Overdue (${records.filter(r => r.status === 'OVERDUE').length})` },
+                    { key: 'RETURNED', label: `Returned (${records.filter(r => r.status === 'RETURNED').length})` }
+                  ].map((f) => (
+                    <button
+                      key={f.key}
+                      type="button"
+                      onClick={() => { setRecordsFilter(f.key); setRecordsPage(1); }}
+                      className={`px-2.5 py-1 rounded-md text-xs font-bold transition-colors ${
+                        recordsFilter === f.key
+                          ? 'bg-primary-800 text-white shadow-xs'
+                          : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-dark-hover'
+                      }`}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500" size={14} />
+                  <input
+                    type="text"
+                    value={recordsSearch}
+                    onChange={(e) => { setRecordsSearch(e.target.value); setRecordsPage(1); }}
+                    placeholder="Search book, ISBN, or student..."
+                    className="pl-9 pr-3 py-1.5 bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-lg text-xs w-56 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:text-slate-200"
+                  />
+                </div>
               </div>
             </div>
             
@@ -1108,10 +1192,10 @@ export default function Borrowing() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-dark-border">
-                  {records.length === 0 ? (
-                    <tr><td colSpan="6" className="p-8 text-center text-gray-400 dark:text-slate-500 font-medium">No records found</td></tr>
+                  {filteredRecords.length === 0 ? (
+                    <tr><td colSpan="6" className="p-8 text-center text-gray-400 dark:text-slate-500 font-medium">No matching records found</td></tr>
                   ) : (
-                    records.slice((recordsPage - 1) * 10, recordsPage * 10).map((record) => (
+                    filteredRecords.slice((recordsPage - 1) * 10, recordsPage * 10).map((record) => (
                       <tr key={record.id} className="hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors">
                         <td className="px-6 py-4">
                           <p className="font-bold text-sm text-gray-900 dark:text-slate-200">{record.book?.title}</p>
@@ -1151,7 +1235,7 @@ export default function Borrowing() {
             <div className="px-6 py-4 border-t border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-card">
               <Pagination
                 currentPage={recordsPage}
-                totalItems={records.length}
+                totalItems={filteredRecords.length}
                 itemsPerPage={10}
                 onPageChange={setRecordsPage}
               />

@@ -8,34 +8,29 @@ const {
   generateOverdueEmailText
 } = require('../services/emailService');
 
-// Get all notifications
+const VALID_CATEGORIES = new Set(['ATTENDANCE', 'BORROWING', 'PENALTIES', 'SYSTEM']);
+
+const buildTargetWhere = (userId, userRole, category = null) => {
+  const base = (userRole === 'ADMIN' || userRole === 'LIBRARIAN')
+    ? { OR: [{ target_user_id: null }, { target_user_id: userId }] }
+    : { target_user_id: userId };
+
+  const normalizedCategory = typeof category === 'string' ? category.trim().toUpperCase() : '';
+  if (VALID_CATEGORIES.has(normalizedCategory)) {
+    return { ...base, category: normalizedCategory };
+  }
+  return base;
+};
+
+// Get notifications (optionally filtered by category)
 const getNotifications = async (req, res) => {
   try {
-    const userId = req.user.id;
-    const userRole = req.user.role;
-    
-    let whereClause;
-    
-    // Admins and Librarians see operational alerts on desktop (target_user_id IS NULL)
-    // or system messages explicitly targeted to them
-    if (userRole === 'ADMIN' || userRole === 'LIBRARIAN') {
-      whereClause = {
-        OR: [
-          { target_user_id: null },
-          { target_user_id: userId }
-        ]
-      };
-    } else {
-      // Mobile students only see their personal notifications
-      whereClause = {
-        target_user_id: userId
-      };
-    }
+    const whereClause = buildTargetWhere(req.user.id, req.user.role, req.query.category);
     
     const notifications = await prisma.notification.findMany({
       where: whereClause,
       orderBy: { created_at: 'desc' },
-      take: 50, // Limit to 50 recent notifications
+      take: 50,
       include: {
         trigger_user: {
           select: { first_name: true, last_name: true, role: true, student_id: true }
@@ -75,24 +70,10 @@ const markAsRead = async (req, res) => {
 // Mark all unread notifications as read
 const markAllAsRead = async (req, res) => {
   try {
-    const userId = req.user.id;
-    const userRole = req.user.role;
-    
-    let whereClause;
-    if (userRole === 'ADMIN' || userRole === 'LIBRARIAN') {
-      whereClause = {
-        OR: [
-          { target_user_id: null },
-          { target_user_id: userId }
-        ],
-        is_read: false
-      };
-    } else {
-      whereClause = {
-        target_user_id: userId,
-        is_read: false
-      };
-    }
+    const whereClause = {
+      ...buildTargetWhere(req.user.id, req.user.role, req.query.category),
+      is_read: false
+    };
     
     const result = await prisma.notification.updateMany({
       where: whereClause,
@@ -102,6 +83,18 @@ const markAllAsRead = async (req, res) => {
     res.json({ success: true, updatedCount: result.count });
   } catch (error) {
     console.error('Error marking all notifications as read:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Clear notifications visible to the current user (optionally scoped by category)
+const clearNotifications = async (req, res) => {
+  try {
+    const whereClause = buildTargetWhere(req.user.id, req.user.role, req.query.category);
+    const result = await prisma.notification.deleteMany({ where: whereClause });
+    res.json({ success: true, deletedCount: result.count });
+  } catch (error) {
+    console.error('Error clearing notifications:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -282,6 +275,7 @@ module.exports = {
   getNotifications,
   markAsRead,
   markAllAsRead,
+  clearNotifications,
   previewEmail,
   sendTestEmail
 };

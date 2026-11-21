@@ -5,6 +5,7 @@ const {
   getNotifications,
   markAsRead,
   markAllAsRead,
+  clearNotifications,
   previewEmail,
   sendTestEmail
 } = require('../controllers/notificationController');
@@ -18,6 +19,7 @@ router.use(verifyToken);
 
 router.get('/', getNotifications);
 router.put('/read-all', markAllAsRead);
+router.delete('/clear', clearNotifications);
 router.put('/:id/read', markAsRead);
 
 module.exports = router;

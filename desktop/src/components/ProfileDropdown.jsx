@@ -82,7 +82,7 @@ export default function ProfileDropdown() {
             className="w-full text-left px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 flex items-center gap-2 transition-colors cursor-pointer"
           >
             <SettingsIcon size={13} className="text-slate-400" />
-            <span>Settings</span>
+            <span>Control Panel</span>
           </button>
 
           <div className="border-t border-slate-100 dark:border-slate-800 my-1" />

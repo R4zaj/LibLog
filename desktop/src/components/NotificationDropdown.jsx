@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from 'react';
-import { Bell, Activity, ArrowRightLeft, AlertCircle, Check, ExternalLink } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { Bell, Activity, ArrowRightLeft, AlertCircle, Check, Loader2 } from 'lucide-react';
 
 function formatTimeAgo(dateString) {
   const diff = Date.now() - new Date(dateString).getTime();
@@ -12,36 +12,52 @@ function formatTimeAgo(dateString) {
   return 'Just now';
 }
 
+const TAB_TO_CATEGORY = {
+  All: null,
+  Attendance: 'ATTENDANCE',
+  Borrowing: 'BORROWING',
+  Penalties: 'PENALTIES',
+  System: 'SYSTEM'
+};
+
 export default function NotificationDropdown() {
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('All');
   const [notifications, setNotifications] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingOverdue, setIsCheckingOverdue] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
+  const [statusNote, setStatusNote] = useState(null);
   const dropdownRef = useRef(null);
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async (tabName = activeTab) => {
     const token = localStorage.getItem('token');
     if (!token) return; // Don't fetch if not logged in
 
+    const category = TAB_TO_CATEGORY[tabName];
+    const query = category ? `?category=${category}` : '';
+    setIsLoading(true);
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/notifications`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/notifications${query}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
         setNotifications(await res.json());
       } else if (res.status === 401 || res.status === 403) {
-        // Token invalid/expired, could redirect or clear token here
         localStorage.removeItem('token');
       }
     } catch (e) {
       console.error('Failed to fetch notifications', e);
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }, [activeTab]);
 
   useEffect(() => {
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30000); // refresh every 30s
+    fetchNotifications(activeTab);
+    const interval = setInterval(() => fetchNotifications(activeTab), 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [activeTab, fetchNotifications]);
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -69,8 +85,10 @@ export default function NotificationDropdown() {
   };
 
   const handleMarkAllAsRead = async () => {
+    const category = TAB_TO_CATEGORY[activeTab];
+    const query = category ? `?category=${category}` : '';
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/notifications/read-all`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/notifications/read-all${query}`, {
         method: 'PUT',
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
@@ -79,6 +97,27 @@ export default function NotificationDropdown() {
       }
     } catch (e) {
       console.error('Failed to mark all as read', e);
+    }
+  };
+
+  const handleClearAll = async () => {
+    if (isClearing) return;
+    const category = TAB_TO_CATEGORY[activeTab];
+    const query = category ? `?category=${category}` : '';
+    setIsClearing(true);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/notifications/clear${query}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (res.ok) {
+        setNotifications([]);
+        setStatusNote(category ? `Cleared ${activeTab} notifications.` : 'Cleared all notifications.');
+      }
+    } catch (e) {
+      console.error('Failed to clear notifications', e);
+    } finally {
+      setIsClearing(false);
     }
   };
 
@@ -139,7 +178,18 @@ export default function NotificationDropdown() {
           </div>
 
           <div className="flex-1 overflow-y-auto">
-            {filtered.length === 0 ? (
+            {statusNote && (
+              <div className="px-4 py-2 bg-primary-50/70 dark:bg-primary-900/20 border-b border-primary-100 dark:border-primary-800/40 flex items-center justify-between text-xs text-primary-800 dark:text-primary-300 font-medium">
+                <span>{statusNote}</span>
+                <button type="button" onClick={() => setStatusNote(null)} className="text-[11px] opacity-70 hover:opacity-100">Dismiss</button>
+              </div>
+            )}
+            {isLoading && filtered.length === 0 ? (
+              <div className="p-8 flex items-center justify-center gap-2 text-gray-400 dark:text-slate-500 text-sm">
+                <Loader2 size={16} className="animate-spin" />
+                <span>Loading...</span>
+              </div>
+            ) : filtered.length === 0 ? (
               <div className="p-8 text-center text-gray-400 dark:text-slate-500 text-sm">No new notifications</div>
             ) : (
               filtered.map(n => {
@@ -187,29 +237,50 @@ export default function NotificationDropdown() {
 
           <div className="p-3 border-t border-gray-100 dark:border-dark-border bg-gray-50 dark:bg-dark-bg rounded-b-xl flex gap-2">
             <button 
+              type="button"
+              disabled={isCheckingOverdue}
               onClick={async () => {
+                if (isCheckingOverdue) return;
+                setIsCheckingOverdue(true);
+                setStatusNote(null);
                 try {
                   const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/borrowing/check-overdue`, {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
                   });
+                  const data = await res.json().catch(() => ({}));
                   if (res.ok) {
-                    fetchNotifications();
+                    const scanned = data.scanned ?? 0;
+                    const emails = data.emailsSent ?? 0;
+                    setStatusNote(
+                      scanned > 0
+                        ? `Checked: ${scanned} overdue, ${emails} email(s) sent.`
+                        : 'Check complete: No overdue books found.'
+                    );
+                    await fetchNotifications(activeTab);
+                  } else {
+                    setStatusNote(data.error || 'Overdue check failed.');
                   }
                 } catch (e) {
                   console.error('Failed to run overdue check', e);
+                  setStatusNote('Overdue check failed.');
+                } finally {
+                  setIsCheckingOverdue(false);
                 }
               }}
               title="Scan and send overdue reminders"
-              className="flex-1 py-1.5 text-xs font-semibold text-gray-600 dark:text-slate-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-white dark:hover:bg-dark-card border border-gray-200 dark:border-dark-border rounded-lg transition-colors flex items-center justify-center gap-1.5"
+              className="flex-1 py-1.5 text-xs font-semibold text-gray-600 dark:text-slate-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-white dark:hover:bg-dark-card border border-gray-200 dark:border-dark-border rounded-lg transition-colors flex items-center justify-center gap-1.5 disabled:opacity-60"
             >
-              <Activity size={13} /> Check Overdue
+              {isCheckingOverdue ? <Loader2 size={13} className="animate-spin" /> : <Activity size={13} />}
+              <span>{isCheckingOverdue ? 'Checking...' : 'Check Overdue'}</span>
             </button>
             <button 
-              onClick={handleMarkAllAsRead}
-              className="py-1.5 px-3 text-xs font-semibold text-primary-700 dark:text-primary-400 hover:bg-primary-100/50 dark:hover:bg-primary-900/30 rounded-lg transition-colors"
+              type="button"
+              disabled={isClearing}
+              onClick={handleClearAll}
+              className="py-1.5 px-3 text-xs font-semibold text-primary-700 dark:text-primary-400 hover:bg-primary-100/50 dark:hover:bg-primary-900/30 rounded-lg transition-colors disabled:opacity-60"
             >
-              Clear All
+              {isClearing ? 'Clearing...' : 'Clear All'}
             </button>
           </div>
         </div>

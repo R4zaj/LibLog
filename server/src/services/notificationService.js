@@ -209,7 +209,7 @@ async function notifyOverdue({ user, book, daysOverdue, penaltyAmount, borrowRec
   // 1. Mobile Student Notification
   const mobileNotif = tx.notification.create({
     data: {
-      category: 'BORROWING',
+      category: 'PENALTIES',
       title: 'Book Overdue',
       message: `"${book.title}" is ${daysOverdue} day${daysOverdue !== 1 ? 's' : ''} overdue. Current accrued penalty: ${formattedAmount}. Please return it immediately.`,
       target_user_id: user.id,
@@ -222,9 +222,9 @@ async function notifyOverdue({ user, book, daysOverdue, penaltyAmount, borrowRec
   // 2. Desktop Notification
   const desktopNotif = tx.notification.create({
     data: {
-      category: 'BORROWING',
+      category: 'PENALTIES',
       title: 'Overdue Alert',
-      message: `${fullName} ${studentIdentifier} has an overdue book: "${book.title}" (${daysOverdue} days late).`.replace(/\s+/g, ' '),
+      message: `${fullName} ${studentIdentifier} has an overdue book: "${book.title}" (${daysOverdue} days late, ${formattedAmount}).`.replace(/\s+/g, ' '),
       target_user_id: null,
       triggered_by: user.id,
       ref_table: 'borrow_records',
@@ -235,11 +235,37 @@ async function notifyOverdue({ user, book, daysOverdue, penaltyAmount, borrowRec
   return Promise.all([mobileNotif, desktopNotif]);
 }
 
+/**
+ * Dispatches system-level operational or configuration notifications
+ */
+async function notifySystem({
+  title,
+  message,
+  targetUserId = null,
+  triggeredBy = null,
+  refTable = null,
+  refId = null,
+  tx = prisma
+}) {
+  return tx.notification.create({
+    data: {
+      category: 'SYSTEM',
+      title,
+      message,
+      target_user_id: targetUserId,
+      triggered_by: triggeredBy,
+      ref_table: refTable,
+      ref_id: refId
+    }
+  });
+}
+
 module.exports = {
   notifyAttendance,
   notifyBorrow,
   notifyReturn,
   notifyPenalty,
   notifyPenaltyPaid,
-  notifyOverdue
+  notifyOverdue,
+  notifySystem
 };

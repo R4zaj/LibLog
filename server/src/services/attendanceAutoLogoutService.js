@@ -1,4 +1,5 @@
 const prisma = require('../db');
+const { notifySystem } = require('./notificationService');
 
 const MANILA_OFFSET_MS = 8 * 60 * 60 * 1000;
 
@@ -76,6 +77,18 @@ async function autoLogoutEndOfDay(now = new Date(), prismaClient = prisma) {
   await prismaClient.attendanceLog.createMany({
     data: checkOutRows
   });
+
+  if (prismaClient === prisma) {
+    try {
+      await notifySystem({
+        title: 'End-of-Day Auto-Logout',
+        message: `Automatically checked out ${checkOutRows.length} user(s) with unclosed attendance from a previous day.`,
+        refTable: 'attendance_logs'
+      });
+    } catch (sysErr) {
+      console.error('Failed to log system notification for auto-logout:', sysErr.message);
+    }
+  }
 
   return { checkedOutCount: checkOutRows.length };
 }

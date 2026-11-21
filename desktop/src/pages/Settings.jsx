@@ -411,8 +411,8 @@ export default function Settings() {
             <SettingsIcon size={18} />
           </div>
           <div className="flex flex-col">
-            <h1 className="text-base font-bold text-gray-900 dark:text-slate-200 leading-none">Settings</h1>
-            <span className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Configure library settings and preferences</span>
+            <h1 className="text-base font-bold text-gray-900 dark:text-slate-200 leading-none">Control Panel</h1>
+            <span className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Manage users, library rules, announcements, courses, and account</span>
           </div>
         </div>
         <div className="flex items-center gap-4">
@@ -434,7 +434,7 @@ export default function Settings() {
       <div className="flex-1 overflow-y-auto p-8 max-w-7xl mx-auto w-full">
         
         <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-800 dark:text-slate-300">Settings</h2>
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-slate-300">Control Panel</h2>
           <span className="text-sm text-gray-500 dark:text-slate-400">Manage users, configure library rules, and handle announcements</span>
         </div>
 

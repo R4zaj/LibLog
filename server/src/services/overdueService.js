@@ -1,5 +1,5 @@
 const prisma = require('../db');
-const { notifyOverdue } = require('./notificationService');
+const { notifyOverdue, notifySystem } = require('./notificationService');
 const { sendOverdueNotice } = require('./emailService');
 const { calculateOverdueDetails, syncUserPenaltyBalance } = require('../utils/penaltyCalculator');
 
@@ -60,7 +60,7 @@ async function checkAndProcessOverdueBooks() {
       }
 
       // Calculate exact days overdue and penalty fee using central calculator
-      const { daysOverdue, penaltyAmount } = calculateOverdueDetails(record, settings, record.penalties[0]);
+      const { daysOverdue, penaltyAmount, dailyRate: itemDailyRate } = calculateOverdueDetails(record, settings, record.penalties[0]);
 
       // Upsert unpaid overdue penalty record
       let penaltyRecord = record.penalties[0];
@@ -97,7 +97,7 @@ async function checkAndProcessOverdueBooks() {
         where: {
           ref_table: 'borrow_records',
           ref_id: record.id,
-          category: 'BORROWING',
+          category: 'PENALTIES',
           title: 'Book Overdue',
           created_at: { gte: todayStart }
         }
@@ -128,6 +128,7 @@ async function checkAndProcessOverdueBooks() {
           record,
           daysOverdue,
           penaltyAmount,
+          dailyRate: itemDailyRate,
           borrowDate: record.borrow_date,
           dueDate: record.due_date
         });
@@ -179,6 +180,18 @@ async function checkAndProcessOverdueBooks() {
     } catch (emailErr) {
       console.error(`Failed to send consolidated overdue email to ${group.user.email}:`, emailErr.message);
       results.errors.push({ userId, error: emailErr.message });
+    }
+  }
+
+  if (results.markedOverdue > 0 || results.penaltiesUpdated > 0 || results.emailsSent > 0) {
+    try {
+      await notifySystem({
+        title: 'Overdue Scan Completed',
+        message: `Scanned ${results.scanned} overdue record(s): ${results.markedOverdue} newly overdue, ${results.penaltiesUpdated} penalties updated, ${results.emailsSent} email(s) sent.`,
+        refTable: 'borrow_records'
+      });
+    } catch (sysErr) {
+      console.error('Failed to log system notification for overdue scan:', sysErr.message);
     }
   }
 

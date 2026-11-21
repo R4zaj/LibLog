@@ -5,7 +5,7 @@ import {
   Tag, QrCode, BookOpen, CheckCircle, XCircle, Library, FileSpreadsheet, FileText,
   List, Grid, Edit3, Trash2, ChevronDown, ChevronRight, X, LayoutGrid, CheckSquare, 
   Bell, Sun, Moon, ToggleRight, ToggleLeft, FileCode2, Loader2,
-  Archive, RotateCcw, Calendar, AlertTriangle, AlertCircle, Info, Check, ArchiveRestore
+  Archive, RotateCcw, Calendar, AlertTriangle, AlertCircle, Info, Check, ArchiveRestore, Star
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
@@ -58,6 +58,8 @@ export default function Literatures() {
   const [authorPage, setAuthorPage] = useState(1);
   const [qrPage, setQrPage] = useState(1);
   const [qrSearch, setQrSearch] = useState('');
+  const [specialPage, setSpecialPage] = useState(1);
+  const [specialSearch, setSpecialSearch] = useState('');
 
   // Reset pagination when search / filters change
   useEffect(() => {
@@ -72,8 +74,13 @@ export default function Literatures() {
     setQrPage(1);
   }, [qrSearch]);
 
+  useEffect(() => {
+    setSpecialPage(1);
+  }, [specialSearch]);
+
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSavingBook, setIsSavingBook] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [importText, setImportText] = useState('');
   const [isImporting, setIsImporting] = useState(false);
@@ -179,6 +186,7 @@ export default function Literatures() {
   useEffect(() => {
     const tabParam = searchParams.get('tab');
     if (tabParam === 'archived') setActiveTab('Archived Literatures');
+    else if (tabParam === 'special') setActiveTab('Special Books');
     else if (tabParam === 'author') setActiveTab('Author Catalog');
     else if (tabParam === 'genre') setActiveTab('Genre Catalog');
     else if (tabParam === 'qr') setActiveTab('QR of Literatures');
@@ -189,6 +197,7 @@ export default function Literatures() {
     setActiveTab(tabName);
     let tabParam = 'catalog';
     if (tabName === 'Archived Literatures') tabParam = 'archived';
+    else if (tabName === 'Special Books') tabParam = 'special';
     else if (tabName === 'Author Catalog') tabParam = 'author';
     else if (tabName === 'Genre Catalog') tabParam = 'genre';
     else if (tabName === 'QR of Literatures') tabParam = 'qr';
@@ -341,6 +350,12 @@ export default function Literatures() {
     setIsModalOpen(true);
   };
 
+  const handleAddSpecialClick = () => {
+    setEditingBook(null);
+    setFormData({ isbn: '', title: '', authorName: '', genreName: '', lccn: '', year_published: '', shelf_number: '', total_copies: 1, condition: 'GOOD', library_use_only: false, is_special: true, custom_penalty_fee: '20.00' });
+    setIsModalOpen(true);
+  };
+
   const handleEditClick = (book) => {
     setEditingBook(book);
     setFormData({
@@ -362,6 +377,8 @@ export default function Literatures() {
 
   const handleModalSubmit = async (e) => {
     e.preventDefault();
+    if (isSavingBook) return;
+    setIsSavingBook(true);
     try {
       const url = editingBook 
         ? `${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/literatures/books/${editingBook.id}`
@@ -386,15 +403,54 @@ export default function Literatures() {
     } catch (error) {
       console.error('Failed to submit form', error);
       showAlert('Operation failed', 'error');
+    } finally {
+      setIsSavingBook(false);
     }
   };
 
+  const parseImportCirculation = (col10Raw, col11Raw) => {
+    const parseFee = (val) => {
+      const cleaned = String(val ?? '').replace(/[₱,\s]/g, '');
+      const num = parseFloat(cleaned);
+      return !Number.isNaN(num) && num > 0 ? num : null;
+    };
+
+    const col10 = String(col10Raw || '').trim().toUpperCase();
+    const col10Fee = parseFee(col10Raw);
+    const col11Fee = parseFee(col11Raw);
+
+    if (col10Fee !== null) {
+      return { is_special: true, custom_penalty_fee: col10Fee };
+    }
+    if (['YES', 'Y', 'TRUE', '1', 'CIRCULATION', 'CIRCULATION BOOK', 'SPECIAL'].includes(col10)) {
+      return { is_special: true, custom_penalty_fee: col11Fee ?? 20.0 };
+    }
+    if (col11Fee !== null && col10 !== 'NO' && col10 !== 'FALSE' && col10 !== '0') {
+      return { is_special: true, custom_penalty_fee: col11Fee };
+    }
+    return { is_special: false, custom_penalty_fee: null };
+  };
+
+  const handleDownloadImportTemplate = () => {
+    const rows = [
+      ['Title', 'Author', 'Genre', 'ISBN', 'LCCN', 'Year Published', 'Total Copies', 'Condition', 'Library Use Only', 'Circulation Book', 'Custom Penalty (PHP/day)'],
+      ['Myles Textbook for Midwives', 'Jayne E. Marshall', 'Midwifery', '978-0-323-40115-4', 'RG950 .M87', 2020, 5, 'EXCELLENT', 'NO', 'NO', ''],
+      ['Effective Java (Special Reference)', 'Joshua Bloch', 'Information Technology', '978-0-13-468599-1', 'QA76.73.J38', 2018, 2, 'EXCELLENT', 'NO', 'YES', 25]
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Books');
+    XLSX.writeFile(wb, 'LibLog_Import_Template.xlsx');
+  };
+
   const handleImportSubmit = async () => {
-    if (!importText.trim()) return;
+    if (!importText.trim() || isImporting) return;
     setIsImporting(true);
     
     const lines = importText.trim().split('\n');
-    let successCount = 0;
+    let normalCount = 0;
+    let circulationCount = 0;
+    let failedCount = 0;
 
     for (let line of lines) {
       const parts = line.split('/').map(p => p.trim());
@@ -412,6 +468,7 @@ export default function Literatures() {
       const library_use_only = parts[8]
         ? ['YES', 'Y', 'TRUE', '1', 'IN CIRCULATION', 'LIBRARY USE ONLY'].includes(parts[8].toUpperCase())
         : false;
+      const { is_special, custom_penalty_fee } = parseImportCirculation(parts[9], parts[10]);
       
       const shelf_number = genreName ? `${genreName.substring(0, 3).toUpperCase()}-01` : 'GEN-01';
 
@@ -421,17 +478,29 @@ export default function Literatures() {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           },
           body: JSON.stringify({
-            title, authorName, genreName, isbn, lccn, year_published, total_copies, condition, shelf_number, library_use_only
+            title, authorName, genreName, isbn, lccn, year_published, total_copies, condition, shelf_number, library_use_only, is_special, custom_penalty_fee
           })
         });
-        if (res.ok) successCount++;
+        if (res.ok) {
+          if (is_special) circulationCount++;
+          else normalCount++;
+        } else {
+          failedCount++;
+        }
       } catch (err) {
+        failedCount++;
         console.error('Failed to import book', title, err);
       }
     }
     
     setIsImporting(false);
-    showAlert(`Successfully imported ${successCount} books.`, 'success');
+    const totalImported = normalCount + circulationCount;
+    const summaryParts = [];
+    if (normalCount > 0) summaryParts.push(`${normalCount} Normal`);
+    if (circulationCount > 0) summaryParts.push(`${circulationCount} Circulation`);
+    const breakdown = summaryParts.length > 0 ? ` (${summaryParts.join(', ')})` : '';
+    const failedNote = failedCount > 0 ? ` ${failedCount} failed.` : '';
+    showAlert(`Successfully imported ${totalImported} book(s)${breakdown}.${failedNote}`, totalImported > 0 ? 'success' : 'error');
     setImportText('');
     setIsImportModalOpen(false);
     fetchAllData();
@@ -498,8 +567,13 @@ export default function Literatures() {
 
   // Export functions
   const handleExportCSV = () => {
-    const headers = ['ISBN', 'Title', 'Author', 'LCCN', 'Year', 'Genre', 'Shelf', 'Total Copies', 'Available', 'In Circulation'];
-    const rows = books.map(b => [b.isbn, `"${b.title}"`, `"${b.author}"`, b.lccn, b.year, b.genre, b.shelf, b.total, b.available, b.library_use_only ? 'YES' : 'NO']);
+    const headers = ['ISBN', 'Title', 'Author', 'LCCN', 'Year', 'Genre', 'Shelf', 'Total Copies', 'Available', 'Library Use Only', 'Circulation Book', 'Custom Penalty (PHP/day)'];
+    const rows = books.map(b => [
+      b.isbn, `"${b.title}"`, `"${b.author}"`, b.lccn, b.year, b.genre, b.shelf, b.total, b.available,
+      b.library_use_only ? 'YES' : 'NO',
+      b.is_special ? 'YES' : 'NO',
+      b.is_special && b.custom_penalty_fee != null ? Number(b.custom_penalty_fee).toFixed(2) : ''
+    ]);
     const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
     
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -668,17 +742,32 @@ export default function Literatures() {
     setGenres(genres.map(g => g.id === id ? { ...g, expanded: !g.expanded } : g));
   };
 
-  const renderTabs = () => (
-    <div className="flex items-center gap-6 border-b border-gray-200 dark:border-dark-border shrink-0">
+  const renderTabs = () => {
+    const specialCount = books.filter(b => b.is_special).length;
+    return (
+    <div className="flex items-center gap-6 border-b border-gray-200 dark:border-dark-border shrink-0 overflow-x-auto">
       <button 
         onClick={() => handleTabChange('Literature Catalog')} 
-        className={`flex items-center gap-2 pb-3 border-b-2 text-sm font-medium transition-colors ${activeTab === 'Literature Catalog' ? 'border-primary-800 text-primary-900 dark:text-purple-300 font-semibold' : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'}`}
+        className={`flex items-center gap-2 pb-3 border-b-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'Literature Catalog' ? 'border-primary-800 text-primary-900 dark:text-purple-300 font-semibold' : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'}`}
       >
         <BookCopy size={16} className={activeTab === 'Literature Catalog' ? 'text-primary-800 dark:text-purple-400' : ''} />
         <span>Literature Catalog</span>
         <span className="px-1.5 py-0.2 text-[10px] font-semibold rounded-full bg-gray-100 dark:bg-dark-border text-gray-700 dark:text-slate-300">
           {books.length}
         </span>
+      </button>
+
+      <button 
+        onClick={() => handleTabChange('Special Books')} 
+        className={`flex items-center gap-2 pb-3 border-b-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'Special Books' ? 'border-primary-800 text-primary-900 dark:text-purple-300 font-semibold' : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'}`}
+      >
+        <Star size={16} className={activeTab === 'Special Books' ? 'text-primary-800 dark:text-purple-400' : ''} />
+        <span>Circulation Books</span>
+        {specialCount > 0 && (
+          <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-300/40">
+            {specialCount}
+          </span>
+        )}
       </button>
 
       <button 
@@ -712,13 +801,14 @@ export default function Literatures() {
 
       <button 
         onClick={() => handleTabChange('QR of Literatures')} 
-        className={`flex items-center gap-2 pb-3 border-b-2 text-sm font-medium transition-colors ${activeTab === 'QR of Literatures' ? 'border-primary-800 text-primary-900 dark:text-purple-300 font-semibold' : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'}`}
+        className={`flex items-center gap-2 pb-3 border-b-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'QR of Literatures' ? 'border-primary-800 text-primary-900 dark:text-purple-300 font-semibold' : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'}`}
       >
         <QrCode size={16} className={activeTab === 'QR of Literatures' ? 'text-primary-800 dark:text-purple-400' : ''} />
         <span>QR of Literatures</span>
       </button>
     </div>
-  );
+    );
+  };
 
   const renderLiteratureCatalog = () => {
     const paginatedBooks = filteredBooks.slice((literaturePage - 1) * 10, literaturePage * 10);
@@ -910,14 +1000,21 @@ export default function Literatures() {
                         </span>
                       )}
                       {book.is_special && book.custom_penalty_fee != null && (
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 whitespace-nowrap" title="Special book custom overdue penalty">
-                          Special · ₱{Number(book.custom_penalty_fee).toFixed(2)}/day
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 whitespace-nowrap" title="Circulation book custom overdue penalty">
+                          Circulation · ₱{Number(book.custom_penalty_fee).toFixed(2)}/day
                         </span>
                       )}
                     </div>
-                    <span className={`text-[10px] font-medium ${book.available > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
-                      {book.available}/{book.total} available{book.library_use_only ? ' • Library use only' : ''}
-                    </span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className={`text-[10px] font-medium ${book.available > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
+                        {book.available}/{book.total} available{book.library_use_only ? ' • Library use only' : ''}
+                      </span>
+                      {book.total - book.available > 0 && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 whitespace-nowrap">
+                          {book.total - book.available} out
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </td>
                 <td className="px-4 py-3 text-gray-600 dark:text-slate-300 whitespace-normal min-w-[150px]">{book.author}</td>
@@ -1069,9 +1166,16 @@ export default function Literatures() {
                       {/* Stock & Availability Bar */}
                       <div className="mt-3 pt-2.5 border-t border-gray-100 dark:border-dark-border">
                         <div className="flex items-center justify-between text-[10px] font-medium mb-1.5">
-                          <span className={isAvailable ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-rose-500 dark:text-rose-400 font-bold'}>
-                            {book.available} / {book.total} available
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className={isAvailable ? 'text-emerald-600 dark:text-emerald-400 font-bold' : 'text-rose-500 dark:text-rose-400 font-bold'}>
+                              {book.available} / {book.total} available
+                            </span>
+                            {(book.total || 0) - (book.available || 0) > 0 && (
+                              <span className="px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 font-bold">
+                                {(book.total || 0) - (book.available || 0)} out
+                              </span>
+                            )}
+                          </div>
                           <span className="text-gray-400 dark:text-slate-500">
                             {book.shelf && book.shelf !== 'N/A' ? `Shelf ${book.shelf}` : `${book.stocks || `${book.total} copies`}`}
                           </span>
@@ -1174,6 +1278,148 @@ export default function Literatures() {
     </div>
   );
 };
+
+  const renderSpecialBooks = () => {
+    const q = specialSearch.trim().toLowerCase();
+    const specialBooksList = books.filter((b) => {
+      if (!b.is_special) return false;
+      if (!q) return true;
+      return (
+        (b.title || '').toLowerCase().includes(q) ||
+        (b.isbn || '').toLowerCase().includes(q) ||
+        (b.author || '').toLowerCase().includes(q) ||
+        (b.genre || '').toLowerCase().includes(q)
+      );
+    });
+    const paginatedSpecial = specialBooksList.slice((specialPage - 1) * 10, specialPage * 10);
+
+    return (
+      <div className="flex flex-col gap-5 animate-fade-in pb-20">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-lg p-3 shadow-xs">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500" size={16} />
+            <input
+              type="text"
+              value={specialSearch}
+              onChange={(e) => setSpecialSearch(e.target.value)}
+              placeholder="Search circulation books by title, ISBN, author..."
+              className="w-full pl-9 pr-4 py-2 border border-gray-200 dark:border-dark-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-dark-bg dark:text-slate-200"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={handleAddSpecialClick}
+            className="flex items-center gap-2 px-4 py-2 bg-primary-800 text-white rounded-md text-sm font-medium hover:bg-primary-900 shadow-sm cursor-pointer"
+          >
+            <Plus size={16} />
+            <span>Add Circulation Book</span>
+          </button>
+        </div>
+
+        <div className="bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-lg overflow-hidden shadow-xs">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-50 dark:bg-dark-bg border-b border-gray-200 dark:border-dark-border text-[11px] font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                  <th className="px-4 py-3 w-12">#</th>
+                  <th className="px-4 py-3">ISBN</th>
+                  <th className="px-4 py-3">Title &amp; Availability</th>
+                  <th className="px-4 py-3">Author</th>
+                  <th className="px-4 py-3">Genre</th>
+                  <th className="px-4 py-3">Shelf</th>
+                  <th className="px-4 py-3">Penalty Rate</th>
+                  <th className="px-4 py-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-dark-border text-xs">
+                {paginatedSpecial.length === 0 ? (
+                  <tr>
+                    <td colSpan="8" className="p-10 text-center text-gray-400 dark:text-slate-500">
+                      <div className="flex flex-col items-center gap-2">
+                        <Star size={28} className="text-purple-300 dark:text-purple-700" />
+                        <p className="font-medium text-sm">No circulation books found</p>
+                        <button
+                          type="button"
+                          onClick={handleAddSpecialClick}
+                          className="mt-1 px-3 py-1.5 bg-primary-800 text-white rounded-md text-xs font-semibold hover:bg-primary-900"
+                        >
+                          Add Circulation Book
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedSpecial.map((book, idx) => (
+                    <tr key={book.id} className="hover:bg-gray-50/80 dark:hover:bg-dark-hover/40 transition-colors">
+                      <td className="px-4 py-3 text-gray-400 dark:text-slate-500">{(specialPage - 1) * 10 + idx + 1}</td>
+                      <td className="px-4 py-3 font-medium text-gray-700 dark:text-slate-300">{book.isbn}</td>
+                      <td className="px-4 py-3 whitespace-normal min-w-[220px]">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-bold text-gray-900 dark:text-slate-200">{book.title}</span>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className={`text-[10px] font-medium ${book.available > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
+                              {book.available}/{book.total} available
+                            </span>
+                            {book.total - book.available > 0 && (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                                {book.total - book.available} out
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-gray-600 dark:text-slate-300">{book.author}</td>
+                      <td className="px-4 py-3">
+                        <span className="px-2 py-0.5 rounded bg-gray-100 dark:bg-dark-bg text-gray-700 dark:text-slate-300 font-medium">
+                          {book.genre}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-gray-600 dark:text-slate-300">{book.shelf}</td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 whitespace-nowrap">
+                          ₱{Number(book.custom_penalty_fee || 0).toFixed(2)} / day
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleEditClick(book)}
+                            className="p-1.5 text-gray-500 hover:text-primary-700 dark:hover:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded transition-colors"
+                            title="Edit Circulation Book / Penalty"
+                          >
+                            <Edit3 size={15} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteBook(book.id)}
+                            className="p-1.5 text-gray-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded transition-colors"
+                            title="Archive Book"
+                          >
+                            <Archive size={15} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+          {specialBooksList.length > 0 && (
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-card">
+              <Pagination
+                currentPage={specialPage}
+                totalItems={specialBooksList.length}
+                itemsPerPage={10}
+                onPageChange={setSpecialPage}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   const renderArchivedCatalog = () => {
     const oldestYear = archivedBooks.reduce((min, b) => {
@@ -1352,8 +1598,8 @@ export default function Literatures() {
                         </span>
                       )}
                       {book.is_special && book.custom_penalty_fee != null && (
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 whitespace-nowrap" title="Special book custom overdue penalty">
-                          Special · ₱{Number(book.custom_penalty_fee).toFixed(2)}/day
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 whitespace-nowrap" title="Circulation book custom overdue penalty">
+                          Circulation · ₱{Number(book.custom_penalty_fee).toFixed(2)}/day
                         </span>
                       )}
                     </div>
@@ -1826,6 +2072,7 @@ export default function Literatures() {
         ) : (
           <>
             {activeTab === 'Literature Catalog' && renderLiteratureCatalog()}
+            {activeTab === 'Special Books' && renderSpecialBooks()}
             {activeTab === 'Archived Literatures' && renderArchivedCatalog()}
             {activeTab === 'Author Catalog' && renderAuthorCatalog()}
             {activeTab === 'Genre Catalog' && renderGenreCatalog()}
@@ -1934,7 +2181,7 @@ export default function Literatures() {
                   <label className="flex items-start justify-between gap-4 cursor-pointer">
                     <div className="flex flex-col gap-0.5">
                       <span className="text-sm font-semibold text-gray-800 dark:text-slate-200">
-                        Special Book (Custom Penalty Rate)
+                        Circulation Book (Custom Penalty Rate)
                       </span>
                       <span className="text-xs text-gray-500 dark:text-slate-400">
                         Charge a higher daily overdue penalty set by the librarian instead of the default rate.
@@ -1982,8 +2229,11 @@ export default function Literatures() {
                 </div>
               </div>
               <div className="px-6 py-4 border-t border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-bg flex justify-end gap-3 mt-auto shrink-0">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 border border-gray-300 dark:border-dark-border text-gray-700 dark:text-slate-300 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-dark-hover">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-primary-800 text-white rounded-md text-sm font-medium hover:bg-primary-900 shadow-sm">{editingBook ? 'Save Changes' : 'Add Literature'}</button>
+                <button type="button" disabled={isSavingBook} onClick={() => setIsModalOpen(false)} className="px-4 py-2 border border-gray-300 dark:border-dark-border text-gray-700 dark:text-slate-300 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-dark-hover disabled:opacity-50">Cancel</button>
+                <button type="submit" disabled={isSavingBook} className="inline-flex items-center gap-2 px-4 py-2 bg-primary-800 text-white rounded-md text-sm font-medium hover:bg-primary-900 shadow-sm disabled:opacity-70 cursor-pointer">
+                  {isSavingBook && <Loader2 size={16} className="animate-spin" />}
+                  <span>{isSavingBook ? (editingBook ? 'Saving...' : 'Adding...') : (editingBook ? 'Save Changes' : 'Add Literature')}</span>
+                </button>
               </div>
             </form>
           </div>
@@ -2003,14 +2253,27 @@ export default function Literatures() {
             </div>
             
             <div className="p-6 flex flex-col gap-4">
-              <p className="text-xs text-gray-500 dark:text-slate-400">Paste your rows below using the forward slash delimiter <code>/</code>.<br/>Format: <strong>Title / Author / Genre / ISBN / LCCN / Year Published / Total Copies / Condition / In Circulation (YES/NO, optional)</strong></p>
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-xs text-gray-500 dark:text-slate-400">
+                  Paste rows delimited by <code>/</code> or upload an Excel/CSV file (supports mixed Normal &amp; Circulation books).<br/>
+                  Format: <strong>Title / Author / Genre / ISBN / LCCN / Year / Copies / Condition / Library Use Only (YES/NO) / Circulation Book (YES/NO) / Penalty Fee</strong>
+                </p>
+                <button
+                  type="button"
+                  onClick={handleDownloadImportTemplate}
+                  className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 rounded-lg text-[11px] font-bold hover:bg-purple-100 dark:hover:bg-purple-900/40 transition-colors"
+                  title="Download sample .xlsx template with Normal & Circulation columns"
+                >
+                  <Download size={13} /> Template (.xlsx)
+                </button>
+              </div>
               
               <textarea 
                 value={importText}
                 onChange={e => setImportText(e.target.value)}
                 rows={6}
                 className="w-full border border-gray-300 dark:border-dark-border rounded-lg p-3 text-sm focus:ring-2 focus:ring-purple-500 outline-none resize-none dark:bg-dark-bg dark:text-slate-300"
-                placeholder="Example:&#10;Myles Textbook for Midwives / Jayne E. Marshall / Midwifery / 978-0-323-40115-4 / RG950 .M87 / 2020 / 5 / EXCELLENT / NO&#10;Philippine Nursing Journal Vol. 94 / PNA / Nursing / 978-971-95123-0-1 / RT1 .P55 / 2024 / 2 / EXCELLENT / YES"
+                placeholder="Example:&#10;Myles Textbook for Midwives / Jayne E. Marshall / Midwifery / 978-0-323-40115-4 / RG950 .M87 / 2020 / 5 / EXCELLENT / NO / NO /&#10;Effective Java (Reserve) / Joshua Bloch / IT / 978-0-13-468599-1 / QA76.73 / 2018 / 2 / EXCELLENT / NO / YES / 25"
               />
               
               <div 
@@ -2069,8 +2332,9 @@ export default function Literatures() {
             
             <div className="px-6 py-4 bg-gray-50/50 dark:bg-dark-bg border-t border-gray-100 dark:border-dark-border flex justify-end gap-3 shrink-0">
               <button onClick={() => setIsImportModalOpen(false)} className="px-4 py-2 border border-gray-200 dark:border-dark-border text-gray-700 dark:text-slate-300 bg-white dark:bg-dark-card rounded-lg text-sm font-semibold hover:bg-gray-50 dark:hover:bg-dark-hover">Cancel</button>
-              <button onClick={handleImportSubmit} disabled={isImporting} className="px-4 py-2 bg-purple-500 text-white rounded-lg text-sm font-bold hover:bg-purple-600 shadow-sm disabled:opacity-50">
-                {isImporting ? 'Importing...' : 'Import Books'}
+              <button onClick={handleImportSubmit} disabled={isImporting} className="inline-flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-lg text-sm font-bold hover:bg-purple-600 shadow-sm disabled:opacity-50">
+                {isImporting && <Loader2 size={15} className="animate-spin" />}
+                <span>{isImporting ? 'Importing...' : 'Import Books'}</span>
               </button>
             </div>
           </div>
