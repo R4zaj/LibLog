@@ -372,9 +372,9 @@ export function BorrowingProvider({ children }) {
           if (barcodes.length > 0) {
             const text = barcodes[0].rawValue;
             if (text && text.trim().length > 0) {
-              const isBook = /^BK-[A-Z0-9-]+$/.test(text);
+              const isBook = /^BK-[A-Za-z0-9-]+$/i.test(text);
               const isJwt = /^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+$/.test(text);
-              const isOldUser = /^[A-Z0-9-]+$/.test(text);
+              const isOldUser = /^[A-Za-z0-9-_]+$/i.test(text);
               const isOffline = /^OFFLINE:/.test(text);
               if (isBook || isJwt || isOldUser || isOffline) {
                 const now = Date.now();
