@@ -59,7 +59,8 @@ const getLibraryRules = async (req, res) => {
       penalty_fee_per_day: parseFloat(rules.penalty_fee_per_day),
       suspension_threshold: parseFloat(rules.suspension_threshold),
       damage_fee: parseFloat(rules.damage_fee),
-      lost_book_fee: parseFloat(rules.lost_book_fee)
+      lost_book_fee: parseFloat(rules.lost_book_fee),
+      circulation_penalty_fee: rules.circulation_penalty_fee != null ? parseFloat(rules.circulation_penalty_fee) : 20.0
     });
   } catch (error) {
     console.error('Error fetching library rules:', error);
@@ -85,14 +86,15 @@ const updateLibraryRules = async (req, res) => {
         penalty_fee_per_day: parseFloat(req.body.penalty_fee_per_day),
         suspension_threshold: parseFloat(req.body.suspension_threshold),
         damage_fee: parseFloat(req.body.damage_fee),
-        lost_book_fee: parseFloat(req.body.lost_book_fee)
+        lost_book_fee: parseFloat(req.body.lost_book_fee),
+        circulation_penalty_fee: req.body.circulation_penalty_fee != null ? parseFloat(req.body.circulation_penalty_fee) : parseFloat(rules.circulation_penalty_fee ?? 20.0)
       }
     });
 
     try {
       await notifySystem({
         title: 'Library Rules Updated',
-        message: `Updated policy: Capacity ${updated.library_capacity}, Penalty ₱${parseFloat(updated.penalty_fee_per_day).toFixed(2)}/day, Damage ₱${parseFloat(updated.damage_fee).toFixed(2)}, Lost ₱${parseFloat(updated.lost_book_fee).toFixed(2)}.`,
+        message: `Updated policy: Capacity ${updated.library_capacity}, Penalty ₱${parseFloat(updated.penalty_fee_per_day).toFixed(2)}/day, Circulation ₱${parseFloat(updated.circulation_penalty_fee).toFixed(2)}/day, Damage ₱${parseFloat(updated.damage_fee).toFixed(2)}, Lost ₱${parseFloat(updated.lost_book_fee).toFixed(2)}.`,
         triggeredBy: req.user?.id || null,
         refTable: 'library_settings',
         refId: updated.id
@@ -106,7 +108,8 @@ const updateLibraryRules = async (req, res) => {
       penalty_fee_per_day: parseFloat(updated.penalty_fee_per_day),
       suspension_threshold: parseFloat(updated.suspension_threshold),
       damage_fee: parseFloat(updated.damage_fee),
-      lost_book_fee: parseFloat(updated.lost_book_fee)
+      lost_book_fee: parseFloat(updated.lost_book_fee),
+      circulation_penalty_fee: parseFloat(updated.circulation_penalty_fee)
     });
   } catch (error) {
     console.error('Error updating library rules:', error);
@@ -292,8 +295,8 @@ const updateUserRole = async (req, res) => {
     const { role } = req.body;
     const targetUserId = parseInt(id, 10);
 
-    if (!['STUDENT', 'FACULTY', 'ADMIN'].includes(role)) {
-      return res.status(400).json({ error: 'Invalid role. Must be STUDENT, FACULTY, or ADMIN.' });
+    if (!['STUDENT', 'FACULTY', 'ADMIN', 'VISITOR'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid role. Must be STUDENT, FACULTY, ADMIN, or VISITOR.' });
     }
 
     if (req.user && req.user.id === targetUserId && role !== 'ADMIN') {

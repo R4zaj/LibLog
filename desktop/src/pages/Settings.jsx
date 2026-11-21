@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, Sun, Moon, Bell, Settings as SettingsIcon, Save, Users, Clock, DollarSign, Megaphone, AlertTriangle, BookX, Plus, Check, LogOut, User, Key, Trash2, GraduationCap, Edit } from 'lucide-react';
+import { Search, Sun, Moon, Bell, Settings as SettingsIcon, Save, Users, Clock, DollarSign, Megaphone, AlertTriangle, BookX, Plus, Check, LogOut, User, Key, Trash2, GraduationCap, Edit, Loader2 } from 'lucide-react';
 import { useTheme } from '../components/ThemeContext';
 import { useNavigate } from 'react-router-dom';
 import NotificationDropdown from '../components/NotificationDropdown';
@@ -54,7 +54,8 @@ export default function Settings() {
     penalty_fee_per_day: 5.00,
     suspension_threshold: 100.00,
     damage_fee: 5.00,
-    lost_book_fee: 5.00
+    lost_book_fee: 5.00,
+    circulation_penalty_fee: 20.00
   }));
 
   const [loadingUsers, setLoadingUsers] = useState(() => !localStorage.getItem('liblog_cache_settings_users'));
@@ -634,13 +635,13 @@ export default function Settings() {
                   </div>
                 </div>
 
-                <div className="flex justify-end pt-2 border-t border-gray-100 dark:border-dark-border">
+                <div className="flex justify-end pt-4 border-t border-gray-100 dark:border-dark-border">
                   <button 
                     type="submit" 
                     disabled={savingProfile}
-                    className="flex items-center gap-2 px-6 py-2 bg-primary-800 text-white rounded-lg text-sm font-bold hover:bg-primary-900 shadow-sm transition-colors disabled:opacity-50 cursor-pointer"
+                    className="h-9 px-4 inline-flex items-center justify-center gap-2 bg-primary-800 hover:bg-primary-900 text-white rounded-lg text-sm font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
                   >
-                    <Save size={14} />
+                    {savingProfile ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
                     <span>{savingProfile ? 'Saving...' : 'Save Profile'}</span>
                   </button>
                 </div>
@@ -706,13 +707,13 @@ export default function Settings() {
                   </div>
                 </div>
 
-                <div className="flex justify-end pt-2 border-t border-gray-100 dark:border-dark-border">
+                <div className="flex justify-end pt-4 border-t border-gray-100 dark:border-dark-border">
                   <button 
                     type="submit" 
                     disabled={changingPassword}
-                    className="flex items-center gap-2 px-6 py-2 bg-primary-800 text-white rounded-lg text-sm font-bold hover:bg-primary-900 shadow-sm transition-colors disabled:opacity-50 cursor-pointer"
+                    className="h-9 px-4 inline-flex items-center justify-center gap-2 bg-primary-800 hover:bg-primary-900 text-white rounded-lg text-sm font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
                   >
-                    <Key size={14} />
+                    {changingPassword ? <Loader2 size={15} className="animate-spin" /> : <Key size={15} />}
                     <span>{changingPassword ? 'Saving...' : 'Save Password'}</span>
                   </button>
                 </div>
@@ -794,6 +795,7 @@ export default function Settings() {
                             <option value="STUDENT">STUDENT</option>
                             <option value="FACULTY">FACULTY</option>
                             <option value="ADMIN">ADMIN</option>
+                            <option value="VISITOR">VISITOR</option>
                           </select>
                         )}
                       </td>
@@ -853,9 +855,10 @@ export default function Settings() {
                   <button 
                     onClick={saveRoleChanges}
                     disabled={savingRoles}
-                    className="flex items-center gap-2 px-4 py-1.5 bg-primary-800 text-white rounded-lg text-xs font-bold hover:bg-primary-900 transition-colors disabled:opacity-50 animate-pop-in"
+                    className="h-8 px-3.5 inline-flex items-center justify-center gap-1.5 bg-primary-800 hover:bg-primary-900 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed animate-pop-in cursor-pointer"
                   >
-                    <Save size={14} /> {savingRoles ? 'Saving...' : 'Save Changes'}
+                    {savingRoles ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                    <span>{savingRoles ? 'Saving...' : 'Save Changes'}</span>
                   </button>
                 </div>
               </div>
@@ -965,6 +968,16 @@ export default function Settings() {
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 dark:text-slate-500 font-medium">PHP</span>
                   </div>
                   <p className="text-[11px] text-gray-400 dark:text-slate-500">Fixed penalty fee for lost books.</p>
+                </div>
+
+                <div className="flex flex-col gap-1.5 col-span-2 sm:col-span-1">
+                  <label className="text-sm font-bold text-gray-700 dark:text-slate-300">Circulation Book Penalty Fee</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 dark:text-slate-500 font-medium">₱</span>
+                    <input name="circulation_penalty_fee" value={rules.circulation_penalty_fee ?? 20} onChange={handleRuleChange} type="number" step="0.01" className="w-full pl-8 pr-16 py-2 bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border rounded-lg text-sm focus:ring-1 focus:ring-primary-500 dark:text-slate-200" />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 dark:text-slate-500 font-medium">PHP/day</span>
+                  </div>
+                  <p className="text-[11px] text-gray-400 dark:text-slate-500">Default daily overdue fee for Circulation Books (can be customized per book).</p>
                 </div>
 
               </div>

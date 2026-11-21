@@ -205,7 +205,9 @@ const register = async (req, res) => {
 
     // Generate CCC-YEAR-Number
     const currentYear = new Date().getFullYear();
-    const prefix = `CCC-${currentYear}-`;
+    const normalizedRole = role === 'VISITOR' ? 'VISITOR' : (role || 'STUDENT');
+    const idPrefix = normalizedRole === 'VISITOR' ? 'VIS' : 'CCC';
+    const prefix = `${idPrefix}-${currentYear}-`;
     const lastUser = await prisma.user.findFirst({
       where: { student_id: { startsWith: prefix } },
       orderBy: { student_id: 'desc' }
@@ -244,8 +246,8 @@ const register = async (req, res) => {
         student_id,
         card_no: student_id, // defaulting to student_id since UI doesn't provide separate card_no
         password_hash: hashedPassword,
-        role: role === 'VISITOR' ? 'STUDENT' : (role || 'STUDENT'),
-        year_level: (role === 'STUDENT' || role === 'VISITOR') ? year_level || null : null,
+        role: normalizedRole,
+        year_level: normalizedRole === 'STUDENT' ? year_level || null : null,
         program_id: programId,
         status: 'ACTIVE',
         qr_code: uniqueQrCode

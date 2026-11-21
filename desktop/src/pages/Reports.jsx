@@ -1,6 +1,6 @@
 import { 
   Printer, FileSpreadsheet, FileText, Calendar, BarChart2, 
-  BookOpen, Flame, Save, Users, DollarSign, Library, Download, TrendingUp, AlertCircle, Loader2
+  BookOpen, Flame, TrendingDown, Users, DollarSign, Library, Download, TrendingUp, AlertCircle, Loader2
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { 
@@ -115,11 +115,11 @@ export default function Reports() {
     let end = new Date();
     
     if (qs === 'Today') {
-      start = today;
+      start = new Date(today);
     } else if (qs === 'This Week') {
       const day = today.getDay();
       const diff = today.getDate() - day + (day === 0 ? -6 : 1);
-      start = new Date(today.setDate(diff));
+      start = new Date(today.getFullYear(), today.getMonth(), diff);
       end = new Date(start);
       end.setDate(start.getDate() + 6);
     } else if (qs === 'This Month') {
@@ -138,6 +138,15 @@ export default function Reports() {
   };
 
   const COLORS = ['#6d28d9', '#a855f7', '#d8b4fe', '#f3e8ff', '#4c1d95'];
+
+  const handleDownloadChartCSV = (filename, headers, rows) => {
+    const csv = [headers.join(','), ...rows.map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+  };
 
   if (errorMsg) {
     return (
@@ -1025,9 +1034,9 @@ export default function Reports() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#f4f5f8] dark:bg-dark-bg overflow-y-auto animate-fade-in print-container relative">
+    <div className="flex flex-col h-full overflow-y-auto animate-fade-in print-container relative">
       {isRefreshing && (
-        <div className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 via-indigo-500 to-purple-600 animate-pulse z-50 pointer-events-none" />
+        <div className="fixed top-0 left-0 right-0 h-1 bg-primary-700 animate-pulse z-50 pointer-events-none" />
       )}
       <style>{`
         @media print {
@@ -1039,81 +1048,92 @@ export default function Reports() {
         }
       `}</style>
 
-      <div className="max-w-[1400px] w-full mx-auto px-8 py-8 flex flex-col gap-6">
-        
-        {/* Header */}
-        <div className="flex justify-between items-start no-print">
-          <div className="flex flex-col">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-200 tracking-tight">Reports & Analytics</h1>
-            <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">Generate comprehensive library reports and export data</p>
+      {/* Unified Sticky Header */}
+      <header className="h-16 flex items-center justify-between px-8 bg-white/95 dark:bg-dark-card/95 backdrop-blur-sm border-b border-slate-200/90 dark:border-dark-border shrink-0 sticky top-0 z-30 no-print">
+        <div className="flex items-center gap-3">
+          <div className="p-2 border border-slate-200 dark:border-dark-border rounded-lg text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-dark-bg">
+            <BarChart2 size={18} />
           </div>
-          {(user?.role === 'ADMIN' || user?.role === 'LIBRARIAN' || !user?.role) && (
-            <div className="flex items-center gap-3">
-              <button onClick={() => openExportModal('Print')} className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border text-gray-700 dark:text-slate-200 rounded-md text-xs font-semibold shadow-sm hover:bg-gray-50 dark:hover:bg-dark-hover cursor-pointer">
-                <Printer size={14} /> Print
-              </button>
-              <button onClick={() => openExportModal('Excel')} className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border text-gray-700 dark:text-slate-200 rounded-md text-xs font-semibold shadow-sm hover:bg-gray-50 dark:hover:bg-dark-hover cursor-pointer">
-                <FileSpreadsheet size={14} /> Export Excel
-              </button>
-              <button onClick={() => openExportModal('PDF')} className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border text-gray-700 dark:text-slate-200 rounded-md text-xs font-semibold shadow-sm hover:bg-gray-50 dark:hover:bg-dark-hover cursor-pointer">
-                <FileText size={14} /> Export PDF
-              </button>
-            </div>
-          )}
+          <div className="flex flex-col">
+            <h1 className="text-sm font-bold text-slate-900 dark:text-slate-100 leading-none">Reports &amp; Analytics</h1>
+            <span className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              {period} cycle • {startDate} to {endDate} • {selectedDepartment === 'All' ? 'All Departments' : selectedDepartment}
+            </span>
+          </div>
         </div>
+        {(user?.role === 'ADMIN' || user?.role === 'LIBRARIAN' || !user?.role) && (
+          <div className="flex items-center gap-2">
+            <button onClick={() => openExportModal('Print')} className="h-9 px-3.5 inline-flex items-center gap-2 bg-white dark:bg-dark-card border border-slate-200 dark:border-dark-border text-slate-700 dark:text-slate-200 rounded-lg text-xs font-semibold hover:bg-slate-50 dark:hover:bg-dark-hover transition-colors cursor-pointer">
+              <Printer size={14} /> Print
+            </button>
+            <button onClick={() => openExportModal('Excel')} className="h-9 px-3.5 inline-flex items-center gap-2 bg-white dark:bg-dark-card border border-slate-200 dark:border-dark-border text-slate-700 dark:text-slate-200 rounded-lg text-xs font-semibold hover:bg-slate-50 dark:hover:bg-dark-hover transition-colors cursor-pointer">
+              <FileSpreadsheet size={14} /> Export Excel
+            </button>
+            <button onClick={() => openExportModal('PDF')} className="h-9 px-3.5 inline-flex items-center gap-2 bg-primary-800 hover:bg-primary-900 text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer">
+              <FileText size={14} /> Export PDF
+            </button>
+          </div>
+        )}
+      </header>
+
+      <div className="max-w-[1400px] w-full mx-auto px-8 py-6 flex flex-col gap-6">
 
         {/* Filter Panel */}
-        <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-100 dark:border-dark-border p-6 no-print">
-          <div className="flex flex-col gap-6">
+        <div className="bg-white/95 dark:bg-dark-card/95 backdrop-blur-sm rounded-xl border border-slate-200/90 dark:border-dark-border p-5 no-print">
+          <div className="flex flex-col gap-4">
             
-            {/* Quick Select */}
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold text-gray-500 dark:text-slate-400">Quick Select</label>
-              <div className="flex border border-gray-200 dark:border-dark-border rounded-lg overflow-hidden w-full max-w-4xl">
-                {['Today', 'This Week', 'This Month', 'This Year'].map((qs) => (
-                  <button 
-                    key={qs}
-                    onClick={() => setQuickSelect(qs)}
-                    className={`flex-1 py-2 text-xs font-semibold transition-colors border-r last:border-0 border-gray-200 dark:border-dark-border ${quickSelect === qs ? 'bg-[#5b21b6] text-white' : 'bg-white dark:bg-dark-card text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-dark-hover'}`}
-                  >
-                    {qs}
-                  </button>
-                ))}
+            {/* Row 1: Quick Select & Report Modules */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Quick Select</label>
+                <div className="flex border border-slate-200 dark:border-dark-border rounded-lg overflow-hidden">
+                  {['Today', 'This Week', 'This Month', 'This Year'].map((qs) => (
+                    <button 
+                      key={qs}
+                      type="button"
+                      onClick={() => handleQuickSelect(qs)}
+                      className={`flex-1 h-9 text-xs font-semibold transition-colors border-r last:border-0 border-slate-200 dark:border-dark-border cursor-pointer ${quickSelect === qs ? 'bg-primary-800 text-white' : 'bg-white dark:bg-dark-card text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-dark-hover'}`}
+                    >
+                      {qs}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Visible Modules</label>
+                <div className="flex border border-slate-200 dark:border-dark-border rounded-lg overflow-hidden">
+                  {Object.entries({
+                    summary: 'Summary',
+                    books: 'Books',
+                    students: 'Students',
+                    borrows: 'Borrows',
+                    penalties: 'Penalties'
+                  }).map(([key, label]) => (
+                    <button 
+                      key={key}
+                      type="button"
+                      onClick={() => setSelectedModules(prev => ({ ...prev, [key]: !prev[key] }))}
+                      className={`flex-1 h-9 text-xs font-semibold transition-colors border-r last:border-0 border-slate-200 dark:border-dark-border cursor-pointer ${selectedModules[key] ? 'bg-primary-800 text-white' : 'bg-white dark:bg-dark-card text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-dark-hover'}`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
-            {/* Report Modules Select */}
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold text-gray-500 dark:text-slate-400">Report Modules</label>
-              <div className="flex border border-gray-200 dark:border-dark-border rounded-lg overflow-hidden w-full max-w-4xl">
-                {Object.entries({
-                  summary: 'Summary',
-                  books: 'Books',
-                  students: 'Students',
-                  borrows: 'Borrows',
-                  penalties: 'Penalties'
-                }).map(([key, label]) => (
-                  <button 
-                    key={key}
-                    onClick={() => setSelectedModules(prev => ({ ...prev, [key]: !prev[key] }))}
-                    className={`flex-1 py-2 text-xs font-semibold transition-colors border-r last:border-0 border-gray-200 dark:border-dark-border ${selectedModules[key] ? 'bg-[#5b21b6] text-white' : 'bg-white dark:bg-dark-card text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-dark-hover'}`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Date Pickers & Generate */}
-            <div className="flex items-end gap-6">
-              <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold text-gray-500 dark:text-slate-400">Period</label>
-                <div className="flex border border-gray-200 dark:border-dark-border rounded-lg overflow-hidden w-64">
+            {/* Row 2: Period, Date Pickers, Department, Prepared By & Generate */}
+            <div className="flex flex-wrap items-end gap-4 pt-2 border-t border-slate-100 dark:border-dark-border">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Period</label>
+                <div className="flex border border-slate-200 dark:border-dark-border rounded-lg overflow-hidden w-52">
                   {['Daily', 'Monthly', 'Yearly'].map((p) => (
                     <button 
                       key={p}
+                      type="button"
                       onClick={() => setPeriod(p)}
-                      className={`flex-1 py-2 text-xs font-semibold transition-colors ${period === p ? 'bg-[#5b21b6] text-white' : 'bg-white dark:bg-dark-card text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-dark-hover'}`}
+                      className={`flex-1 h-9 text-xs font-semibold transition-colors cursor-pointer ${period === p ? 'bg-primary-800 text-white' : 'bg-white dark:bg-dark-card text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-dark-hover'}`}
                     >
                       {p}
                     </button>
@@ -1121,57 +1141,56 @@ export default function Reports() {
                 </div>
               </div>
 
-              <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold text-gray-500 dark:text-slate-400">Start Date</label>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Start Date</label>
                 <div className="relative">
-                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500" size={14} />
-                  <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="pl-9 pr-4 py-2 border border-gray-200 dark:border-dark-border rounded-lg text-xs font-semibold text-gray-700 w-40 bg-white dark:bg-dark-card" />
+                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" size={14} />
+                  <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="h-9 pl-9 pr-3 border border-slate-200 dark:border-dark-border rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-200 w-38 bg-white dark:bg-dark-card" />
                 </div>
               </div>
 
-              <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold text-gray-500 dark:text-slate-400">End Date</label>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">End Date</label>
                 <div className="relative">
-                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500" size={14} />
-                  <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="pl-9 pr-4 py-2 border border-gray-200 dark:border-dark-border rounded-lg text-xs font-semibold text-gray-700 w-40 bg-white dark:bg-dark-card" />
+                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" size={14} />
+                  <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="h-9 pl-9 pr-3 border border-slate-200 dark:border-dark-border rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-200 w-38 bg-white dark:bg-dark-card" />
                 </div>
               </div>
 
-              <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold text-gray-500 dark:text-slate-400">Department</label>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Department</label>
                 <div className="relative">
-                  <select value={selectedDepartment} onChange={e => setSelectedDepartment(e.target.value)} className="pl-3 pr-8 py-2 border border-gray-200 dark:border-dark-border rounded-lg text-xs font-semibold text-gray-700 w-40 bg-white dark:bg-dark-card appearance-none focus:outline-none focus:ring-2 focus:ring-purple-500">
+                  <select value={selectedDepartment} onChange={e => setSelectedDepartment(e.target.value)} className="h-9 pl-3 pr-8 border border-slate-200 dark:border-dark-border rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-200 w-44 bg-white dark:bg-dark-card appearance-none focus:outline-none focus:ring-2 focus:ring-primary-500">
                     <option value="All">All Departments</option>
                     {programs.map(p => (
                       <option key={p.id} value={p.name}>{p.name}</option>
                     ))}
                   </select>
                   <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                    <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
                   </div>
                 </div>
               </div>
 
-              <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold text-gray-500 dark:text-slate-400">Prepared By</label>
-                <div className="relative">
-                  <input type="text" value={preparedBy} onChange={e => setPreparedBy(e.target.value)} className="px-3 py-2 border border-gray-200 dark:border-dark-border rounded-lg text-xs font-semibold text-gray-700 w-48 bg-white dark:bg-dark-card focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="Librarian Name" />
-                </div>
+              <div className="flex flex-col gap-1.5 flex-1 min-w-[160px]">
+                <label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Prepared By</label>
+                <input type="text" value={preparedBy} onChange={e => setPreparedBy(e.target.value)} className="h-9 px-3 border border-slate-200 dark:border-dark-border rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-200 w-full bg-white dark:bg-dark-card focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="Librarian Name" />
               </div>
 
               <button 
+                type="button"
                 onClick={() => fetchReportData(true)} 
                 disabled={isRefreshing}
-                className="flex items-center gap-2 px-5 py-2 bg-[#5b21b6] text-white rounded-lg text-xs font-bold hover:bg-[#4c1d95] transition-colors ml-2 disabled:opacity-75 disabled:cursor-not-allowed shadow-sm"
+                className="h-9 px-4 inline-flex items-center gap-2 bg-primary-800 hover:bg-primary-900 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
               >
                 {isRefreshing ? (
                   <>
-                    <Loader2 size={16} className="animate-spin" />
+                    <Loader2 size={15} className="animate-spin" />
                     <span>Updating...</span>
                   </>
                 ) : (
                   <>
-                    <BarChart2 size={16} />
+                    <BarChart2 size={15} />
                     <span>Generate Report</span>
                   </>
                 )}
@@ -1179,78 +1198,86 @@ export default function Reports() {
             </div>
 
             {/* Footer text */}
-            <div className="flex items-center gap-2 text-[10px] text-gray-400 dark:text-slate-500 font-medium pt-2">
+            <div className="flex items-center gap-2 text-[11px] text-slate-400 dark:text-slate-500 font-medium">
               <ClockIcon />
-              <span className="text-gray-400">Last generated: {currentTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })} • {period} report • {startDate} to {endDate}</span>
+              <span>Last generated: {currentTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} {currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })} • {period} report • {startDate} to {endDate}</span>
             </div>
           </div>
         </div>
 
         {/* Top 5 Summary Cards */}
         {selectedModules.summary && (
-        <div className="grid grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {/* Card 1 */}
-          <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-100 dark:border-dark-border p-5 flex flex-col relative overflow-hidden">
-            <span className="text-xs font-semibold text-gray-500 dark:text-slate-400 mb-2">Total Borrows</span>
-            <div className="absolute top-4 right-4 w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center">
-              <BookOpen size={16} />
+          <div className="bg-white/95 dark:bg-dark-card/95 rounded-xl border border-slate-200/90 dark:border-dark-border p-5 flex flex-col relative overflow-hidden">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">Total Borrows</span>
+            <div className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-slate-100 dark:bg-dark-bg text-primary-700 dark:text-purple-400 flex items-center justify-center">
+              <BookOpen size={15} />
             </div>
-            <span className="text-3xl font-extrabold text-gray-900 dark:text-slate-200">{data.totalBorrows}</span>
-            <span className="text-[10px] font-medium text-gray-500 dark:text-slate-400 mt-2">{data.totalReturned} returned</span>
-            <div className="mt-3 flex items-center gap-1 text-[10px] font-bold text-gray-500 dark:text-slate-400">
-              <TrendingUp size={10} /> monthly period
+            <span className="text-3xl font-extrabold text-slate-900 dark:text-slate-100 tabular-nums">{data.totalBorrows}</span>
+            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-2 tabular-nums">{data.totalReturned} returned</span>
+            <div className="mt-3 flex items-center gap-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+              <TrendingUp size={11} /> {period.toLowerCase()} period
             </div>
           </div>
 
           {/* Card 2 */}
-          <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-100 dark:border-dark-border p-5 flex flex-col relative overflow-hidden">
-            <span className="text-xs font-semibold text-gray-500 dark:text-slate-400 mb-2">Most Borrowed Genre</span>
-            <div className="absolute top-4 right-4 w-8 h-8 rounded-full bg-orange-100 text-orange-500 flex items-center justify-center">
-              <Flame size={16} />
+          <div className="bg-white/95 dark:bg-dark-card/95 rounded-xl border border-slate-200/90 dark:border-dark-border p-5 flex flex-col relative overflow-hidden">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">Most Borrowed Genre</span>
+            <div className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-slate-100 dark:bg-dark-bg text-amber-600 dark:text-amber-400 flex items-center justify-center">
+              <Flame size={15} />
             </div>
-            <span className="text-2xl font-bold text-gray-900 dark:text-slate-200 truncate pr-8" title={mostBorrowedGenre.name}>{mostBorrowedGenre.name}</span>
-            <span className="text-[10px] font-medium text-gray-500 dark:text-slate-400 mt-2">{mostBorrowedGenre.count} borrows</span>
-            <div className="mt-3 flex items-center gap-1 text-[10px] font-bold text-blue-600">
-              <TrendingUp size={10} /> Top genre
+            <span className="text-xl font-bold text-slate-900 dark:text-slate-100 truncate pr-8" title={mostBorrowedGenre.name}>{mostBorrowedGenre.name}</span>
+            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-2 tabular-nums">{mostBorrowedGenre.count} borrows</span>
+            <div className="mt-3 flex items-center gap-1 text-[11px] font-semibold text-primary-700 dark:text-purple-400">
+              <TrendingUp size={11} /> Top genre
             </div>
           </div>
 
           {/* Card 3 */}
-          <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-100 dark:border-dark-border p-5 flex flex-col relative overflow-hidden">
-            <span className="text-xs font-semibold text-gray-500 dark:text-slate-400 mb-2">Least Borrowed Book</span>
-            <div className="absolute top-4 right-4 w-8 h-8 rounded-full bg-cyan-100 text-cyan-600 flex items-center justify-center">
-              <Save size={16} />
+          <div className="bg-white/95 dark:bg-dark-card/95 rounded-xl border border-slate-200/90 dark:border-dark-border p-5 flex flex-col relative overflow-hidden">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">Least Borrowed Book</span>
+            <div className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-slate-100 dark:bg-dark-bg text-slate-600 dark:text-slate-400 flex items-center justify-center">
+              <TrendingDown size={15} />
             </div>
-            <span className="text-2xl font-bold text-gray-900 dark:text-slate-200 truncate pr-8" title={leastBorrowedBook.title}>{leastBorrowedBook.title}</span>
-            <span className="text-[10px] font-medium text-gray-500 dark:text-slate-400 mt-2">{leastBorrowedBook.borrows} borrow</span>
-            <div className="mt-3 flex items-center gap-1 text-[10px] font-bold text-red-500">
-              <TrendingUp size={10} className="transform rotate-180" /> Lowest activity
+            <span className="text-xl font-bold text-slate-900 dark:text-slate-100 truncate pr-8" title={leastBorrowedBook.title}>{leastBorrowedBook.title}</span>
+            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-2 tabular-nums">{leastBorrowedBook.borrows} borrows</span>
+            <div className="mt-3 flex items-center gap-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+              <TrendingDown size={11} /> Lowest activity
             </div>
           </div>
 
           {/* Card 4 */}
-          <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-100 dark:border-dark-border p-5 flex flex-col relative overflow-hidden">
-            <span className="text-xs font-semibold text-gray-500 dark:text-slate-400 mb-2">Most Active Student</span>
-            <div className="absolute top-4 right-4 w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center">
-              <Users size={16} />
+          <div className="bg-white/95 dark:bg-dark-card/95 rounded-xl border border-slate-200/90 dark:border-dark-border p-5 flex flex-col relative overflow-hidden">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">Most Active Patron</span>
+            <div className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-slate-100 dark:bg-dark-bg text-primary-700 dark:text-purple-400 flex items-center justify-center">
+              <Users size={15} />
             </div>
-            <span className="text-2xl font-bold text-gray-900 dark:text-slate-200 truncate pr-8" title={mostActiveStudent.name}>{mostActiveStudent.name}</span>
-            <span className="text-[10px] font-medium text-gray-500 dark:text-slate-400 mt-2 truncate">{mostActiveStudent.visits} visits • {mostActiveStudent.program}</span>
-            <div className="mt-3 flex items-center gap-1 text-[10px] font-bold text-purple-700">
-              <TrendingUp size={10} /> Top visitor
+            <span className="text-xl font-bold text-slate-900 dark:text-slate-100 truncate pr-8" title={mostActiveStudent.name}>{mostActiveStudent.name}</span>
+            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-2 truncate tabular-nums">{mostActiveStudent.visits} visits • {mostActiveStudent.program || 'General'}</span>
+            <div className="mt-3 flex items-center gap-1 text-[11px] font-semibold text-primary-700 dark:text-purple-400">
+              <TrendingUp size={11} /> Top visitor
             </div>
           </div>
 
           {/* Card 5 */}
-          <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-100 dark:border-dark-border p-5 flex flex-col relative overflow-hidden">
-            <span className="text-xs font-semibold text-gray-500 dark:text-slate-400 mb-2">Total Penalties</span>
-            <div className="absolute top-4 right-4 w-8 h-8 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center">
-              <DollarSign size={16} />
+          <div className="bg-white/95 dark:bg-dark-card/95 rounded-xl border border-slate-200/90 dark:border-dark-border p-5 flex flex-col relative overflow-hidden">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">Total Penalties</span>
+            <div className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-slate-100 dark:bg-dark-bg text-rose-600 dark:text-rose-400 flex items-center justify-center">
+              <DollarSign size={15} />
             </div>
-            <span className="text-2xl font-extrabold text-gray-900 dark:text-slate-200">₱{(data.financials.totalPaid + data.financials.totalUnpaid).toFixed(2)}</span>
-            <span className="text-[10px] font-medium text-gray-500 dark:text-slate-400 mt-2">Paid: ₱{data.financials.totalPaid.toFixed(2)} • Unpaid: ₱{data.financials.totalUnpaid.toFixed(2)}</span>
-            <div className="mt-3 flex items-center gap-1 text-[10px] font-bold text-gray-500 dark:text-slate-400">
-              <TrendingUp size={10} /> All clear
+            <span className="text-2xl font-extrabold text-slate-900 dark:text-slate-100 tabular-nums">₱{(data.financials.totalPaid + data.financials.totalUnpaid).toFixed(2)}</span>
+            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-2 tabular-nums">Paid: ₱{data.financials.totalPaid.toFixed(2)} • Unpaid: ₱{data.financials.totalUnpaid.toFixed(2)}</span>
+            <div className={`mt-3 flex items-center gap-1 text-[11px] font-semibold ${data.financials.totalUnpaid > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+              {data.financials.totalUnpaid > 0 ? (
+                <>
+                  <AlertCircle size={11} /> ₱{data.financials.totalUnpaid.toFixed(2)} pending
+                </>
+              ) : (
+                <>
+                  <TrendingUp size={11} /> All clear
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -1440,7 +1467,7 @@ export default function Reports() {
               {/* Curricular & Underutilized Review */}
               <div className="p-4 rounded-xl border border-gray-200 dark:border-dark-border bg-gray-50/50 dark:bg-dark-bg/40 flex flex-col gap-3">
                 <span className="text-xs font-bold text-gray-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
-                  <Save size={14} className="text-cyan-600" />
+                  <TrendingDown size={14} className="text-cyan-600" />
                   Underutilized Literature Review &amp; Weeding
                 </span>
                 <p className="text-[11px] text-gray-500 dark:text-slate-400 leading-relaxed">
@@ -1477,19 +1504,18 @@ export default function Reports() {
         {/* Book Metrics Section Header */}
         {selectedModules.books && (
         <>
-        <div className="flex items-center gap-4 mt-2 mb-4">
-          <div className="w-1 h-8 rounded-full bg-purple-700"></div>
-          <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center">
-            <Library size={20} />
+        <div className="flex items-center gap-3 mt-2">
+          <div className="p-2 rounded-lg border border-slate-200 dark:border-dark-border bg-white/90 dark:bg-dark-card text-primary-700 dark:text-purple-400">
+            <Library size={18} />
           </div>
           <div className="flex flex-col">
-            <h2 className="text-sm font-bold text-gray-900 dark:text-slate-200">Book Metrics</h2>
-            <span className="text-xs font-medium text-gray-500 dark:text-slate-400">Borrowing analytics by book and genre</span>
+            <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">Book Metrics</h2>
+            <span className="text-xs text-slate-500 dark:text-slate-400">Borrowing analytics by book and genre</span>
           </div>
         </div>
 
         {/* Book Metrics Cards */}
-        <div className="grid grid-cols-12 gap-6 mb-2">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 mb-2">
           
           {/* Most Borrowed Books */}
           <div className="col-span-4 bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-100 dark:border-dark-border p-6 flex flex-col">
@@ -1528,7 +1554,7 @@ export default function Reports() {
           {/* Least Borrowed Books */}
           <div className="col-span-4 bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-100 dark:border-dark-border p-6 flex flex-col">
             <div className="flex items-start gap-2 mb-6">
-              <div className="mt-1 text-purple-600"><Save size={14} /></div>
+              <div className="mt-1 text-purple-600"><TrendingDown size={14} /></div>
               <div className="flex flex-col">
                 <h3 className="font-bold text-gray-900 dark:text-slate-200 text-sm">Least Borrowed Books</h3>
                 <span className="text-[10px] font-medium text-gray-400 dark:text-slate-500">Books with lowest borrow activity</span>
@@ -1578,7 +1604,14 @@ export default function Reports() {
                     </button>
                   ))}
                 </div>
-                <button className="text-purple-600 hover:bg-purple-50 p-1 rounded transition-colors"><Download size={14} /></button>
+                <button
+                  type="button"
+                  onClick={() => handleDownloadChartCSV('genre_distribution.csv', ['Genre', 'Borrows'], (data.popularGenres || []).map(g => [g.name, g.count]))}
+                  className="text-primary-700 dark:text-purple-400 hover:bg-slate-100 dark:hover:bg-dark-hover p-1.5 rounded-md transition-colors cursor-pointer"
+                  title="Download Genre Distribution CSV"
+                >
+                  <Download size={14} />
+                </button>
               </div>
             </div>
             
@@ -1625,18 +1658,17 @@ export default function Reports() {
         {/* User Metrics Section */}
         {selectedModules.students && (
         <>
-        <div className="flex items-center gap-4 mt-2 mb-4">
-          <div className="w-1 h-8 rounded-full bg-cyan-500"></div>
-          <div className="w-10 h-10 rounded-xl bg-cyan-50 text-cyan-500 flex items-center justify-center">
+        <div className="flex items-center gap-3 mt-2">
+          <div className="p-2 rounded-lg border border-slate-200 dark:border-dark-border bg-white/90 dark:bg-dark-card text-primary-700 dark:text-purple-400">
             <Users size={18} />
           </div>
           <div className="flex flex-col">
-            <h2 className="text-sm font-bold text-gray-900 dark:text-slate-200">User Metrics</h2>
-            <span className="text-[10px] text-gray-500 dark:text-slate-400">Student and program visit analytics</span>
+            <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">Patron Metrics</h2>
+            <span className="text-xs text-slate-500 dark:text-slate-400">Student, visitor, and program visit analytics</span>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-6 mb-2">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-2">
           {/* Most Active Students */}
           <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-100 dark:border-dark-border p-6 flex flex-col">
             <div className="flex items-start gap-2 mb-6">
@@ -1681,7 +1713,14 @@ export default function Reports() {
                 <div className="flex border border-gray-200 dark:border-dark-border rounded-full overflow-hidden p-0.5 bg-gray-50">
                   <button className="px-2 py-0.5 text-[9px] font-bold rounded-full transition-colors bg-purple-700 text-white shadow-sm">Pie</button>
                 </div>
-                <button className="text-purple-600 hover:bg-purple-50 p-1 rounded transition-colors"><Download size={14} /></button>
+                <button
+                  type="button"
+                  onClick={() => handleDownloadChartCSV('visits_by_program.csv', ['Program', 'Visits'], (data.visitsByProgram || []).map(v => [v.name, v.value]))}
+                  className="text-primary-700 dark:text-purple-400 hover:bg-slate-100 dark:hover:bg-dark-hover p-1.5 rounded-md transition-colors cursor-pointer"
+                  title="Download Program Visits CSV"
+                >
+                  <Download size={14} />
+                </button>
               </div>
             </div>
             <div className="flex-1 w-full min-h-[220px]">
@@ -1703,19 +1742,18 @@ export default function Reports() {
 
         {/* Administrative Tracking Section */}
         <>
-        <div className="flex items-center gap-4 mt-2 mb-4">
-          <div className="w-1 h-8 rounded-full bg-orange-500"></div>
-          <div className="w-10 h-10 rounded-xl bg-orange-50 text-orange-500 flex items-center justify-center">
+        <div className="flex items-center gap-3 mt-2">
+          <div className="p-2 rounded-lg border border-slate-200 dark:border-dark-border bg-white/90 dark:bg-dark-card text-rose-600 dark:text-rose-400">
             <AlertCircle size={18} />
           </div>
           <div className="flex flex-col">
-            <h2 className="text-sm font-bold text-gray-900 dark:text-slate-200">Administrative Tracking</h2>
-            <span className="text-[10px] text-gray-500 dark:text-slate-400">Penalties, unreturned books, and compliance</span>
+            <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">Administrative Tracking</h2>
+            <span className="text-xs text-slate-500 dark:text-slate-400">Penalties, unreturned books, and compliance</span>
           </div>
         </div>
 
         {/* Current Penalty Summary Cards */}
-        <div className="grid grid-cols-4 gap-4 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-2">
           <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-100 dark:border-dark-border p-4 flex flex-col">
             <span className="text-[10px] uppercase font-bold text-gray-400 dark:text-slate-500 tracking-wider mb-1">Total Penalties</span>
             <span className="text-xl font-extrabold text-gray-900 dark:text-slate-200">₱{(data.penaltySummary?.totalAmount || 0).toFixed(2)}</span>
@@ -1738,7 +1776,7 @@ export default function Reports() {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-6 mb-2">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-2">
           {/* Students with Penalties */}
           <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-100 dark:border-dark-border p-6 flex flex-col">
             <div className="flex items-start gap-2 mb-4">
@@ -1845,7 +1883,14 @@ export default function Reports() {
                     </button>
                   ))}
                 </div>
-                <button className="text-purple-600 hover:bg-purple-50 p-1 rounded transition-colors"><Download size={14} /></button>
+                <button
+                  type="button"
+                  onClick={() => handleDownloadChartCSV('financial_summary.csv', ['Status', 'Amount (PHP)'], [['Paid', data.financials?.totalPaid || 0], ['Unpaid', data.financials?.totalUnpaid || 0]])}
+                  className="text-primary-700 dark:text-purple-400 hover:bg-slate-100 dark:hover:bg-dark-hover p-1.5 rounded-md transition-colors cursor-pointer"
+                  title="Download Financial Summary CSV"
+                >
+                  <Download size={14} />
+                </button>
               </div>
             </div>
             {data.financials.totalPaid > 0 || data.financials.totalUnpaid > 0 ? (
@@ -1938,7 +1983,14 @@ export default function Reports() {
                 <div className="flex border border-gray-200 dark:border-dark-border rounded-full overflow-hidden p-0.5 bg-gray-50">
                   <button className="px-2 py-0.5 text-[9px] font-bold rounded-full transition-colors bg-purple-700 text-white shadow-sm">Bar</button>
                 </div>
-                <button className="text-purple-600 hover:bg-purple-50 p-1 rounded transition-colors"><Download size={14} /></button>
+                <button
+                  type="button"
+                  onClick={() => handleDownloadChartCSV('target_programs_visits.csv', ['Program', 'Visits'], (data.visitsByProgram || []).map(v => [v.name, v.value]))}
+                  className="text-primary-700 dark:text-purple-400 hover:bg-slate-100 dark:hover:bg-dark-hover p-1.5 rounded-md transition-colors cursor-pointer"
+                  title="Download Target Programs Visits CSV"
+                >
+                  <Download size={14} />
+                </button>
               </div>
             </div>
             <div className="flex-1 w-full min-h-[150px]">
@@ -1964,7 +2016,14 @@ export default function Reports() {
                 <div className="flex border border-gray-200 dark:border-dark-border rounded-full overflow-hidden p-0.5 bg-gray-50">
                   <button className="px-2 py-0.5 text-[9px] font-bold rounded-full transition-colors bg-purple-700 text-white shadow-sm">Bar</button>
                 </div>
-                <button className="text-purple-600 hover:bg-purple-50 p-1 rounded transition-colors"><Download size={14} /></button>
+                <button
+                  type="button"
+                  onClick={() => handleDownloadChartCSV('penalty_summary.csv', ['Status', 'Amount (PHP)'], [['Paid', data.financials?.totalPaid || 0], ['Unpaid', data.financials?.totalUnpaid || 0]])}
+                  className="text-primary-700 dark:text-purple-400 hover:bg-slate-100 dark:hover:bg-dark-hover p-1.5 rounded-md transition-colors cursor-pointer"
+                  title="Download Penalty Summary CSV"
+                >
+                  <Download size={14} />
+                </button>
               </div>
             </div>
             {data.financials.totalPaid > 0 || data.financials.totalUnpaid > 0 ? (

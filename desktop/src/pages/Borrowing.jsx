@@ -1,7 +1,7 @@
-import { useState, useEffect, useContext, useMemo, Fragment } from 'react';
+import { useState, useEffect, useContext, useMemo, useRef, Fragment } from 'react';
 import { 
   ArrowRightLeft, Search, Sun, Moon, Bell, Printer, Maximize, Camera, BookUp, CheckCircle, AlertCircle,
-  ChevronDown, ChevronUp, Mail, FileText
+  ChevronDown, ChevronUp, Mail, FileText, Loader2
 } from 'lucide-react';
 import ScannerSim from '../components/ScannerSim';
 import NotificationDropdown from '../components/NotificationDropdown';
@@ -38,9 +38,13 @@ export default function Borrowing() {
     scanFeedback
   } = useContext(BorrowingContext);
   
-  // Penalties State
+  // Penalties & Records Loading / Cache State
   const [penalties, setPenalties] = useState([]);
   const [penaltiesSubTab, setPenaltiesSubTab] = useState('UNPAID');
+  const [isLoadingPenalties, setIsLoadingPenalties] = useState(false);
+  const [isLoadingRecords, setIsLoadingRecords] = useState(false);
+  const penaltiesCacheRef = useRef({ UNPAID: null, PAID: null });
+  const latestPenaltyStatusRef = useRef('UNPAID');
   const [activeReceiptModal, setActiveReceiptModal] = useState(null);
   const [resendingReceiptId, setResendingReceiptId] = useState(null);
   const [expandedUserIds, setExpandedUserIds] = useState(new Set());
@@ -109,26 +113,24 @@ export default function Borrowing() {
   const [penaltyCondition, setPenaltyCondition] = useState('RETURNED');
   const [penaltyError, setPenaltyError] = useState(null);
   const [isPayingPenalty, setIsPayingPenalty] = useState(false);
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [isProcessingReturn, setIsProcessingReturn] = useState(false);
   
   // Borrow Option State
   const [borrowType, setBorrowType] = useState('TAKE_OUT');
 
   useEffect(() => {
-    if (scannedBook?.library_use_only || scannedBook?.is_special) {
+    if (scannedBook?.library_use_only || scannedBook?.is_special || scannedUser?.role === 'VISITOR') {
       setBorrowType('READ_IN_LIBRARY');
     } else if (scannedBook) {
       setBorrowType('TAKE_OUT');
     }
-  }, [scannedBook]);
+  }, [scannedBook, scannedUser]);
 
   const { fetchWithOfflineSupport } = useOfflineApi();
 
   useEffect(() => {
     fetchStats();
-    if (activeTab === 'Penalties') {
-      setPenaltiesPage(1);
-      fetchPenalties(penaltiesSubTab);
-    }
     if (activeTab === 'Records') {
       setRecordsPage(1);
       fetchRecords();
@@ -140,14 +142,17 @@ export default function Borrowing() {
       setPenaltiesPage(1);
       fetchPenalties(penaltiesSubTab);
     }
-  }, [penaltiesSubTab]);
+  }, [activeTab, penaltiesSubTab]);
 
   const fetchRecords = async () => {
+    setIsLoadingRecords(true);
     try {
       const res = await fetchWithOfflineSupport(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/borrowing/records`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }, 'borrowing_records');
       if (res.ok) setRecords(await res.json());
     } catch (e) {
       console.error('Failed to fetch records');
+    } finally {
+      setIsLoadingRecords(false);
     }
   };
 
@@ -161,7 +166,9 @@ export default function Borrowing() {
   };
 
   const handleCheckout = async () => {
+    if (isCheckingOut) return;
     setError(null);
+    setIsCheckingOut(true);
     try {
       const res = await fetchWithOfflineSupport(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/borrowing/checkout`, { method: 'POST', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}`,  'Content-Type': 'application/json'  },
         body: JSON.stringify({ bookId: scannedBook.id, userId: scannedUser.id, borrowType })
@@ -190,11 +197,15 @@ export default function Borrowing() {
       }
     } catch (e) {
       setError('Server error during checkout');
+    } finally {
+      setIsCheckingOut(false);
     }
   };
 
   const handleConfirmReturn = async () => {
+    if (isProcessingReturn) return;
     setError(null);
+    setIsProcessingReturn(true);
     try {
       const res = await fetchWithOfflineSupport(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/borrowing/return`, { method: 'POST', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}`,  'Content-Type': 'application/json'  },
         body: JSON.stringify({ borrowId: returnRecord.id })
@@ -223,16 +234,36 @@ export default function Borrowing() {
       }
     } catch (e) {
       setError('Server error during return');
+    } finally {
+      setIsProcessingReturn(false);
     }
   };
 
   const fetchPenalties = async (statusOverride) => {
     const status = statusOverride || penaltiesSubTab;
+    latestPenaltyStatusRef.current = status;
+    const cached = penaltiesCacheRef.current[status];
+    if (cached) {
+      setPenalties(cached);
+    } else {
+      setPenalties([]);
+    }
+    setIsLoadingPenalties(true);
     try {
       const res = await fetchWithOfflineSupport(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/borrowing/penalties?status=${status}`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }, `borrowing_penalties_${status}`);
-      if (res.ok) setPenalties(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        penaltiesCacheRef.current[status] = data;
+        if (latestPenaltyStatusRef.current === status) {
+          setPenalties(data);
+        }
+      }
     } catch (e) {
       console.error('Failed to fetch penalties');
+    } finally {
+      if (latestPenaltyStatusRef.current === status) {
+        setIsLoadingPenalties(false);
+      }
     }
   };
 
@@ -628,20 +659,39 @@ export default function Borrowing() {
                       <span className={`text-sm font-bold whitespace-nowrap ${borrowType === 'READ_IN_LIBRARY' ? 'text-primary-800 dark:text-primary-400' : 'text-gray-600 dark:text-slate-400'}`}>Read in Library</span>
                       <span className="text-[10px] text-gray-500 mt-1 text-center">Due today before closing</span>
                     </label>
-                    <label className={`flex-1 flex flex-col items-center p-3 rounded-lg border-2 transition-colors ${(scannedBook.library_use_only || scannedBook.is_special) ? 'opacity-50 cursor-not-allowed border-gray-200 dark:border-dark-border bg-gray-100 dark:bg-dark-card' : borrowType === 'TAKE_OUT' ? 'cursor-pointer border-primary-600 bg-primary-50 dark:bg-primary-900/20' : 'cursor-pointer border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card hover:border-primary-300'}`}>
-                      <input type="radio" name="borrowType" value="TAKE_OUT" disabled={Boolean(scannedBook.library_use_only || scannedBook.is_special)} checked={borrowType === 'TAKE_OUT'} onChange={() => { if (!scannedBook.library_use_only && !scannedBook.is_special) setBorrowType('TAKE_OUT'); }} className="sr-only" />
+                    <label className={`flex-1 flex flex-col items-center p-3 rounded-lg border-2 transition-colors ${(scannedBook.library_use_only || scannedBook.is_special || scannedUser.role === 'VISITOR') ? 'opacity-50 cursor-not-allowed border-gray-200 dark:border-dark-border bg-gray-100 dark:bg-dark-card' : borrowType === 'TAKE_OUT' ? 'cursor-pointer border-primary-600 bg-primary-50 dark:bg-primary-900/20' : 'cursor-pointer border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card hover:border-primary-300'}`}>
+                      <input type="radio" name="borrowType" value="TAKE_OUT" disabled={Boolean(scannedBook.library_use_only || scannedBook.is_special || scannedUser.role === 'VISITOR')} checked={borrowType === 'TAKE_OUT'} onChange={() => { if (!scannedBook.library_use_only && !scannedBook.is_special && scannedUser.role !== 'VISITOR') setBorrowType('TAKE_OUT'); }} className="sr-only" />
                       <ArrowRightLeft size={24} className={`mb-2 ${borrowType === 'TAKE_OUT' ? 'text-primary-600' : 'text-gray-400'}`} />
                       <span className={`text-sm font-bold whitespace-nowrap ${borrowType === 'TAKE_OUT' ? 'text-primary-800 dark:text-primary-400' : 'text-gray-600 dark:text-slate-400'}`}>Borrow</span>
-                      <span className={`text-[10px] mt-1 text-center ${(scannedBook.library_use_only || scannedBook.is_special) ? 'text-amber-700 dark:text-amber-400 font-semibold' : 'text-gray-500'}`}>
-                        {(scannedBook.library_use_only || scannedBook.is_special) ? 'Not allowed: Library Use Only' : 'Standard due date applies'}
+                      <span className={`text-[10px] mt-1 text-center ${(scannedBook.library_use_only || scannedBook.is_special || scannedUser.role === 'VISITOR') ? 'text-amber-700 dark:text-amber-400 font-semibold' : 'text-gray-500'}`}>
+                        {scannedUser.role === 'VISITOR'
+                          ? 'Not allowed: Visitor (Library Use Only)'
+                          : (scannedBook.library_use_only || scannedBook.is_special)
+                            ? 'Not allowed: Library Use Only'
+                            : 'Standard due date applies'}
                       </span>
                     </label>
                   </div>
                 </div>
 
-                <div className="flex justify-end gap-3 mt-2">
-                  <button onClick={() => setStep(1)} className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 dark:hover:bg-dark-hover">Cancel</button>
-                  <button onClick={handleCheckout} className="px-6 py-2 bg-primary-800 text-white rounded-lg font-bold shadow-sm hover:bg-primary-900">Confirm Checkout</button>
+                <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-dark-border">
+                  <button
+                    type="button"
+                    disabled={isCheckingOut}
+                    onClick={() => setStep(1)}
+                    className="h-9 px-4 inline-flex items-center justify-center rounded-lg border border-slate-200 dark:border-dark-border bg-white dark:bg-dark-card text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-dark-hover transition-colors disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isCheckingOut}
+                    onClick={handleCheckout}
+                    className="h-9 px-4 inline-flex items-center justify-center gap-2 rounded-lg bg-primary-800 hover:bg-primary-900 text-white text-sm font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    {isCheckingOut && <Loader2 size={15} className="animate-spin" />}
+                    <span>{isCheckingOut ? 'Checking out...' : 'Confirm Checkout'}</span>
+                  </button>
                 </div>
               </div>
             )}
@@ -722,9 +772,24 @@ export default function Borrowing() {
                   </div>
                 </div>
 
-                <div className="flex justify-end gap-3 mt-4">
-                  <button onClick={() => { setReturnStep(1); setReturnRecord(null); setReturnBookIdentifier(null); setReturnScannedUser(null); }} className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 dark:hover:bg-dark-hover">Cancel</button>
-                  <button onClick={handleConfirmReturn} className="px-6 py-2 bg-primary-800 text-white rounded-lg font-bold shadow-sm hover:bg-primary-900">Process Return</button>
+                <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-dark-border">
+                  <button
+                    type="button"
+                    disabled={isProcessingReturn}
+                    onClick={() => { setReturnStep(1); setReturnRecord(null); setReturnBookIdentifier(null); setReturnScannedUser(null); }}
+                    className="h-9 px-4 inline-flex items-center justify-center rounded-lg border border-slate-200 dark:border-dark-border bg-white dark:bg-dark-card text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-dark-hover transition-colors disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isProcessingReturn}
+                    onClick={handleConfirmReturn}
+                    className="h-9 px-4 inline-flex items-center justify-center gap-2 rounded-lg bg-primary-800 hover:bg-primary-900 text-white text-sm font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    {isProcessingReturn && <Loader2 size={15} className="animate-spin" />}
+                    <span>{isProcessingReturn ? 'Processing...' : 'Process Return'}</span>
+                  </button>
                 </div>
               </div>
             )}
@@ -761,31 +826,39 @@ export default function Borrowing() {
                 </button>
               </div>
 
-              {penaltiesSubTab === 'UNPAID' ? (
-                groupedPenalties.length > 0 && (
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-gray-500 dark:text-slate-400">
-                      <strong>{groupedPenalties.length}</strong> Students ({penalties.length} Total Penalties)
-                    </span>
-                    <button
-                      onClick={() => {
-                        if (expandedUserIds.size === groupedPenalties.length) {
-                          setExpandedUserIds(new Set());
-                        } else {
-                          setExpandedUserIds(new Set(groupedPenalties.map(g => g.user.id)));
-                        }
-                      }}
-                      className="text-xs font-semibold px-2.5 py-1 bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-lg text-gray-600 dark:text-slate-300 hover:bg-gray-100 transition-colors"
-                    >
-                      {expandedUserIds.size === groupedPenalties.length ? 'Collapse All' : 'Expand All'}
-                    </button>
+              <div className="flex items-center gap-3">
+                {isLoadingPenalties && penalties.length > 0 && (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-400 dark:text-slate-500">
+                    <Loader2 size={13} className="animate-spin text-primary-600" />
+                    Refreshing...
+                  </span>
+                )}
+                {penaltiesSubTab === 'UNPAID' ? (
+                  groupedPenalties.length > 0 && (
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-gray-500 dark:text-slate-400">
+                        <strong>{groupedPenalties.length}</strong> Students ({penalties.length} Total Penalties)
+                      </span>
+                      <button
+                        onClick={() => {
+                          if (expandedUserIds.size === groupedPenalties.length) {
+                            setExpandedUserIds(new Set());
+                          } else {
+                            setExpandedUserIds(new Set(groupedPenalties.map(g => g.user.id)));
+                          }
+                        }}
+                        className="text-xs font-semibold px-2.5 py-1 bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-lg text-gray-600 dark:text-slate-300 hover:bg-gray-100 transition-colors"
+                      >
+                        {expandedUserIds.size === groupedPenalties.length ? 'Collapse All' : 'Expand All'}
+                      </button>
+                    </div>
+                  )
+                ) : (
+                  <div className="text-xs text-gray-500 dark:text-slate-400">
+                    <strong>{penalties.length}</strong> Settled Official Receipts
                   </div>
-                )
-              ) : (
-                <div className="text-xs text-gray-500 dark:text-slate-400">
-                  <strong>{penalties.length}</strong> Settled Official Receipts
-                </div>
-              )}
+                )}
+              </div>
             </div>
 
             {emailToast && (
@@ -827,7 +900,18 @@ export default function Borrowing() {
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-dark-border">
                     {groupedPenalties.length === 0 ? (
-                      <tr><td colSpan="5" className="p-8 text-center text-gray-400 dark:text-slate-500 font-medium">No unpaid penalties</td></tr>
+                      <tr>
+                        <td colSpan="5" className="p-8 text-center text-gray-400 dark:text-slate-500 font-medium">
+                          {isLoadingPenalties ? (
+                            <span className="inline-flex items-center justify-center gap-2">
+                              <Loader2 size={18} className="animate-spin text-primary-600" />
+                              Loading unpaid penalties...
+                            </span>
+                          ) : (
+                            'No unpaid penalties'
+                          )}
+                        </td>
+                      </tr>
                     ) : (
                       groupedPenalties.slice((penaltiesPage - 1) * 10, penaltiesPage * 10).map((group) => {
                         const isExpanded = expandedUserIds.has(group.user.id);
@@ -1031,7 +1115,18 @@ export default function Borrowing() {
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-dark-border">
                     {penalties.length === 0 ? (
-                      <tr><td colSpan="7" className="p-8 text-center text-gray-400 dark:text-slate-500 font-medium">No paid receipts found</td></tr>
+                      <tr>
+                        <td colSpan="7" className="p-8 text-center text-gray-400 dark:text-slate-500 font-medium">
+                          {isLoadingPenalties ? (
+                            <span className="inline-flex items-center justify-center gap-2">
+                              <Loader2 size={18} className="animate-spin text-primary-600" />
+                              Loading paid receipts...
+                            </span>
+                          ) : (
+                            'No paid receipts found'
+                          )}
+                        </td>
+                      </tr>
                     ) : (
                       penalties.slice((penaltiesPage - 1) * 10, penaltiesPage * 10).map((p) => (
                         <tr key={p.id} className="hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors">
@@ -1193,7 +1288,18 @@ export default function Borrowing() {
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-dark-border">
                   {filteredRecords.length === 0 ? (
-                    <tr><td colSpan="6" className="p-8 text-center text-gray-400 dark:text-slate-500 font-medium">No matching records found</td></tr>
+                    <tr>
+                      <td colSpan="6" className="p-8 text-center text-gray-400 dark:text-slate-500 font-medium">
+                        {isLoadingRecords ? (
+                          <span className="inline-flex items-center justify-center gap-2">
+                            <Loader2 size={18} className="animate-spin text-primary-600" />
+                            Loading records...
+                          </span>
+                        ) : (
+                          'No matching records found'
+                        )}
+                      </td>
+                    </tr>
                   ) : (
                     filteredRecords.slice((recordsPage - 1) * 10, recordsPage * 10).map((record) => (
                       <tr key={record.id} className="hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors">

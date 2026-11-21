@@ -216,6 +216,11 @@ export default function ScanScreen() {
               <Text fontSize={15} color="#6b7280" fontWeight="500">
                 {user?.first_name} {user?.last_name}
               </Text>
+              {user?.role === 'VISITOR' && (
+                <Text fontSize={11} color={theme.primary} fontWeight="600" marginTop="$1">
+                  Visitor Pass • Read in Library Only
+                </Text>
+              )}
             </YStack>
           </YStack>
 

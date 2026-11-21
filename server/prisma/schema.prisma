@@ -105,6 +105,7 @@ model LibrarySettings {
   suspension_threshold     Decimal  @default(100.00) @db.Decimal(10, 2)
   damage_fee               Decimal  @default(5.00) @db.Decimal(6, 2)
   lost_book_fee            Decimal  @default(5.00) @db.Decimal(6, 2)
+  circulation_penalty_fee  Decimal  @default(20.00) @db.Decimal(6, 2)
   library_open_time        DateTime @default(dbgenerated("'07:00'::time")) @db.Time
   library_close_time       DateTime @default(dbgenerated("'21:00'::time")) @db.Time
   semester_end_date        DateTime? @db.Date
@@ -209,6 +210,7 @@ enum UserRole {
   STUDENT
   FACULTY
   ADMIN
+  VISITOR
   @@map("user_role")
 }
 

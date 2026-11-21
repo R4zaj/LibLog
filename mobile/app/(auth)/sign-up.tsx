@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert, Image } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert, Image, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Check, UserCircle2, GraduationCap, Eye, EyeOff } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
@@ -142,10 +142,12 @@ export default function SignUp() {
   };
 
   const renderProgressBar = () => {
+    const segments = role === 'VISITOR' ? [1, 2, 3, 4] : [1, 2, 3, 4, 5];
+    const displayStep = role === 'VISITOR' && step >= 4 ? step - 1 : step;
     return (
       <View style={styles.progressContainer}>
-        {[1, 2, 3, 4, 5].map((s) => (
-          <View key={s} style={[styles.progressSegment, step >= s ? styles.progressActive : styles.progressInactive]} />
+        {segments.map((s) => (
+          <View key={s} style={[styles.progressSegment, displayStep >= s ? styles.progressActive : styles.progressInactive]} />
         ))}
       </View>
     );
@@ -200,7 +202,7 @@ export default function SignUp() {
                   </View>
                   <View style={styles.roleTextContainer}>
                     <Text style={styles.roleTitle}>Student</Text>
-                    <Text style={styles.roleDesc}>Currently enrolled</Text>
+                    <Text style={styles.roleDesc}>Enrolled student • Borrow &amp; attendance</Text>
                   </View>
                   {role === 'STUDENT' && <Check size={24} color="#6C48C5" />}
                 </View>
@@ -216,7 +218,7 @@ export default function SignUp() {
                   </View>
                   <View style={styles.roleTextContainer}>
                     <Text style={styles.roleTitle}>Visitor</Text>
-                    <Text style={styles.roleDesc}>Guest access</Text>
+                    <Text style={styles.roleDesc}>Guest pass • Read in library &amp; attendance</Text>
                   </View>
                   {role === 'VISITOR' && <Check size={24} color="#6C48C5" />}
                 </View>
@@ -398,15 +400,23 @@ export default function SignUp() {
         <View style={styles.footer}>
           {step < 5 ? (
             <TouchableOpacity style={[styles.button, isLoading && styles.buttonDisabled]} onPress={handleNext} disabled={isLoading}>
-              <Text style={styles.buttonText}>{isLoading ? 'Loading...' : 'Continue →'}</Text>
+              {isLoading ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+              ) : (
+                <Text style={styles.buttonText}>Continue →</Text>
+              )}
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
-              style={[styles.button, isLoading && styles.buttonDisabled]}
+              style={[styles.button, (isLoading || otp.length !== 6) && styles.buttonDisabled]}
               onPress={handleRegister}
               disabled={isLoading || otp.length !== 6}
             >
-              <Text style={styles.buttonText}>{isLoading ? 'Verifying...' : 'Verify & Create Account'}</Text>
+              {isLoading ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+              ) : (
+                <Text style={styles.buttonText}>Verify &amp; Create Account</Text>
+              )}
             </TouchableOpacity>
           )}
         </View>

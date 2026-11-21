@@ -15,11 +15,16 @@
 
 function resolveDailyRate(borrow, settings) {
   const book = borrow?.book;
-  if (book?.is_special && book?.custom_penalty_fee != null) {
-    const customRate = parseFloat(book.custom_penalty_fee);
-    if (!Number.isNaN(customRate) && customRate > 0) {
-      return customRate;
+  if (book?.is_special) {
+    if (book?.custom_penalty_fee != null) {
+      const customRate = parseFloat(book.custom_penalty_fee);
+      if (!Number.isNaN(customRate) && customRate > 0) {
+        return customRate;
+      }
     }
+    return settings && settings.circulation_penalty_fee != null
+      ? parseFloat(settings.circulation_penalty_fee)
+      : 20.0;
   }
   return settings && settings.penalty_fee_per_day
     ? parseFloat(settings.penalty_fee_per_day)

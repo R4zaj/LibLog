@@ -126,15 +126,21 @@ export default function Profile() {
         <XStack alignItems="center" marginBottom="$2" gap="$2">
           <YStack backgroundColor={theme.border} paddingHorizontal="$3" paddingVertical="$1" borderRadius={12}>
             <Text color={theme.primary} fontSize={11} fontWeight="700">
-              {user?.role || 'Student'}
+              {user?.role === 'VISITOR' ? 'Visitor' : (user?.role || 'Student')}
             </Text>
           </YStack>
-          <XStack alignItems="center" gap="$1">
-            <GraduationCap color={theme.textSecondary} size={13} />
+          {user?.role === 'VISITOR' ? (
             <Text color={theme.textSecondary} fontSize={12}>
-              {user?.program?.name || 'Computer Science'}
+              Guest Pass • Library Use Only
             </Text>
-          </XStack>
+          ) : (
+            <XStack alignItems="center" gap="$1">
+              <GraduationCap color={theme.textSecondary} size={13} />
+              <Text color={theme.textSecondary} fontSize={12}>
+                {user?.program?.name || 'General'}
+              </Text>
+            </XStack>
+          )}
         </XStack>
 
         <Text color={theme.textSecondary} fontSize={12} marginBottom="$3">

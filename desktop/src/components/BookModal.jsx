@@ -66,11 +66,11 @@ export default function BookModal({ isOpen, onClose, book }) {
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
-          <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+        <div className="px-6 py-4 border-t border-slate-100 dark:border-dark-border bg-slate-50 dark:bg-dark-bg flex items-center justify-end gap-3">
+          <button onClick={onClose} className="h-9 px-4 inline-flex items-center justify-center text-sm font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-dark-card border border-slate-200 dark:border-dark-border rounded-lg hover:bg-slate-50 dark:hover:bg-dark-hover transition-colors">
             Cancel
           </button>
-          <button className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors shadow-sm">
+          <button className="h-9 px-4 inline-flex items-center justify-center text-sm font-semibold text-white bg-primary-800 rounded-lg hover:bg-primary-900 transition-colors">
             {book ? 'Save Changes' : 'Create Book'}
           </button>
         </div>

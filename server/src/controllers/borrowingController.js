@@ -172,6 +172,10 @@ const checkout = async (req, res) => {
       return res.status(400).json({ error: 'This book is restricted to Read in Library only.' });
     }
 
+    if (user.role === 'VISITOR' && borrowType === 'TAKE_OUT') {
+      return res.status(400).json({ error: 'Visitor accounts are restricted to Read in Library only.' });
+    }
+
     if (book.available_copies <= 2 && borrowType === 'TAKE_OUT') {
       return res.status(400).json({ error: 'This book has 2 or fewer copies available and can only be read inside the library.' });
     }
