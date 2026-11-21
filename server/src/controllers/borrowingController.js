@@ -283,7 +283,8 @@ const getUserActiveBorrow = async (req, res) => {
         user: {
           OR: [
             { student_id: studentId },
-            { card_no: studentId }
+            { card_no: studentId },
+            { qr_code: studentId }
           ]
         },
         status: {
