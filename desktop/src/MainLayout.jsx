@@ -14,7 +14,8 @@ import {
   Wifi,
   WifiOff,
   RefreshCw,
-  GraduationCap
+  GraduationCap,
+  Star
 } from 'lucide-react';
 import { AttendanceScannerProvider } from './context/AttendanceScannerContext';
 import { BorrowingProvider } from './context/BorrowingContext';
@@ -182,6 +183,7 @@ export default function MainLayout() {
 
   const literaturesSubItems = [
     { to: '/literatures?tab=catalog', icon: BookCopy, label: 'Literature Catalog' },
+    { to: '/literatures?tab=special', icon: Star, label: 'Circulation Books' },
     { to: '/literatures?tab=author', icon: BookA, label: 'Author Catalog' },
     { to: '/literatures?tab=genre', icon: BookKey, label: 'Genre Catalog' },
     { to: '/literatures?tab=qr', icon: QrCode, label: 'QR of Literatures' },
