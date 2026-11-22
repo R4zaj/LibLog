@@ -6,7 +6,7 @@ import { useAppTheme } from '../../context/ThemeContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 import {
-  AlertCircle, BookOpen, MapPin, Flame, Edit, GraduationCap, Heart, Bell, Mail, Shield, HelpCircle, Info, LogOut, ChevronRight, Clock, QrCode, X, Megaphone, ArrowLeft
+  AlertCircle, BookOpen, MapPin, Flame, Edit, Lock, GraduationCap, Heart, Bell, Mail, Shield, HelpCircle, Info, LogOut, ChevronRight, Clock, QrCode, X, Megaphone, ArrowLeft
 } from 'lucide-react-native';
 import { YStack, XStack, Text, ScrollView, View, Separator } from 'tamagui';
 import api from '../../api';
@@ -71,12 +71,24 @@ export default function Profile() {
 
   const [editProfileVisible, setEditProfileVisible] = React.useState(false);
   const [infoModal, setInfoModal] = React.useState({ visible: false, title: '', content: '' });
+  const isVisitor = user?.role === 'VISITOR';
 
   const menuItems = [
-    { id: 1, title: 'Edit Profile', sub: 'Update your information', icon: Edit, color: theme.primary, bg: theme.pillContainer, action: () => setEditProfileVisible(true) },
-    { id: 2, title: 'My Favorites', sub: `${favorites.length} Favorite Book${favorites.length === 1 ? '' : 's'}`, icon: Heart, color: '#ef4444', bg: isDarkMode ? "#451a1a" : "#fef3f2", action: () => setFavoritesModalVisible(true) },
+    {
+      id: 1,
+      title: 'Edit Profile',
+      sub: isVisitor ? 'Disabled for Visitor accounts' : 'Update your information',
+      icon: isVisitor ? Lock : Edit,
+      color: isVisitor ? theme.textSecondary : theme.primary,
+      bg: isVisitor ? theme.border : theme.pillContainer,
+      disabled: isVisitor,
+      action: () => {
+        if (!isVisitor) setEditProfileVisible(true);
+      },
+    },
+    { id: 2, title: 'My Favorites', sub: `${favorites.length} Favorite Book${favorites.length === 1 ? '' : 's'}`, icon: Heart, color: '#ef4444', bg: isDarkMode ? "#451a1a" : "#fef3f2", disabled: false, action: () => setFavoritesModalVisible(true) },
     ...(user?.role === 'ADMIN'
-      ? [{ id: 8, title: 'Create Announcement', sub: 'Broadcast to all users', icon: Megaphone, color: theme.pillTextActive, bg: '#6C48C5', action: () => setCreateAnnouncementVisible(true) }]
+      ? [{ id: 8, title: 'Create Announcement', sub: 'Broadcast to all users', icon: Megaphone, color: theme.pillTextActive, bg: '#6C48C5', disabled: false, action: () => setCreateAnnouncementVisible(true) }]
       : []),
   ];
 
@@ -179,7 +191,7 @@ export default function Profile() {
               Your Library ID
             </Text>
             <Text fontSize={13} color={theme.textSecondary} marginBottom="$5" textAlign="center">
-              Scan at the entrance or front desk
+              {isVisitor ? 'Visitor Pass • Entrance & Read in Library only' : 'Scan at the entrance or front desk'}
             </Text>
             <YStack
               padding="$4"
@@ -254,7 +266,11 @@ export default function Profile() {
         <YStack backgroundColor={theme.card} borderRadius={16} padding={12} marginBottom="$5" borderWidth={1} borderColor={theme.border} style={{ boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.05)' }} elevation={2}>
           {menuItems.map((item, idx) => (
             <React.Fragment key={item.id}>
-              <TouchableOpacity onPress={item.action} style={{ minHeight: 48, justifyContent: 'center' }}>
+              <TouchableOpacity
+                onPress={item.action}
+                disabled={item.disabled}
+                style={{ minHeight: 48, justifyContent: 'center', opacity: item.disabled ? 0.5 : 1 }}
+              >
                 <XStack alignItems="center" padding="$2">
                   <YStack width={40} height={40} borderRadius={14} backgroundColor={item.bg as any} justifyContent="center" alignItems="center" marginRight="$3">
                     <item.icon color={item.color} size={20} />
@@ -267,7 +283,11 @@ export default function Profile() {
                       {item.sub}
                     </Text>
                   </YStack>
-                  <ChevronRight color={theme.textSecondary} size={18} />
+                  {item.disabled ? (
+                    <Lock color={theme.textSecondary} size={16} />
+                  ) : (
+                    <ChevronRight color={theme.textSecondary} size={18} />
+                  )}
                 </XStack>
               </TouchableOpacity>
               {idx < menuItems.length - 1 && (
@@ -412,11 +432,13 @@ export default function Profile() {
         </YStack>
       </Modal>
 
-      {/* ── Edit Profile Pop-Up Modal ── */}
-      <EditProfileModal
-        visible={editProfileVisible}
-        onClose={() => setEditProfileVisible(false)}
-      />
+      {/* ── Edit Profile Pop-Up Modal (Disabled for Visitors) ── */}
+      {!isVisitor && (
+        <EditProfileModal
+          visible={editProfileVisible}
+          onClose={() => setEditProfileVisible(false)}
+        />
+      )}
 
       {/* ── Info Modal ── */}
       <Modal animationType="fade" transparent visible={infoModal.visible} onRequestClose={() => setInfoModal({ ...infoModal, visible: false })}>

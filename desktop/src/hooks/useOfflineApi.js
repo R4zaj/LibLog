@@ -4,6 +4,17 @@ import { useNetwork } from '../contexts/NetworkContext';
 export const useOfflineApi = () => {
   const { isOnline, addToSyncQueue } = useNetwork();
 
+  const getCachedResponse = (cacheKey) => {
+    const cached = localStorage.getItem(`liblog_cache_${cacheKey}`);
+    if (cached) {
+      return new Response(cached, {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    throw new Error('Offline and data not in cache');
+  };
+
   const fetchWithOfflineSupport = useCallback(async (url, options = {}, cacheKey = null) => {
     const isGet = !options.method || options.method === 'GET';
 
@@ -43,17 +54,6 @@ export const useOfflineApi = () => {
       }
     }
   }, [isOnline, addToSyncQueue]);
-
-  const getCachedResponse = (cacheKey) => {
-    const cached = localStorage.getItem(`liblog_cache_${cacheKey}`);
-    if (cached) {
-      return new Response(cached, {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
-    throw new Error('Offline and data not in cache');
-  };
 
   return { fetchWithOfflineSupport };
 };

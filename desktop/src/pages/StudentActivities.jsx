@@ -17,18 +17,6 @@ export default function StudentActivities() {
   const [dossierLoading, setDossierLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('Analytics');
 
-  useEffect(() => {
-    fetchStudents();
-  }, [searchQuery, selectedProgram, selectedStatus]);
-
-  useEffect(() => {
-    if (selectedStudentId) {
-      fetchDossier(selectedStudentId);
-    } else {
-      setDossier(null);
-    }
-  }, [selectedStudentId]);
-
   const fetchStudents = async () => {
     setLoading(true);
     try {
@@ -65,6 +53,18 @@ export default function StudentActivities() {
       setDossierLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchStudents();
+  }, [searchQuery, selectedProgram, selectedStatus]);
+
+  useEffect(() => {
+    if (selectedStudentId) {
+      fetchDossier(selectedStudentId);
+    } else {
+      setDossier(null);
+    }
+  }, [selectedStudentId]);
 
   const getInitials = (name) => {
     if (!name) return 'S';

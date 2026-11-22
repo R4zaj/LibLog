@@ -29,23 +29,6 @@ export const NetworkProvider = ({ children }) => {
     localStorage.setItem('liblog_sync_queue', JSON.stringify(syncQueue));
   }, [syncQueue]);
 
-  // Network event listeners
-  useEffect(() => {
-    const handleOnline = () => {
-      setIsOnline(true);
-      processSyncQueue();
-    };
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, [syncQueue]); // Dependency needed to process the latest queue when coming online
-
   const addToSyncQueue = (url, options, meta = {}) => {
     const job = {
       id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
@@ -100,6 +83,23 @@ export const NetworkProvider = ({ children }) => {
     
     setIsSyncing(false);
   };
+
+  // Network event listeners
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      processSyncQueue();
+    };
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [syncQueue]); // Dependency needed to process the latest queue when coming online
 
   return (
     <NetworkContext.Provider value={{ isOnline, syncQueue, addToSyncQueue, processSyncQueue, isSyncing, syncErrors, dismissSyncError }}>

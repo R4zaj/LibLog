@@ -111,9 +111,10 @@ const getStats = async (req, res) => {
 
 const scanQR = async (req, res) => {
   try {
-    const { identifier } = req.body;
-    
+    const { identifier, source } = req.body;
+    const isManual = source === 'manual';
     let searchId = identifier;
+    let verifiedToken = false;
 
     if (identifier.startsWith('OFFLINE:')) {
       const parts = identifier.split(':');
@@ -128,6 +129,7 @@ const scanQR = async (req, res) => {
         const expectedHmac = crypto.createHmac('sha256', offlineSecret).update(ts).digest('hex');
         if (hmac === expectedHmac) {
            searchId = stId;
+           verifiedToken = true;
         } else {
            return res.status(401).json({ error: 'Invalid offline QR signature' });
         }
@@ -139,28 +141,41 @@ const scanQR = async (req, res) => {
         const decoded = jwt.verify(identifier, process.env.JWT_SECRET);
         if (decoded && decoded.student_id) {
           searchId = decoded.student_id;
+          verifiedToken = true;
         }
       } catch (err) {
         return res.status(401).json({ error: 'Invalid or expired QR token' });
       }
     }
 
-    // First, try to match against the full exact identifier
+    // Camera QR scans must match the hashed qr_code (or verified token); plain student IDs are only allowed via manual entry.
     let user = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { student_id: searchId },
-          { qr_code: searchId }
-        ]
-      }
+      where: (verifiedToken || isManual)
+        ? { OR: [{ student_id: searchId }, { qr_code: searchId }] }
+        : { qr_code: searchId }
     });
 
-    // If not found and identifier starts with CCC-, try without prefix
-    if (!user && searchId.startsWith('CCC-')) {
+    // If manual or verified token and identifier starts with CCC-, try without prefix
+    if (!user && (verifiedToken || isManual) && searchId.startsWith('CCC-')) {
       const studentId = searchId.replace('CCC-', '');
       user = await prisma.user.findFirst({
         where: { student_id: studentId }
       });
+    }
+
+    if (!user && !verifiedToken && !isManual) {
+      const plainMatch = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { student_id: searchId },
+            ...(searchId.startsWith('CCC-') ? [{ student_id: searchId.replace('CCC-', '') }] : [])
+          ]
+        },
+        select: { id: true }
+      });
+      if (plainMatch) {
+        return res.status(401).json({ error: 'Invalid QR code. Plain student IDs cannot be scanned; please use your official app QR pass.' });
+      }
     }
 
     if (!user) {

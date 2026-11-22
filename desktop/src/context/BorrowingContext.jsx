@@ -77,7 +77,7 @@ export function BorrowingProvider({ children }) {
   }, []);
 
   // --- ACTIONS ---
-  const handleScan = useCallback(async (identifier) => {
+  const handleScan = useCallback(async (identifier, source = 'qr') => {
     if (processingRef.current) return;
     processingRef.current = true;
     try {
@@ -150,7 +150,7 @@ export function BorrowingProvider({ children }) {
             return;
           }
           try {
-            const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/borrowing/validate-user/${identifier}`);
+            const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/borrowing/validate-user/${encodeURIComponent(identifier)}?source=${encodeURIComponent(source)}`);
             const data = await res.json();
             if (res.ok) {
               setScannedUser(data);
@@ -238,7 +238,7 @@ export function BorrowingProvider({ children }) {
             return;
           }
           try {
-            const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/borrowing/user-active-borrow/${returnBookIdentifier}/${identifier}`);
+            const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/borrowing/user-active-borrow/${encodeURIComponent(returnBookIdentifier)}/${encodeURIComponent(identifier)}?source=${encodeURIComponent(source)}`);
             const data = await res.json();
             if (res.ok) {
               setReturnRecord(data);

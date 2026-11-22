@@ -1,21 +1,20 @@
+import { ActivityIndicator } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { Text, YStack } from 'tamagui';
 
 interface DynamicQrCodeProps {
-  /** Persistent opaque user.qr_code token for instant offline-ready scanning. */
+  /** Persistent hashed user.qr_code token for secure offline-ready scanning. */
   qrCode?: string | null;
-  /** user.student_id — fallback if user.qr_code is not yet populated. */
-  fallbackId: string;
+  /** Kept for prop compatibility; plain IDs are never encoded into the QR image. */
+  fallbackId?: string;
   size?: number;
 }
 
 /**
- * Renders the user's persistent library QR code immediately with no network
- * round-trips or expiration timers, eliminating mid-scan flicker and timeouts.
+ * Renders the user's persistent hashed library QR code (`QR-...`).
+ * Never falls back to encoding a raw student_id so plain IDs cannot be forged.
  */
-export function DynamicQrCode({ qrCode, fallbackId, size = 200 }: DynamicQrCodeProps) {
-  const value = qrCode || fallbackId;
-
+export function DynamicQrCode({ qrCode, size = 200 }: DynamicQrCodeProps) {
   return (
     <YStack alignItems="center" gap="$2">
       <YStack
@@ -24,8 +23,19 @@ export function DynamicQrCode({ qrCode, fallbackId, size = 200 }: DynamicQrCodeP
         borderRadius={14}
         alignItems="center"
         justifyContent="center"
+        width={size + 28}
+        height={size + 28}
       >
-        <QRCode value={value} size={size} color="#1e1e2e" backgroundColor="#ffffff" />
+        {qrCode ? (
+          <QRCode value={qrCode} size={size} color="#1e1e2e" backgroundColor="#ffffff" />
+        ) : (
+          <YStack alignItems="center" gap="$2">
+            <ActivityIndicator size="small" color="#6C48C5" />
+            <Text fontSize={12} color="#6b7280" textAlign="center">
+              Syncing secure QR pass...
+            </Text>
+          </YStack>
+        )}
       </YStack>
       <Text fontSize={12} color="#9ca3af" fontWeight="500">
         Scan at library desk for attendance & borrowing

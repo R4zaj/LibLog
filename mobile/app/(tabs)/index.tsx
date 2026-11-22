@@ -887,7 +887,7 @@ export default function Home() {
   );
 }
 
-const getStyles = (theme: any) => ({
+const getStyles = (theme: any) => StyleSheet.create({
   topUtilityBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, marginBottom: 24 },
   streakPill: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff7ed', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 9999 },
   streakCount: { fontSize: 14, fontWeight: '700', color: '#f97316', marginHorizontal: 6 },

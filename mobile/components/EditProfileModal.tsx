@@ -141,6 +141,10 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
   };
 
   const handleSave = async () => {
+    if (user?.role === 'VISITOR') {
+      setErrorMessage('Profile editing is disabled for Visitor accounts.');
+      return;
+    }
     if (!firstName.trim()) {
       setErrorMessage('First name cannot be empty.');
       return;
@@ -196,7 +200,7 @@ export function EditProfileModal({ visible, onClose }: EditProfileModalProps) {
       p.code?.toLowerCase().includes(programSearch.toLowerCase())
   );
 
-  if (!modalRendered && !visible) {
+  if ((!modalRendered && !visible) || user?.role === 'VISITOR') {
     return null;
   }
 

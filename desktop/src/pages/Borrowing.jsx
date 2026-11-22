@@ -129,21 +129,6 @@ export default function Borrowing() {
 
   const { fetchWithOfflineSupport } = useOfflineApi();
 
-  useEffect(() => {
-    fetchStats();
-    if (activeTab === 'Records') {
-      setRecordsPage(1);
-      fetchRecords();
-    }
-  }, [activeTab]);
-
-  useEffect(() => {
-    if (activeTab === 'Penalties') {
-      setPenaltiesPage(1);
-      fetchPenalties(penaltiesSubTab);
-    }
-  }, [activeTab, penaltiesSubTab]);
-
   const fetchRecords = async () => {
     setIsLoadingRecords(true);
     try {
@@ -164,6 +149,49 @@ export default function Borrowing() {
       console.error('Failed to fetch stats');
     }
   };
+
+  const fetchPenalties = async (statusOverride) => {
+    const status = statusOverride || penaltiesSubTab;
+    latestPenaltyStatusRef.current = status;
+    const cached = penaltiesCacheRef.current[status];
+    if (cached) {
+      setPenalties(cached);
+    } else {
+      setPenalties([]);
+    }
+    setIsLoadingPenalties(true);
+    try {
+      const res = await fetchWithOfflineSupport(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/borrowing/penalties?status=${status}`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }, `borrowing_penalties_${status}`);
+      if (res.ok) {
+        const data = await res.json();
+        penaltiesCacheRef.current[status] = data;
+        if (latestPenaltyStatusRef.current === status) {
+          setPenalties(data);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to fetch penalties');
+    } finally {
+      if (latestPenaltyStatusRef.current === status) {
+        setIsLoadingPenalties(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    fetchStats();
+    if (activeTab === 'Records') {
+      setRecordsPage(1);
+      fetchRecords();
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab === 'Penalties') {
+      setPenaltiesPage(1);
+      fetchPenalties(penaltiesSubTab);
+    }
+  }, [activeTab, penaltiesSubTab]);
 
   const handleCheckout = async () => {
     if (isCheckingOut) return;
@@ -236,34 +264,6 @@ export default function Borrowing() {
       setError('Server error during return');
     } finally {
       setIsProcessingReturn(false);
-    }
-  };
-
-  const fetchPenalties = async (statusOverride) => {
-    const status = statusOverride || penaltiesSubTab;
-    latestPenaltyStatusRef.current = status;
-    const cached = penaltiesCacheRef.current[status];
-    if (cached) {
-      setPenalties(cached);
-    } else {
-      setPenalties([]);
-    }
-    setIsLoadingPenalties(true);
-    try {
-      const res = await fetchWithOfflineSupport(`${import.meta.env.VITE_API_URL || 'https://liblog-backend.onrender.com/api'}/borrowing/penalties?status=${status}`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }, `borrowing_penalties_${status}`);
-      if (res.ok) {
-        const data = await res.json();
-        penaltiesCacheRef.current[status] = data;
-        if (latestPenaltyStatusRef.current === status) {
-          setPenalties(data);
-        }
-      }
-    } catch (e) {
-      console.error('Failed to fetch penalties');
-    } finally {
-      if (latestPenaltyStatusRef.current === status) {
-        setIsLoadingPenalties(false);
-      }
     }
   };
 
@@ -1607,16 +1607,16 @@ export default function Borrowing() {
               <button
                 type="button"
                 onClick={() => setActiveReceiptModal(null)}
-                className="px-4 py-2 border border-gray-200 dark:border-dark-border rounded-xl text-xs font-bold text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-dark-hover transition-colors cursor-pointer"
+                className="h-9 px-4 border border-gray-200 dark:border-dark-border rounded-lg text-sm font-semibold text-gray-700 dark:text-slate-300 bg-white dark:bg-dark-card hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors cursor-pointer"
               >
                 Close
               </button>
               <button
                 type="button"
                 onClick={() => window.print()}
-                className="px-5 py-2 bg-primary-800 hover:bg-primary-900 text-white rounded-xl text-xs font-bold inline-flex items-center gap-1.5 shadow-md shadow-primary-800/20 transition-all cursor-pointer"
+                className="h-9 px-4 bg-primary-800 hover:bg-primary-900 text-white rounded-lg text-sm font-semibold inline-flex items-center gap-1.5 transition-colors cursor-pointer"
               >
-                <Printer size={14} />
+                <Printer size={15} />
                 Print Official Receipt
               </button>
             </div>

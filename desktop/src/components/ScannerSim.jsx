@@ -330,7 +330,7 @@ export default function ScannerSim({
   const handleScanSuccess = (decodedText) => {
     // Deliberately NOT calling setIsScanning(false) here
     // so the camera remains active for continuous scanning!
-    if (onSubmit) onSubmit(decodedText);
+    if (onSubmit) onSubmit(decodedText, 'qr');
   };
 
   const handleInputChange = (e) => {
@@ -364,7 +364,7 @@ export default function ScannerSim({
       }
     }
 
-    onSubmit(finalVal);
+    onSubmit(finalVal, 'manual');
     setInputValue('');
   };
 

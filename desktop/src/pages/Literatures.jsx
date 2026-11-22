@@ -1392,7 +1392,7 @@ export default function Literatures() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleDeleteBook(book.id)}
+                            onClick={() => handleDelete(book.id)}
                             className="p-1.5 text-gray-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded transition-colors"
                             title="Archive Book"
                           >
@@ -2441,11 +2441,11 @@ export default function Literatures() {
               </div>
             </div>
             
-            <div className="px-6 py-4 bg-gray-50 dark:bg-dark-bg flex flex-col gap-3 shrink-0">
-              <button onClick={handleDownloadQR} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-800 text-white rounded-lg text-sm font-bold hover:bg-primary-900 shadow-sm transition-colors">
+            <div className="px-6 py-4 bg-gray-50 dark:bg-dark-bg border-t border-gray-100 dark:border-dark-border flex flex-col gap-2.5 shrink-0">
+              <button onClick={handleDownloadQR} className="w-full h-9 inline-flex items-center justify-center gap-2 px-4 bg-primary-800 text-white rounded-lg text-sm font-semibold hover:bg-primary-900 transition-colors cursor-pointer">
                 <Download size={16} /> Download QR Code
               </button>
-              <button onClick={() => setIsQRModalOpen(false)} className="w-full px-4 py-2.5 border border-gray-200 dark:border-dark-border text-gray-700 dark:text-slate-300 bg-white dark:bg-dark-card rounded-lg text-sm font-semibold hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors">
+              <button onClick={() => setIsQRModalOpen(false)} className="w-full h-9 inline-flex items-center justify-center px-4 border border-gray-200 dark:border-dark-border text-gray-700 dark:text-slate-300 bg-white dark:bg-dark-card rounded-lg text-sm font-semibold hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors cursor-pointer">
                 Close
               </button>
             </div>

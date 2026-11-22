@@ -35,6 +35,7 @@ export function AttendanceScannerProvider({ children }) {
   const [isScanning, setIsScanning] = useState(false);
   const [portalTarget, setPortalTarget] = useState(null);
   const [lastScan, setLastScan] = useState(null);
+  const [lastScanExiting, setLastScanExiting] = useState(false);
   const [toasts, setToasts] = useState([]);
   const [selectedDevice, setSelectedDevice] = useState('');
   const [cameraStream, setCameraStream] = useState(null);
@@ -53,6 +54,8 @@ export function AttendanceScannerProvider({ children }) {
   const { fetchWithOfflineSupport } = useOfflineApi();
 
   const processingRef = useRef(false);
+  const lastScanTimerRef = useRef(null);
+  const lastScanExitTimerRef = useRef(null);
 
   const pushToast = useCallback((toast) => {
     const id = Date.now() + Math.random();
@@ -69,7 +72,7 @@ export function AttendanceScannerProvider({ children }) {
     }
   }, [cameraStream]);
 
-  const handleScan = useCallback(async (identifier) => {
+  const handleScan = useCallback(async (identifier, source = 'qr') => {
     if (processingRef.current) return;
     processingRef.current = true;
     try {
@@ -81,7 +84,7 @@ export function AttendanceScannerProvider({ children }) {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,  
           'Content-Type': 'application/json'  
         },
-        body: JSON.stringify({ identifier })
+        body: JSON.stringify({ identifier, source })
       });
       const data = await res.json();
       if (res.ok) {
@@ -93,7 +96,19 @@ export function AttendanceScannerProvider({ children }) {
           time: new Date().toLocaleTimeString(),
           duration: data.duration
         };
+        if (lastScanTimerRef.current) clearTimeout(lastScanTimerRef.current);
+        if (lastScanExitTimerRef.current) clearTimeout(lastScanExitTimerRef.current);
+        setLastScanExiting(false);
         setLastScan(scanData);
+        lastScanExitTimerRef.current = setTimeout(() => {
+          setLastScanExiting(true);
+          lastScanExitTimerRef.current = null;
+        }, 1350);
+        lastScanTimerRef.current = setTimeout(() => {
+          setLastScan(null);
+          setLastScanExiting(false);
+          lastScanTimerRef.current = null;
+        }, 1500);
         pushToast(scanData);
         playScannerSound('success');
         setScanFeedback({
@@ -101,7 +116,7 @@ export function AttendanceScannerProvider({ children }) {
           title: userName,
           message: `${actionText} • ${scanData.time}`
         });
-        setTimeout(() => setScanFeedback(null), 2000);
+        setTimeout(() => setScanFeedback(null), 1500);
       } else {
         const message = (res.status === 401 || res.status === 403)
           ? (data.error === 'Invalid or expired QR token' ? data.error : (data.error || 'Session expired - please log in again'))
@@ -277,7 +292,7 @@ export function AttendanceScannerProvider({ children }) {
 
   return (
     <AttendanceScannerContext.Provider value={{ 
-      isScanning, setIsScanning, setPortalTarget, lastScan, setLastScan,
+      isScanning, setIsScanning, setPortalTarget, lastScan, lastScanExiting, setLastScan,
       handleScan, selectedDevice, setSelectedDevice, cameraStream,
       scanFeedback, setScanFeedback
     }}>

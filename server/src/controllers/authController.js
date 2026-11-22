@@ -229,7 +229,7 @@ const register = async (req, res) => {
     const uniqueQrCode = `QR-${crypto.randomBytes(16).toString('hex')}`;
 
     let programId = null;
-    if (role === 'STUDENT' && program) {
+    if (normalizedRole === 'STUDENT' && program) {
       const dbProgram = await prisma.program.findFirst({
         where: { name: program }
       });
@@ -304,11 +304,17 @@ const login = async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials.' });
     }
 
+    const crypto = require('crypto');
+    if (!user.qr_code || !user.qr_code.startsWith('QR-')) {
+      const hashedQr = `QR-${crypto.randomBytes(16).toString('hex')}`;
+      await prisma.user.update({ where: { id: user.id }, data: { qr_code: hashedQr } });
+      user.qr_code = hashedQr;
+    }
+
     const token = generateToken(user);
     const { password_hash, ...userWithoutPassword } = user;
     userWithoutPassword.stats = await computeUserStats(user.id);
     userWithoutPassword.penalty_balance = (await syncUserPenaltyBalance(prisma, user.id)).toFixed(2);
-    const crypto = require('crypto');
     userWithoutPassword.offline_secret = crypto.createHmac('sha256', process.env.JWT_SECRET).update(user.student_id).digest('hex');
     res.json({ user: userWithoutPassword, token });
   } catch (error) {
@@ -328,10 +334,16 @@ const getMe = async (req, res) => {
       return res.status(404).json({ error: 'User not found.' });
     }
 
+    const crypto = require('crypto');
+    if (!user.qr_code || !user.qr_code.startsWith('QR-')) {
+      const hashedQr = `QR-${crypto.randomBytes(16).toString('hex')}`;
+      await prisma.user.update({ where: { id: user.id }, data: { qr_code: hashedQr } });
+      user.qr_code = hashedQr;
+    }
+
     const { password_hash, ...userWithoutPassword } = user;
     userWithoutPassword.stats = await computeUserStats(req.user.id);
     userWithoutPassword.penalty_balance = (await syncUserPenaltyBalance(prisma, req.user.id)).toFixed(2);
-    const crypto = require('crypto');
     userWithoutPassword.offline_secret = crypto.createHmac('sha256', process.env.JWT_SECRET).update(user.student_id).digest('hex');
 
     res.json({ user: userWithoutPassword });
@@ -343,6 +355,9 @@ const getMe = async (req, res) => {
 
 const updateProfile = async (req, res) => {
   try {
+    if (req.user?.role === 'VISITOR') {
+      return res.status(403).json({ error: 'Profile editing is disabled for Visitor accounts.' });
+    }
     const { first_name, last_name, email, student_id, password, year_level, program } = req.body;
     
     // Build update object

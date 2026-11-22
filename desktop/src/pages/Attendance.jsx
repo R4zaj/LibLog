@@ -18,6 +18,7 @@ export default function Attendance() {
     setIsScanning: onStartScanner, 
     setPortalTarget,
     lastScan,
+    lastScanExiting,
     handleScan: onScanGlobal,
     selectedDevice: globalSelectedDevice,
     setSelectedDevice: onSelectGlobalDevice
@@ -193,7 +194,7 @@ export default function Attendance() {
           />
           
           {lastScan && (
-            <div className={`absolute top-4 right-4 p-4 rounded-lg border shadow-sm animate-fade-in w-72 ${lastScan.action === 'CHECK_IN' ? 'bg-green-50 border-green-200' : 'bg-orange-50 border-orange-200'}`}>
+            <div className={`absolute top-4 right-4 p-4 rounded-lg border shadow-sm w-72 ${lastScanExiting ? 'animate-scan-out pointer-events-none' : 'animate-scan-in'} ${lastScan.action === 'CHECK_IN' ? 'bg-green-50 border-green-200' : 'bg-orange-50 border-orange-200'}`}>
               <div className="flex items-center gap-3">
                 <div className={`p-2 rounded-full ${lastScan.action === 'CHECK_IN' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
                   {lastScan.action === 'CHECK_IN' ? <LogIn size={20} /> : <LogOut size={20} />}

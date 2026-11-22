@@ -53,8 +53,9 @@ const validateBook = async (req, res) => {
 const validateUser = async (req, res) => {
   try {
     const { identifier } = req.params;
-
+    const isManual = req.query.source === 'manual';
     let searchId = identifier;
+    let verifiedToken = false;
 
     if (identifier.startsWith('OFFLINE:')) {
       const parts = identifier.split(':');
@@ -69,6 +70,7 @@ const validateUser = async (req, res) => {
         const expectedHmac = crypto.createHmac('sha256', offlineSecret).update(ts).digest('hex');
         if (hmac === expectedHmac) {
            searchId = stId;
+           verifiedToken = true;
         } else {
            return res.status(401).json({ error: 'Invalid offline QR signature' });
         }
@@ -80,24 +82,22 @@ const validateUser = async (req, res) => {
         const decoded = jwt.verify(identifier, process.env.JWT_SECRET);
         if (decoded && decoded.student_id) {
           searchId = decoded.student_id;
+          verifiedToken = true;
         }
       } catch (err) {
         return res.status(401).json({ error: 'Invalid or expired QR token' });
       }
     }
 
-    // First, try to match against the full exact identifier
+    // Camera QR scans must match the hashed qr_code (or verified token); plain student IDs are only allowed via manual entry.
     let user = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { student_id: searchId },
-          { card_no: searchId }
-        ]
-      }
+      where: (verifiedToken || isManual)
+        ? { OR: [{ student_id: searchId }, { card_no: searchId }, { qr_code: searchId }] }
+        : { qr_code: searchId }
     });
 
-    // If not found and identifier starts with CCC-, try without prefix
-    if (!user && searchId.startsWith('CCC-')) {
+    // If manual or verified token and identifier starts with CCC-, try without prefix
+    if (!user && (verifiedToken || isManual) && searchId.startsWith('CCC-')) {
       const studentId = searchId.replace('CCC-', '');
       user = await prisma.user.findFirst({
         where: {
@@ -107,6 +107,22 @@ const validateUser = async (req, res) => {
           ]
         }
       });
+    }
+
+    if (!user && !verifiedToken && !isManual) {
+      const plainMatch = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { student_id: searchId },
+            { card_no: searchId },
+            ...(searchId.startsWith('CCC-') ? [{ student_id: searchId.replace('CCC-', '') }] : [])
+          ]
+        },
+        select: { id: true }
+      });
+      if (plainMatch) {
+        return res.status(401).json({ error: 'Invalid QR code. Plain student IDs cannot be scanned; please use your official app QR pass.' });
+      }
     }
 
     if (!user) {
@@ -244,7 +260,9 @@ const checkout = async (req, res) => {
 const getUserActiveBorrow = async (req, res) => {
   try {
     const { bookIdentifier, userIdentifier } = req.params;
+    const isManual = req.query.source === 'manual';
     let studentId = userIdentifier;
+    let verifiedToken = false;
 
     if (userIdentifier.startsWith('OFFLINE:')) {
       const parts = userIdentifier.split(':');
@@ -259,6 +277,7 @@ const getUserActiveBorrow = async (req, res) => {
         const expectedHmac = crypto.createHmac('sha256', offlineSecret).update(ts).digest('hex');
         if (hmac === expectedHmac) {
            studentId = stId;
+           verifiedToken = true;
         } else {
            return res.status(401).json({ error: 'Invalid offline QR signature' });
         }
@@ -270,9 +289,23 @@ const getUserActiveBorrow = async (req, res) => {
         const decoded = jwt.verify(userIdentifier, process.env.JWT_SECRET);
         if (decoded && decoded.student_id) {
           studentId = decoded.student_id;
+          verifiedToken = true;
         }
       } catch (err) {
         return res.status(401).json({ error: 'Invalid or expired QR token' });
+      }
+    }
+
+    if (!verifiedToken && !isManual) {
+      const plainMatch = await prisma.user.findFirst({
+        where: {
+          OR: [{ student_id: studentId }, { card_no: studentId }],
+          NOT: { qr_code: studentId }
+        },
+        select: { id: true }
+      });
+      if (plainMatch) {
+        return res.status(401).json({ error: 'Invalid QR code. Plain student IDs cannot be scanned; please use your official app QR pass.' });
       }
     }
 
@@ -284,13 +317,15 @@ const getUserActiveBorrow = async (req, res) => {
             { qr_code: bookIdentifier }
           ]
         },
-        user: {
-          OR: [
-            { student_id: studentId },
-            { card_no: studentId },
-            { qr_code: studentId }
-          ]
-        },
+        user: (verifiedToken || isManual)
+          ? {
+              OR: [
+                { student_id: studentId },
+                { card_no: studentId },
+                { qr_code: studentId }
+              ]
+            }
+          : { qr_code: studentId },
         status: {
           in: ['BORROWED', 'OVERDUE']
         }

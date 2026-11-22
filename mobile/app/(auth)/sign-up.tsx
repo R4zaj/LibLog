@@ -45,8 +45,9 @@ export default function SignUp() {
       try {
         const res = await api.get('/settings/programs');
         if (res.data && Array.isArray(res.data)) {
-          setProgramsList(res.data.map((p: any) => p.name));
-          if (res.data.length > 0) setProgram(res.data[0].name);
+          const names = res.data.map((p: any) => p.name);
+          setProgramsList(names);
+          if (names.length > 0 && role === 'STUDENT') setProgram(names[0]);
         }
       } catch (err) {
         console.error('Failed to load programs', err);
@@ -62,6 +63,17 @@ export default function SignUp() {
   const isPasswordValid = hasMinLength && hasUpperCase && hasLowerCase && hasSymbol;
 
   const years = ['1st Year', '2nd Year', '3rd Year', '4th Year'];
+
+  const handleSelectRole = (nextRole: 'STUDENT' | 'VISITOR') => {
+    setRole(nextRole);
+    if (nextRole === 'VISITOR') {
+      setProgram('');
+      setYearLevel('');
+    } else {
+      if (!program) setProgram(programsList[0] || 'Computer Science');
+      if (!yearLevel) setYearLevel('1st Year');
+    }
+  };
 
   const handleNext = async () => {
     setError('');
@@ -194,7 +206,7 @@ export default function SignUp() {
 
               <TouchableOpacity
                 style={[styles.roleCard, role === 'STUDENT' && styles.roleCardActive]}
-                onPress={() => setRole('STUDENT')}
+                onPress={() => handleSelectRole('STUDENT')}
               >
                 <View style={styles.roleCardInner}>
                   <View style={[styles.roleIcon, role === 'STUDENT' && styles.roleIconActive]}>
@@ -210,7 +222,7 @@ export default function SignUp() {
 
               <TouchableOpacity
                 style={[styles.roleCard, role === 'VISITOR' && styles.roleCardActive]}
-                onPress={() => setRole('VISITOR')}
+                onPress={() => handleSelectRole('VISITOR')}
               >
                 <View style={styles.roleCardInner}>
                   <View style={[styles.roleIcon, role === 'VISITOR' && styles.roleIconActive]}>
@@ -247,11 +259,20 @@ export default function SignUp() {
                 onChangeText={setLastName}
               />
 
+              {role === 'VISITOR' && (
+                <View style={styles.visitorNotice}>
+                  <Text style={styles.visitorNoticeTitle}>Visitor Guest Pass</Text>
+                  <Text style={styles.visitorNoticeText}>
+                    No program or year level required. Visitor accounts are for library attendance and Read in Library use only.
+                  </Text>
+                </View>
+              )}
+
             </View>
           )}
 
-          {/* STEP 3: ACADEMIC INFORMATION */}
-          {step === 3 && (
+          {/* STEP 3: ACADEMIC INFORMATION (Students only) */}
+          {step === 3 && role === 'STUDENT' && (
             <View style={styles.stepContent}>
               <View style={styles.stepHeader}>
                 {renderLogo()}
@@ -471,4 +492,7 @@ const styles = StyleSheet.create({
   buttonDisabled: { opacity: 0.7 },
   buttonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
   errorText: { color: '#ef4444', marginBottom: 16, textAlign: 'center', backgroundColor: '#fee2e2', padding: 12, borderRadius: 8 },
+  visitorNotice: { marginTop: 8, backgroundColor: '#f5f3ff', borderWidth: 1, borderColor: '#ddd6fe', borderRadius: 14, padding: 14 },
+  visitorNoticeTitle: { fontSize: 13, fontWeight: '700', color: '#5b21b6', marginBottom: 4 },
+  visitorNoticeText: { fontSize: 12, color: '#6b7280', lineHeight: 18 },
 });

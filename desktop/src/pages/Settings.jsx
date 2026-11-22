@@ -799,7 +799,13 @@ export default function Settings() {
                           </select>
                         )}
                       </td>
-                      <td className="p-4 text-gray-600 dark:text-slate-300">{u.program}</td>
+                      <td className="p-4 text-gray-600 dark:text-slate-300">
+                        {(pendingRoleChanges[u.id] || u.role) === 'VISITOR' ? (
+                          <span className="text-xs text-gray-400 dark:text-slate-500 italic">Visitor Pass</span>
+                        ) : (
+                          u.program
+                        )}
+                      </td>
                       <td className="p-4 text-center">
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${u.status === 'ACTIVE' ? 'bg-green-50 text-green-700 border-green-100' : 'bg-red-50 text-red-700 border-red-100'}`}>
                           {u.status}

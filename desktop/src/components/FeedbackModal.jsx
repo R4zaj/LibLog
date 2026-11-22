@@ -97,7 +97,7 @@ export function StatusModal({
             <button
               type="button"
               onClick={onSecondaryAction}
-              className="px-4 py-2 rounded-xl text-sm font-semibold border border-gray-200 dark:border-dark-border text-gray-700 dark:text-slate-200 bg-white dark:bg-dark-card hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors cursor-pointer"
+              className="h-9 px-4 rounded-lg text-sm font-semibold border border-gray-200 dark:border-dark-border text-gray-700 dark:text-slate-200 bg-white dark:bg-dark-card hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors cursor-pointer"
             >
               {secondaryLabel}
             </button>
@@ -105,7 +105,7 @@ export function StatusModal({
           <button
             type="button"
             onClick={onClose}
-            className={`px-5 py-2 rounded-xl text-sm font-semibold transition-colors cursor-pointer ${style.button}`}
+            className={`h-9 px-4 rounded-lg text-sm font-semibold transition-colors cursor-pointer ${style.button}`}
           >
             {primaryLabel}
           </button>
@@ -203,7 +203,7 @@ export function ConfirmModal({
             type="button"
             disabled={isLoading}
             onClick={onClose}
-            className="px-4 py-2 rounded-xl text-sm font-semibold border border-gray-200 dark:border-dark-border text-gray-700 dark:text-slate-300 bg-white dark:bg-dark-card hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+            className="h-9 px-4 rounded-lg text-sm font-semibold border border-gray-200 dark:border-dark-border text-gray-700 dark:text-slate-300 bg-white dark:bg-dark-card hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
           >
             {cancelLabel}
           </button>
@@ -211,7 +211,7 @@ export function ConfirmModal({
             type="button"
             disabled={isLoading}
             onClick={onConfirm}
-            className={`px-4 py-2 rounded-xl text-sm font-semibold transition-colors inline-flex items-center justify-center gap-2 min-w-[110px] disabled:opacity-75 cursor-pointer disabled:cursor-not-allowed ${style.button}`}
+            className={`h-9 px-4 rounded-lg text-sm font-semibold transition-colors inline-flex items-center justify-center gap-2 min-w-[110px] disabled:opacity-75 cursor-pointer disabled:cursor-not-allowed ${style.button}`}
           >
             {isLoading && <Loader2 size={15} className="animate-spin" />}
             <span>{isLoading ? loadingLabel : confirmLabel}</span>
