@@ -1903,7 +1903,11 @@ export default function Literatures() {
             />
           </div>
           <div className="flex gap-3">
-            <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 dark:border-dark-border rounded bg-white dark:bg-dark-card text-sm font-medium text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-dark-hover shadow-sm">
+            <button
+              type="button"
+              onClick={() => setSelectedQRs(filteredQRBooks.map(b => b.id))}
+              className="flex items-center gap-2 px-4 py-2 border border-gray-200 dark:border-dark-border rounded bg-white dark:bg-dark-card text-sm font-medium text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-dark-hover shadow-sm cursor-pointer"
+            >
               <QrCode size={16} /> Generate QR Codes
             </button>
             <div className={`overflow-hidden transition-all duration-300 transform origin-left ${selectedQRs.length > 0 ? 'max-w-[200px] opacity-100 scale-100' : 'max-w-0 opacity-0 scale-50 -ml-3'}`}>

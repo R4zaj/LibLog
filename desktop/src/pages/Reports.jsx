@@ -1953,7 +1953,14 @@ export default function Reports() {
               <div className="flex border border-gray-200 dark:border-dark-border rounded-full overflow-hidden p-0.5 bg-gray-50">
                 <button className="px-2 py-0.5 text-[9px] font-bold rounded-full transition-colors bg-purple-700 text-white shadow-sm">Area</button>
               </div>
-              <button className="text-purple-600 hover:bg-purple-50 p-1 rounded transition-colors"><Download size={14} /></button>
+              <button
+                type="button"
+                onClick={() => handleDownloadChartCSV('borrow_trend.csv', ['Date', 'Borrows'], (data.trendAnalysis || []).map(d => [d.date, d.borrows ?? 0]))}
+                className="text-purple-600 hover:bg-purple-50 dark:hover:bg-dark-hover p-1 rounded transition-colors cursor-pointer"
+                title="Download Borrow Trend CSV"
+              >
+                <Download size={14} />
+              </button>
             </div>
           </div>
           <div className="flex-1 w-full min-h-[200px]">

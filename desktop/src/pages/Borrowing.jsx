@@ -494,7 +494,11 @@ export default function Borrowing() {
             <h2 className="text-2xl font-bold text-gray-800 dark:text-slate-300">Borrowing & Distribution</h2>
             <span className="text-sm text-gray-500 dark:text-slate-400">Manage book borrowing, returns, and penalties</span>
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 dark:border-dark-border rounded-lg text-sm font-medium text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-dark-hover dark:bg-dark-bg bg-white dark:bg-dark-card">
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="flex items-center gap-2 px-4 py-2 border border-gray-200 dark:border-dark-border rounded-lg text-sm font-medium text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-dark-hover dark:bg-dark-bg bg-white dark:bg-dark-card cursor-pointer"
+          >
             <Printer size={16} /> Print
           </button>
         </div>

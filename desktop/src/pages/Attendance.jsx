@@ -472,7 +472,6 @@ export default function Attendance() {
             <div className="flex items-center gap-3">
               <span className="px-2 py-0.5 bg-purple-50 text-purple-700 text-[10px] font-bold rounded-full">{stats.insideNow} Inside</span>
               <span className="px-2 py-0.5 bg-gray-100 text-gray-600 dark:text-slate-300 text-[10px] font-bold rounded-full">{stats.checkOuts} Outside</span>
-              <button className="text-xs font-bold text-gray-700 hover:text-purple-600 ml-2">v Expand</button>
             </div>
           </div>
         </div>

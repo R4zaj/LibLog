@@ -141,6 +141,8 @@ export default function HistoryScreen() {
   const [loading, setLoading] = useState(true);
   const [isSearchVisible, setIsSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isDateFilterVisible, setIsDateFilterVisible] = useState(false);
+  const [dateRange, setDateRange] = useState<'ALL' | 'TODAY' | 'WEEK' | 'MONTH'>('ALL');
   const [collapsedDays, setCollapsedDays] = useState<Record<string, boolean>>({});
   
   const { setTabBarVisible } = React.useContext(TabBarVisibilityContext);
@@ -292,6 +294,21 @@ export default function HistoryScreen() {
   );
 
   const filteredEvents = events.filter((e) => {
+    if (dateRange !== 'ALL') {
+      const eventTime = new Date(e.timestamp).getTime();
+      if (!isNaN(eventTime)) {
+        const now = new Date();
+        if (dateRange === 'TODAY') {
+          const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+          if (eventTime < startOfDay) return false;
+        } else if (dateRange === 'WEEK') {
+          if (eventTime < now.getTime() - 7 * 24 * 60 * 60 * 1000) return false;
+        } else if (dateRange === 'MONTH') {
+          if (eventTime < now.getTime() - 30 * 24 * 60 * 60 * 1000) return false;
+        }
+      }
+    }
+
     if (searchQuery.trim() !== '') {
       const q = searchQuery.toLowerCase();
       const matchesTitle = e.title.toLowerCase().includes(q);
@@ -358,11 +375,46 @@ export default function HistoryScreen() {
           >
             <Search color={isSearchVisible ? theme.primary : theme.textSecondary} size={20} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.utilityChip} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Calendar color={theme.textSecondary} size={20} />
+          <TouchableOpacity 
+            style={[styles.utilityChip, (isDateFilterVisible || dateRange !== 'ALL') && { borderColor: theme.primary }]} 
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            onPress={() => setIsDateFilterVisible(!isDateFilterVisible)}
+          >
+            <Calendar color={(isDateFilterVisible || dateRange !== 'ALL') ? theme.primary : theme.textSecondary} size={20} />
           </TouchableOpacity>
         </XStack>
       </XStack>
+
+      {isDateFilterVisible && (
+        <XStack paddingHorizontal={24} paddingBottom={12} gap={8} flexWrap="wrap">
+          {([
+            { key: 'ALL', label: 'All Time' },
+            { key: 'TODAY', label: 'Today' },
+            { key: 'WEEK', label: '7 Days' },
+            { key: 'MONTH', label: '30 Days' },
+          ] as const).map((opt) => {
+            const active = dateRange === opt.key;
+            return (
+              <TouchableOpacity
+                key={opt.key}
+                onPress={() => setDateRange(opt.key)}
+                style={{
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 9999,
+                  borderWidth: 1,
+                  borderColor: active ? theme.primary : theme.border,
+                  backgroundColor: active ? theme.pillActive : theme.card,
+                }}
+              >
+                <Text style={{ fontSize: 12, fontWeight: active ? '700' : '500', color: active ? theme.pillTextActive : theme.textSecondary }}>
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </XStack>
+      )}
 
       {isSearchVisible && (
         <View style={{ paddingHorizontal: 24, paddingBottom: 16 }}>

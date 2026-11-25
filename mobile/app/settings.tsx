@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, Easing, useColorScheme, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, Easing, useColorScheme, Alert, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
-import { ChevronRight, RefreshCw, MessageSquare, ArrowLeft, User, Edit } from 'lucide-react-native';
+import { ChevronRight, RefreshCw, MessageSquare, ArrowLeft, User, Edit, Lock } from 'lucide-react-native';
 import * as Updates from 'expo-updates';
 import { useLanguage } from '../context/LanguageContext';
 import { useAppTheme } from '../context/ThemeContext';
@@ -17,7 +17,22 @@ export default function SettingsScreen() {
   
   const [editProfileVisible, setEditProfileVisible] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const isVisitor = user?.role === 'VISITOR';
   const spinValue = React.useRef(new Animated.Value(0)).current;
+
+  const handleSendFeedback = async () => {
+    const mailUrl = 'mailto:library@ccc.edu.ph?subject=CCC%20LibLog%20Mobile%20Feedback';
+    try {
+      const supported = await Linking.canOpenURL(mailUrl);
+      if (supported) {
+        await Linking.openURL(mailUrl);
+      } else {
+        Alert.alert('Send Feedback', 'Please email your feedback to library@ccc.edu.ph.');
+      }
+    } catch {
+      Alert.alert('Send Feedback', 'Please email your feedback to library@ccc.edu.ph.');
+    }
+  };
 
   const handleUpdateCheck = async () => {
     setIsUpdating(true);
@@ -122,10 +137,13 @@ export default function SettingsScreen() {
         {/* Account / Edit Profile */}
         <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
           <Text style={[styles.cardTitle, { color: theme.text }]}>{t('Account')}</Text>
-          <Text style={[styles.cardSubtitle, { color: theme.textSecondary }]}>{t('AccountSubtitle')}</Text>
+          <Text style={[styles.cardSubtitle, { color: theme.textSecondary }]}>
+            {isVisitor ? 'Profile editing is disabled for Visitor accounts' : t('AccountSubtitle')}
+          </Text>
           <TouchableOpacity 
-            style={[styles.profileCardRow, { backgroundColor: theme.background, borderColor: theme.border }]} 
-            onPress={() => setEditProfileVisible(true)}
+            style={[styles.profileCardRow, { backgroundColor: theme.background, borderColor: theme.border, opacity: isVisitor ? 0.55 : 1 }]} 
+            onPress={() => { if (!isVisitor) setEditProfileVisible(true); }}
+            disabled={isVisitor}
             activeOpacity={0.7}
           >
             <View style={[styles.avatarBox, { backgroundColor: '#6C48C5' }]}>
@@ -141,9 +159,18 @@ export default function SettingsScreen() {
                 {user?.email || 'Tap to edit profile'}
               </Text>
             </View>
-            <View style={[styles.editBadge, { backgroundColor: theme.pillContainer }]}>
-              <Edit color={theme.primary} size={14} style={{ marginRight: 4 }} />
-              <Text style={[styles.editBadgeText, { color: theme.primary }]}>Edit</Text>
+            <View style={[styles.editBadge, { backgroundColor: isVisitor ? theme.border : theme.pillContainer }]}>
+              {isVisitor ? (
+                <>
+                  <Lock color={theme.textSecondary} size={13} style={{ marginRight: 4 }} />
+                  <Text style={[styles.editBadgeText, { color: theme.textSecondary }]}>Disabled</Text>
+                </>
+              ) : (
+                <>
+                  <Edit color={theme.primary} size={14} style={{ marginRight: 4 }} />
+                  <Text style={[styles.editBadgeText, { color: theme.primary }]}>Edit</Text>
+                </>
+              )}
             </View>
           </TouchableOpacity>
         </View>
@@ -193,7 +220,7 @@ export default function SettingsScreen() {
             <ChevronRight color={theme.textSecondary} size={20} />
           </TouchableOpacity>
           <View style={[styles.separator, { backgroundColor: theme.separator }]} />
-          <TouchableOpacity style={styles.row}>
+          <TouchableOpacity style={styles.row} onPress={handleSendFeedback}>
             <Text style={[styles.rowText, { color: theme.text }]}>{t('SendFeedback')}</Text>
             <MessageSquare color={theme.textSecondary} size={20} />
           </TouchableOpacity>
@@ -209,10 +236,12 @@ export default function SettingsScreen() {
 
       </ScrollView>
 
-      <EditProfileModal
-        visible={editProfileVisible}
-        onClose={() => setEditProfileVisible(false)}
-      />
+      {!isVisitor && (
+        <EditProfileModal
+          visible={editProfileVisible}
+          onClose={() => setEditProfileVisible(false)}
+        />
+      )}
     </SafeAreaView>
   );
 }
