@@ -194,9 +194,11 @@ const register = async (req, res) => {
 
     otpStore.delete(email); // consume OTP
 
-    // Check if user exists
+    const cleanEmail = email.trim().toLowerCase();
+
+    // Check if user exists (case-insensitive)
     const existingUser = await prisma.user.findFirst({
-      where: { email }
+      where: { email: { equals: cleanEmail, mode: 'insensitive' } }
     });
 
     if (existingUser) {
@@ -240,9 +242,9 @@ const register = async (req, res) => {
 
     const user = await prisma.user.create({
       data: {
-        first_name,
-        last_name,
-        email,
+        first_name: first_name.trim(),
+        last_name: last_name.trim(),
+        email: cleanEmail,
         student_id,
         card_no: student_id, // defaulting to student_id since UI doesn't provide separate card_no
         password_hash: hashedPassword,

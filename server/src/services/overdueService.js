@@ -32,7 +32,7 @@ async function checkAndProcessOverdueBooks() {
         include: { author: true }
       },
       penalties: {
-        where: { status: 'UNPAID', type: 'OVERDUE' }
+        where: { type: 'OVERDUE' }
       }
     }
   });
@@ -62,7 +62,7 @@ async function checkAndProcessOverdueBooks() {
       // Calculate exact days overdue and penalty fee using central calculator
       const { daysOverdue, penaltyAmount, dailyRate: itemDailyRate } = calculateOverdueDetails(record, settings, record.penalties[0]);
 
-      // Upsert unpaid overdue penalty record
+      // Upsert overdue penalty record (skip if already PAID to prevent duplicates)
       let penaltyRecord = record.penalties[0];
       if (!penaltyRecord) {
         penaltyRecord = await prisma.penalty.create({
@@ -76,7 +76,7 @@ async function checkAndProcessOverdueBooks() {
           }
         });
         results.penaltiesUpdated++;
-      } else {
+      } else if (penaltyRecord.status === 'UNPAID') {
         // Update days and amount if changed
         if (penaltyRecord.days_overdue !== daysOverdue) {
           await prisma.penalty.update({

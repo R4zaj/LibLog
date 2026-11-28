@@ -202,18 +202,6 @@ const checkout = async (req, res) => {
     }
 
     const settings = await prisma.librarySettings.findFirst();
-    if (settings) {
-      const activeBorrows = await prisma.borrowRecord.count({
-        where: {
-          user_id: uId,
-          status: { in: ['BORROWED', 'OVERDUE'] }
-        }
-      });
-
-      if (activeBorrows >= parseInt(settings.max_books_per_user)) {
-        return res.status(400).json({ error: `User has reached the maximum limit of ${settings.max_books_per_user} borrowed books.` });
-      }
-    }
 
     const dueDate = new Date();
     
@@ -229,10 +217,43 @@ const checkout = async (req, res) => {
     }
 
     const record = await prisma.$transaction(async (tx) => {
-      await tx.book.update({
-        where: { id: bId },
+      const duplicateBorrow = await tx.borrowRecord.findFirst({
+        where: {
+          book_id: bId,
+          user_id: uId,
+          status: { in: ['BORROWED', 'OVERDUE'] }
+        },
+        select: { id: true }
+      });
+      if (duplicateBorrow) {
+        const err = new Error('User already has an active borrow for this book.');
+        err.statusCode = 400;
+        throw err;
+      }
+
+      if (settings) {
+        const activeBorrows = await tx.borrowRecord.count({
+          where: {
+            user_id: uId,
+            status: { in: ['BORROWED', 'OVERDUE'] }
+          }
+        });
+        if (activeBorrows >= parseInt(settings.max_books_per_user)) {
+          const err = new Error(`User has reached the maximum limit of ${settings.max_books_per_user} borrowed books.`);
+          err.statusCode = 400;
+          throw err;
+        }
+      }
+
+      const decremented = await tx.book.updateMany({
+        where: { id: bId, available_copies: { gt: 0 } },
         data: { available_copies: { decrement: 1 } }
       });
+      if (decremented.count === 0) {
+        const err = new Error('No available copies of this book');
+        err.statusCode = 400;
+        throw err;
+      }
 
       const record = await tx.borrowRecord.create({
         data: {
@@ -252,6 +273,9 @@ const checkout = async (req, res) => {
 
     res.json({ message: 'Checkout successful', record });
   } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ error: error.message });
+    }
     console.error('Checkout Error:', error);
     res.status(500).json({ error: 'Server error' });
   }
@@ -360,13 +384,22 @@ const returnBook = async (req, res) => {
     }
 
     await prisma.$transaction(async (tx) => {
-      await tx.borrowRecord.update({
-        where: { id: borrowId },
+      const claimed = await tx.borrowRecord.updateMany({
+        where: {
+          id: borrowId,
+          status: { in: ['BORROWED', 'OVERDUE'] }
+        },
         data: {
           return_date: new Date(),
           status: 'RETURNED'
         }
       });
+
+      if (claimed.count === 0) {
+        const err = new Error('This borrow record has already been returned.');
+        err.statusCode = 400;
+        throw err;
+      }
 
       const bookToReturn = await tx.book.findUnique({ where: { id: record.book_id } });
       if (bookToReturn && bookToReturn.available_copies < bookToReturn.total_copies) {
@@ -387,12 +420,12 @@ const returnBook = async (req, res) => {
         const penaltyAmount = daysLate * penaltyFee;
         
         if (daysLate > 0) {
-          // Check if an UNPAID penalty record already exists for this borrow to prevent duplicates
+          // Check all OVERDUE penalties for this borrow (including PAID) to prevent duplicates
           let penalty = await tx.penalty.findFirst({
-            where: { borrow_id: record.id, status: 'UNPAID' }
+            where: { borrow_id: record.id, type: 'OVERDUE' }
           });
 
-          if (penalty) {
+          if (penalty && penalty.status === 'UNPAID') {
             penalty = await tx.penalty.update({
               where: { id: penalty.id },
               data: {
@@ -400,11 +433,12 @@ const returnBook = async (req, res) => {
                 amount: penaltyAmount
               }
             });
-          } else {
+          } else if (!penalty) {
             penalty = await tx.penalty.create({
               data: {
                 user_id: record.user_id,
                 borrow_id: record.id,
+                type: 'OVERDUE',
                 amount: penaltyAmount,
                 days_overdue: daysLate,
                 status: 'UNPAID'
@@ -412,14 +446,16 @@ const returnBook = async (req, res) => {
             });
           }
 
-          await notifyPenalty({
-            user: record.user,
-            book: record.book,
-            amount: penaltyAmount,
-            reason: 'OVERDUE',
-            penaltyId: penalty.id,
+          if (penalty && penalty.status === 'UNPAID') {
+            await notifyPenalty({
+              user: record.user,
+              book: record.book,
+              amount: penaltyAmount,
+              reason: 'OVERDUE',
+              penaltyId: penalty.id,
             tx
           });
+          }
         }
       }
 
@@ -587,8 +623,8 @@ const payPenalty = async (req, res) => {
         });
       }
 
-      await tx.penalty.update({
-        where: { id: parseInt(id) },
+      const claimedPenalty = await tx.penalty.updateMany({
+        where: { id: parseInt(id), status: 'UNPAID' },
         data: { 
           status: 'PAID', 
           paid_at: paidDate,
@@ -597,6 +633,12 @@ const payPenalty = async (req, res) => {
           amount: finalAmount
         }
       });
+
+      if (claimedPenalty.count === 0) {
+        const err = new Error('Penalty is already paid.');
+        err.statusCode = 400;
+        throw err;
+      }
 
       await syncUserPenaltyBalance(tx, penalty.user_id, settings);
 
@@ -776,13 +818,14 @@ const getUserPenalties = async (req, res) => {
       include: {
         book: true,
         penalties: {
-          where: { status: 'UNPAID', type: 'OVERDUE' }
+          where: { type: 'OVERDUE' }
         }
       }
     });
 
     for (const record of activeBorrows) {
-      const details = calculateOverdueDetails(record, settings, record.penalties[0] || null);
+      const existingPenalty = record.penalties[0] || null;
+      const details = calculateOverdueDetails(record, settings, existingPenalty);
       if (details.daysOverdue > 0) {
         if (record.status !== 'OVERDUE') {
           await prisma.borrowRecord.update({
@@ -790,7 +833,7 @@ const getUserPenalties = async (req, res) => {
             data: { status: 'OVERDUE' }
           });
         }
-        if (!record.penalties || record.penalties.length === 0) {
+        if (!existingPenalty) {
           await prisma.penalty.create({
             data: {
               borrow_id: record.id,
@@ -802,11 +845,13 @@ const getUserPenalties = async (req, res) => {
             }
           });
         } else if (
-          record.penalties[0].days_overdue !== details.daysOverdue ||
-          parseFloat(record.penalties[0].amount) !== details.penaltyAmount
+          existingPenalty.status === 'UNPAID' && (
+            existingPenalty.days_overdue !== details.daysOverdue ||
+            parseFloat(existingPenalty.amount) !== details.penaltyAmount
+          )
         ) {
           await prisma.penalty.update({
-            where: { id: record.penalties[0].id },
+            where: { id: existingPenalty.id },
             data: {
               days_overdue: details.daysOverdue,
               amount: details.penaltyAmount

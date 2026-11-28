@@ -219,6 +219,9 @@ const createBook = async (req, res) => {
 
     res.json(book);
   } catch (error) {
+    if (error.code === 'P2002') {
+      return res.status(400).json({ error: 'A book with this ISBN or QR code already exists.' });
+    }
     console.error('Error creating book:', error);
     res.status(500).json({ error: 'Server error creating book' });
   }

@@ -188,6 +188,10 @@ const scanQR = async (req, res) => {
       orderBy: { logged_at: 'desc' }
     });
 
+    if (lastLog && (Date.now() - new Date(lastLog.logged_at).getTime()) < 5000) {
+      return res.status(429).json({ error: 'Already scanned moments ago. Please wait a few seconds.' });
+    }
+
     let action = 'CHECK_IN';
     let duration = null;
 
